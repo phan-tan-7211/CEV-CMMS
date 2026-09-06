@@ -13,10 +13,15 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "mobile:start": "npm --prefix apps/mobile run start",
+    "mobile:go": "npm --prefix apps/mobile run start:go",
     "mobile:tunnel": "npm --prefix apps/mobile run start:tunnel",
     "mobile:web": "npm --prefix apps/mobile run web",
+    "mobile:android": "npm --prefix apps/mobile run android",
+    "mobile:android:device": "npm --prefix apps/mobile run android:device",
     "mobile:typecheck": "npm --prefix apps/mobile run typecheck",
-    "mobile:doctor": "npm --prefix apps/mobile run doctor"
+    "mobile:doctor": "npm --prefix apps/mobile run doctor",
+    "mobile:eas:init": "npm --prefix apps/mobile run eas:init",
+    "mobile:build:android:dev": "npm --prefix apps/mobile run build:android:dev"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.114.0",
