@@ -37,6 +37,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Mobile typecheck
         run: npm run typecheck
+      - name: Mobile web bundle
+        run: npm run bundle:web
 
   browser-smoke:
     runs-on: ubuntu-24.04
@@ -61,4 +63,3 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
-
