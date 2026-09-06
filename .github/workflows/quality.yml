@@ -35,6 +35,8 @@ jobs:
           node-version: 24
       - name: Install mobile dependencies
         run: npm install --no-audit --no-fund
+      - name: Expo doctor
+        run: npm run doctor
       - name: Mobile typecheck
         run: npm run typecheck
       - name: Mobile web bundle
