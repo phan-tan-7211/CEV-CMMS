@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "CEV CMMS",
+    "slug": "cev-cmms",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.cev.cmms"
+    },
+    "ios": {
+      "bundleIdentifier": "com.cev.cmms"
+    }
+  }
+}
