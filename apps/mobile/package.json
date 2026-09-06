@@ -7,6 +7,7 @@
     "start": "expo start",
     "start:tunnel": "expo start --tunnel",
     "web": "expo start --web",
+    "bundle:web": "expo export --platform web --output-dir dist-web",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "typecheck": "tsc --noEmit",
@@ -14,6 +15,7 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
+    "@expo/vector-icons": "^15.0.3",
     "expo": "~54.0.20",
     "expo-status-bar": "~3.0.8",
     "react": "19.1.0",
