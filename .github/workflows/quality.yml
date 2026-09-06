@@ -23,6 +23,21 @@ jobs:
       - name: Lint
         run: npm run lint
 
+  mobile-typecheck:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install mobile dependencies
+        run: npm install --no-audit --no-fund
+      - name: Mobile typecheck
+        run: npm run typecheck
+
   browser-smoke:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
