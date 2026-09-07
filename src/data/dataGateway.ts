@@ -7,7 +7,7 @@ export type DataGatewayResult<T> = {
   error: unknown | null
 }
 
-type EqualityFilter = {
+type ValueFilter = {
   column: string
   value: unknown
 }
@@ -19,9 +19,17 @@ type OrderBy = {
 
 export type ReadRowsOptions = {
   columns?: string
-  eq?: EqualityFilter[]
+  eq?: ValueFilter[]
+  ilike?: ValueFilter[]
+  lt?: ValueFilter[]
+  gte?: ValueFilter[]
+  or?: string
   order?: OrderBy
   limit?: number
+}
+
+type ReadOneOptions = ReadRowsOptions & {
+  required?: boolean
 }
 
 type UploadOptions = {
@@ -29,28 +37,62 @@ type UploadOptions = {
   contentType?: string
 }
 
+export type DataGatewayUser = {
+  id: string
+  email: string
+}
+
 export interface DataGateway {
   readRows(table: string, options?: ReadRowsOptions): Promise<DataGatewayResult<DataRow[]>>
+  readOne(table: string, options?: ReadOneOptions): Promise<DataGatewayResult<DataRow | null>>
   rpc<T = unknown>(functionName: string, params?: Record<string, unknown>): Promise<DataGatewayResult<T | null>>
+  getSessionUser(): Promise<DataGatewayResult<DataGatewayUser | null>>
+  getCurrentUser(): Promise<DataGatewayResult<DataGatewayUser | null>>
   createSignedUrl(bucket: string, path: string, expiresIn: number): Promise<DataGatewayResult<string>>
   upload(bucket: string, path: string, file: File, options?: UploadOptions): Promise<DataGatewayResult<null>>
   remove(bucket: string, paths: string[]): Promise<DataGatewayResult<null>>
 }
 
+function applyReadOptions(query: any, options: ReadRowsOptions) {
+  let next = query
+  for (const filter of options.eq || []) next = next.eq(filter.column, filter.value)
+  for (const filter of options.ilike || []) next = next.ilike(filter.column, filter.value)
+  for (const filter of options.lt || []) next = next.lt(filter.column, filter.value)
+  for (const filter of options.gte || []) next = next.gte(filter.column, filter.value)
+  if (options.or) next = next.or(options.or)
+  if (options.order) next = next.order(options.order.column, { ascending: options.order.ascending ?? true })
+  if (typeof options.limit === 'number') next = next.limit(options.limit)
+  return next
+}
+
 class SupabaseDataGateway implements DataGateway {
   async readRows(table: string, options: ReadRowsOptions = {}): Promise<DataGatewayResult<DataRow[]>> {
-    let query = supabase.from(table).select(options.columns || '*')
-    for (const filter of options.eq || []) query = query.eq(filter.column, filter.value)
-    if (options.order) query = query.order(options.order.column, { ascending: options.order.ascending ?? true })
-    if (typeof options.limit === 'number') query = query.limit(options.limit)
-
+    const query = applyReadOptions(supabase.from(table).select(options.columns || '*'), options)
     const { data, error } = await query
     return { data: ((data || []) as unknown) as DataRow[], error }
+  }
+
+  async readOne(table: string, options: ReadOneOptions = {}): Promise<DataGatewayResult<DataRow | null>> {
+    const query = applyReadOptions(supabase.from(table).select(options.columns || '*'), options)
+    const { data, error } = options.required ? await query.single() : await query.maybeSingle()
+    return { data: (data ?? null) as DataRow | null, error }
   }
 
   async rpc<T = unknown>(functionName: string, params: Record<string, unknown> = {}): Promise<DataGatewayResult<T | null>> {
     const { data, error } = await supabase.rpc(functionName, params)
     return { data: (data ?? null) as T | null, error }
+  }
+
+  async getSessionUser(): Promise<DataGatewayResult<DataGatewayUser | null>> {
+    const { data, error } = await supabase.auth.getSession()
+    const user = data.session?.user
+    return { data: user ? { id: user.id, email: user.email || '' } : null, error }
+  }
+
+  async getCurrentUser(): Promise<DataGatewayResult<DataGatewayUser | null>> {
+    const { data, error } = await supabase.auth.getUser()
+    const user = data.user
+    return { data: user ? { id: user.id, email: user.email || '' } : null, error }
   }
 
   async createSignedUrl(bucket: string, path: string, expiresIn: number): Promise<DataGatewayResult<string>> {
