@@ -5,20 +5,23 @@ import type { Session } from '@supabase/supabase-js'
 import { EquipmentDetailScreen } from '../screens/EquipmentDetailScreen'
 import { EquipmentListScreen } from '../screens/EquipmentListScreen'
 import { EquipmentRegistrationScreen } from '../screens/EquipmentRegistrationScreen'
+import { EquipmentStatusScreen } from '../screens/EquipmentStatusScreen'
 import { HomeScreen } from '../screens/HomeScreen'
 import { LoginScreen } from '../screens/LoginScreen'
 import { MoreScreen } from '../screens/MoreScreen'
+import { RequestsScreen } from '../screens/RequestsScreen'
 import { ScanAssetScreen } from '../screens/ScanAssetScreen'
 import { WorkOrdersScreen } from '../screens/WorkOrdersScreen'
 import { AccountSettingsScreen } from '../screens/settings/AccountSettingsScreen'
 import { getCurrentSession, signInWithPassword, signOutCurrentSession } from '../services/authService'
 import { supabase } from '../supabase'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'scan' | 'work-orders' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'scan' | 'work-orders' | 'requests' | 'more' | 'settings'
 
 type RouteEntry = {
   name: Route
   equipmentId?: string
+  equipmentStatus?: string
 }
 
 const HOME_ENTRY: RouteEntry = { name: 'home' }
@@ -91,7 +94,7 @@ export function MobileShell() {
   }
 
   const selectedEquipmentId = useMemo(
-    () => route === 'equipment-detail' ? String(currentEntry.equipmentId || '') : '',
+    () => (route === 'equipment-detail' || route === 'equipment-status') ? String(currentEntry.equipmentId || '') : '',
     [currentEntry.equipmentId, route],
   )
 
@@ -118,10 +121,27 @@ export function MobileShell() {
     )
   }
   if (route === 'equipment-detail' && selectedEquipmentId) {
-    return <EquipmentDetailScreen equipmentId={selectedEquipmentId} onBack={goBack} />
+    return (
+      <EquipmentDetailScreen
+        equipmentId={selectedEquipmentId}
+        onBack={goBack}
+        onOpenStatus={(equipmentStatus) => navigate({ name: 'equipment-status', equipmentId: selectedEquipmentId, equipmentStatus })}
+      />
+    )
+  }
+  if (route === 'equipment-status' && selectedEquipmentId) {
+    return (
+      <EquipmentStatusScreen
+        equipmentId={selectedEquipmentId}
+        currentStatus={String(currentEntry.equipmentStatus || '')}
+        onBack={goBack}
+        onSaved={() => goBack()}
+      />
+    )
   }
   if (route === 'scan') return <ScanAssetScreen onBack={goBack} />
   if (route === 'work-orders') return <WorkOrdersScreen onBack={goBack} />
+  if (route === 'requests') return <RequestsScreen onBack={goBack} />
   if (route === 'more') return <MoreScreen onBack={goBack} />
   if (route === 'settings') {
     return (
@@ -139,6 +159,7 @@ export function MobileShell() {
       onOpenScan={() => navigate({ name: 'scan' })}
       onOpenWorkOrders={() => navigate({ name: 'work-orders' })}
       onOpenEquipment={() => navigate({ name: 'equipment' })}
+      onOpenRequests={() => navigate({ name: 'requests' })}
       onOpenMore={() => navigate({ name: 'more' })}
       onOpenSettings={() => navigate({ name: 'settings' })}
       isAdmin={isAdminSession(session)}
