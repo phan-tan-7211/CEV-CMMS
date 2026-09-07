@@ -36,10 +36,16 @@ type ReadOneOptions = ReadRowsOptions & {
 type UploadOptions = {
   upsert?: boolean
   contentType?: string
+  cacheControl?: string
 }
 
 type UpsertOptions = {
   onConflict?: string
+}
+
+type ListFilesOptions = {
+  limit?: number
+  sortBy?: { column: string; order: 'asc' | 'desc' }
 }
 
 export type DataGatewayUser = {
@@ -49,6 +55,11 @@ export type DataGatewayUser = {
 
 export type DataGatewayFile = {
   name: string
+}
+
+export type DataGatewaySignedFile = {
+  path: string
+  signedUrl: string
 }
 
 export interface DataGateway {
@@ -61,8 +72,10 @@ export interface DataGateway {
   rpc<T = unknown>(functionName: string, params?: Record<string, unknown>): Promise<DataGatewayResult<T | null>>
   getSessionUser(): Promise<DataGatewayResult<DataGatewayUser | null>>
   getCurrentUser(): Promise<DataGatewayResult<DataGatewayUser | null>>
-  listFiles(bucket: string, path: string, limit?: number): Promise<DataGatewayResult<DataGatewayFile[]>>
+  listFiles(bucket: string, path: string, options?: number | ListFilesOptions): Promise<DataGatewayResult<DataGatewayFile[]>>
   createSignedUrl(bucket: string, path: string, expiresIn: number): Promise<DataGatewayResult<string>>
+  createSignedUrls(bucket: string, paths: string[], expiresIn: number): Promise<DataGatewayResult<DataGatewaySignedFile[]>>
+  copyFile(bucket: string, fromPath: string, toPath: string): Promise<DataGatewayResult<null>>
   upload(bucket: string, path: string, file: File, options?: UploadOptions): Promise<DataGatewayResult<null>>
   remove(bucket: string, paths: string[]): Promise<DataGatewayResult<null>>
 }
@@ -138,8 +151,12 @@ class SupabaseDataGateway implements DataGateway {
     return { data: user ? { id: user.id, email: user.email || '' } : null, error }
   }
 
-  async listFiles(bucket: string, path: string, limit = 100): Promise<DataGatewayResult<DataGatewayFile[]>> {
-    const { data, error } = await supabase.storage.from(bucket).list(path, { limit })
+  async listFiles(bucket: string, path: string, options: number | ListFilesOptions = 100): Promise<DataGatewayResult<DataGatewayFile[]>> {
+    const normalized = typeof options === 'number' ? { limit: options } : options
+    const { data, error } = await supabase.storage.from(bucket).list(path, {
+      limit: normalized.limit ?? 100,
+      sortBy: normalized.sortBy,
+    })
     return { data: (data || []).map((file) => ({ name: file.name })), error }
   }
 
@@ -148,10 +165,24 @@ class SupabaseDataGateway implements DataGateway {
     return { data: data?.signedUrl || '', error }
   }
 
+  async createSignedUrls(bucket: string, paths: string[], expiresIn: number): Promise<DataGatewayResult<DataGatewaySignedFile[]>> {
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrls(paths, expiresIn)
+    return {
+      data: (data || []).map((row) => ({ path: row.path || '', signedUrl: row.signedUrl || '' })),
+      error,
+    }
+  }
+
+  async copyFile(bucket: string, fromPath: string, toPath: string): Promise<DataGatewayResult<null>> {
+    const { error } = await supabase.storage.from(bucket).copy(fromPath, toPath)
+    return { data: null, error }
+  }
+
   async upload(bucket: string, path: string, file: File, options: UploadOptions = {}): Promise<DataGatewayResult<null>> {
     const { error } = await supabase.storage.from(bucket).upload(path, file, {
       upsert: options.upsert ?? false,
       contentType: options.contentType,
+      cacheControl: options.cacheControl,
     })
     return { data: null, error }
   }
