@@ -4,13 +4,8 @@ import path from 'node:path'
 const root = process.cwd()
 const screensRoot = path.join(root, 'src', 'screens')
 
-// Existing debt is explicitly baselined so the guard prevents new violations
-// without breaking CI before the planned migration phases are completed.
-const legacyDirectEquipmentImports = new Set([
-  path.normalize('src/screens/EquipmentListScreen.tsx'),
-  path.normalize('src/screens/EquipmentDetailScreen.tsx'),
-])
-
+// Existing non-Equipment debt is explicitly baselined so this guard prevents
+// new violations while the remaining feature migrations are completed.
 const legacyDirectSupabaseImports = new Set([
   path.normalize('src/screens/settings/ProfileSettingsScreen.tsx'),
   path.normalize('src/screens/settings/SecuritySettingsScreen.tsx'),
@@ -35,9 +30,9 @@ for (const file of walk(screensRoot).filter((value) => /\.(ts|tsx)$/.test(value)
     violations.push(`${relative}: route screens must not import Supabase directly`)
   }
 
-  const directEquipmentService = /from\s+['"][^'"]*services\/equipment(?:Service|ImageService|StatusService)['"]/.test(source)
-  if (directEquipmentService && !legacyDirectEquipmentImports.has(relative)) {
-    violations.push(`${relative}: import Equipment capabilities from features/equipment public API`)
+  const directEquipmentImplementation = /from\s+['"][^'"]*(?:services\/(?:equipmentService|equipmentImageService|equipmentStatusService)|components\/EquipmentPhoto|features\/equipment\/(?:api|model|ui)\/)[^'"]*['"]/.test(source)
+  if (directEquipmentImplementation) {
+    violations.push(`${relative}: import Equipment capabilities from features/equipment public API only`)
   }
 }
 

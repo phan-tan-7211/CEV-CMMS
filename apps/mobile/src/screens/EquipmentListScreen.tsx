@@ -4,9 +4,13 @@ import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { EquipmentPhoto } from '../components/EquipmentPhoto'
-import { listEquipment, type EquipmentListItem } from '../services/equipmentService'
-import { listEquipmentStatuses, type EquipmentStatusMaster } from '../services/equipmentStatusService'
+import {
+  EquipmentPhoto,
+  listEquipment,
+  listEquipmentStatuses,
+  type EquipmentListItem,
+  type EquipmentStatusMaster,
+} from '../features/equipment'
 
 type SortMode = 'name-asc' | 'name-desc' | 'location-asc' | 'location-desc'
 
