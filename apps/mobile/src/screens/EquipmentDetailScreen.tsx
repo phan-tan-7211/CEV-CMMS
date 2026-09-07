@@ -6,8 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import {
   EquipmentPhoto,
-  getEquipmentDetail,
+  getEquipmentDetailSnapshot,
   listEquipmentStatuses,
+  revalidateEquipmentDetail,
+  subscribeEquipmentDetail,
   type EquipmentDetail,
   type EquipmentStatusMaster,
 } from '../features/equipment'
@@ -26,13 +28,49 @@ export function EquipmentDetailScreen({ equipmentId, onBack, onOpenStatus }: { e
 
   useEffect(() => {
     let active = true
+    let hasSnapshot = false
     setLoading(true)
     setError('')
-    void Promise.all([getEquipmentDetail(equipmentId), listEquipmentStatuses()])
-      .then(([data, nextStatuses]) => { if (active) { setItem(data); setStatuses(nextStatuses) } })
-      .catch((loadError) => { if (active) setError(loadError instanceof Error ? loadError.message : 'Không tải được thiết bị.') })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+
+    const unsubscribe = subscribeEquipmentDetail(equipmentId, (nextItem) => {
+      if (!active) return
+      setItem(nextItem)
+      setLoading(false)
+      setError('')
+    })
+
+    void getEquipmentDetailSnapshot(equipmentId)
+      .then((snapshot) => {
+        if (!active || !snapshot) return
+        hasSnapshot = true
+        setItem(snapshot)
+        setLoading(false)
+      })
+      .finally(() => {
+        void revalidateEquipmentDetail(equipmentId)
+          .then((fresh) => {
+            if (!active) return
+            setItem(fresh)
+            setLoading(false)
+            setError('')
+          })
+          .catch((loadError) => {
+            if (!active) return
+            if (!hasSnapshot) setError(loadError instanceof Error ? loadError.message : 'Không tải được thiết bị.')
+            setLoading(false)
+          })
+      })
+
+    void listEquipmentStatuses()
+      .then((nextStatuses) => { if (active) setStatuses(nextStatuses) })
+      .catch(() => {
+        // The detail remains usable with the raw status code if master data is temporarily unavailable.
+      })
+
+    return () => {
+      active = false
+      unsubscribe()
+    }
   }, [equipmentId])
 
   const photoHeight = Math.min(340, Math.max(230, Math.round(width * 0.68)))
