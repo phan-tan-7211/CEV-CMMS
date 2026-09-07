@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, BackHandler, StyleSheet, View } from 'react-native'
 import type { Session } from '@supabase/supabase-js'
 
@@ -16,10 +16,31 @@ import { supabase } from '../supabase'
 
 type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'scan' | 'work-orders' | 'more' | 'settings'
 
+type RouteEntry = {
+  name: Route
+  equipmentId?: string
+}
+
+const HOME_ENTRY: RouteEntry = { name: 'home' }
+
 export function MobileShell() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
-  const [route, setRoute] = useState<Route>('home')
-  const [selectedEquipmentId, setSelectedEquipmentId] = useState('')
+  const [routeStack, setRouteStack] = useState<RouteEntry[]>([HOME_ENTRY])
+
+  const currentEntry = routeStack[routeStack.length - 1] || HOME_ENTRY
+  const route = currentEntry.name
+
+  const resetNavigation = useCallback(() => {
+    setRouteStack([HOME_ENTRY])
+  }, [])
+
+  const navigate = useCallback((entry: RouteEntry) => {
+    setRouteStack((current) => [...current, entry])
+  }, [])
+
+  const goBack = useCallback(() => {
+    setRouteStack((current) => current.length > 1 ? current.slice(0, -1) : current)
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -33,43 +54,40 @@ export function MobileShell() {
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
-      if (!nextSession) {
-        setSelectedEquipmentId('')
-        setRoute('home')
-      }
+      if (!nextSession) resetNavigation()
     })
 
     return () => {
       mounted = false
       data.subscription.unsubscribe()
     }
-  }, [])
+  }, [resetNavigation])
 
   useEffect(() => {
-    if (route === 'home') return undefined
+    if (routeStack.length <= 1) return undefined
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (route === 'equipment-detail') {
-        setRoute('equipment')
-      } else {
-        setRoute('home')
-      }
+      goBack()
       return true
     })
     return () => subscription.remove()
-  }, [route])
+  }, [goBack, routeStack.length])
 
   async function handleSignIn(email: string, password: string) {
     const nextSession = await signInWithPassword(email, password)
     setSession(nextSession)
-    setRoute('home')
+    resetNavigation()
   }
 
   async function handleSignOut() {
     await signOutCurrentSession()
-    setSelectedEquipmentId('')
-    setRoute('home')
+    resetNavigation()
     setSession(null)
   }
+
+  const selectedEquipmentId = useMemo(
+    () => route === 'equipment-detail' ? String(currentEntry.equipmentId || '') : '',
+    [currentEntry.equipmentId, route],
+  )
 
   if (session === undefined) {
     return (
@@ -82,31 +100,28 @@ export function MobileShell() {
   if (!session) return <LoginScreen onSignIn={handleSignIn} />
 
   if (route === 'registration') {
-    return <EquipmentRegistrationScreen onBack={() => setRoute('home')} />
+    return <EquipmentRegistrationScreen onBack={goBack} />
   }
   if (route === 'equipment') {
     return (
       <EquipmentListScreen
-        onBack={() => setRoute('home')}
-        onCreateEquipment={() => setRoute('registration')}
-        onOpenEquipment={(equipmentId) => {
-          setSelectedEquipmentId(equipmentId)
-          setRoute('equipment-detail')
-        }}
+        onBack={goBack}
+        onCreateEquipment={() => navigate({ name: 'registration' })}
+        onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
       />
     )
   }
   if (route === 'equipment-detail' && selectedEquipmentId) {
-    return <EquipmentDetailScreen equipmentId={selectedEquipmentId} onBack={() => setRoute('equipment')} />
+    return <EquipmentDetailScreen equipmentId={selectedEquipmentId} onBack={goBack} />
   }
-  if (route === 'scan') return <ScanAssetScreen onBack={() => setRoute('home')} />
-  if (route === 'work-orders') return <WorkOrdersScreen onBack={() => setRoute('home')} />
-  if (route === 'more') return <MoreScreen onBack={() => setRoute('home')} />
+  if (route === 'scan') return <ScanAssetScreen onBack={goBack} />
+  if (route === 'work-orders') return <WorkOrdersScreen onBack={goBack} />
+  if (route === 'more') return <MoreScreen onBack={goBack} />
   if (route === 'settings') {
     return (
       <AccountSettingsScreen
         session={session}
-        onBack={() => setRoute('home')}
+        onBack={goBack}
         onSignOut={handleSignOut}
       />
     )
@@ -114,12 +129,12 @@ export function MobileShell() {
 
   return (
     <HomeScreen
-      onCreateEquipment={() => setRoute('registration')}
-      onOpenScan={() => setRoute('scan')}
-      onOpenWorkOrders={() => setRoute('work-orders')}
-      onOpenEquipment={() => setRoute('equipment')}
-      onOpenMore={() => setRoute('more')}
-      onOpenSettings={() => setRoute('settings')}
+      onCreateEquipment={() => navigate({ name: 'registration' })}
+      onOpenScan={() => navigate({ name: 'scan' })}
+      onOpenWorkOrders={() => navigate({ name: 'work-orders' })}
+      onOpenEquipment={() => navigate({ name: 'equipment' })}
+      onOpenMore={() => navigate({ name: 'more' })}
+      onOpenSettings={() => navigate({ name: 'settings' })}
     />
   )
 }
