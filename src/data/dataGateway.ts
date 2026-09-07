@@ -25,6 +25,7 @@ export type ReadRowsOptions = {
   gte?: ValueFilter[]
   or?: string
   order?: OrderBy
+  orders?: OrderBy[]
   limit?: number
 }
 
@@ -37,17 +38,30 @@ type UploadOptions = {
   contentType?: string
 }
 
+type UpsertOptions = {
+  onConflict?: string
+}
+
 export type DataGatewayUser = {
   id: string
   email: string
 }
 
+export type DataGatewayFile = {
+  name: string
+}
+
 export interface DataGateway {
   readRows(table: string, options?: ReadRowsOptions): Promise<DataGatewayResult<DataRow[]>>
   readOne(table: string, options?: ReadOneOptions): Promise<DataGatewayResult<DataRow | null>>
+  insertRows(table: string, values: DataRow | DataRow[]): Promise<DataGatewayResult<DataRow[]>>
+  updateRows(table: string, values: DataRow, eq?: ValueFilter[]): Promise<DataGatewayResult<DataRow[]>>
+  upsertRows(table: string, values: DataRow | DataRow[], options?: UpsertOptions): Promise<DataGatewayResult<DataRow[]>>
+  deleteRows(table: string, eq?: ValueFilter[]): Promise<DataGatewayResult<DataRow[]>>
   rpc<T = unknown>(functionName: string, params?: Record<string, unknown>): Promise<DataGatewayResult<T | null>>
   getSessionUser(): Promise<DataGatewayResult<DataGatewayUser | null>>
   getCurrentUser(): Promise<DataGatewayResult<DataGatewayUser | null>>
+  listFiles(bucket: string, path: string, limit?: number): Promise<DataGatewayResult<DataGatewayFile[]>>
   createSignedUrl(bucket: string, path: string, expiresIn: number): Promise<DataGatewayResult<string>>
   upload(bucket: string, path: string, file: File, options?: UploadOptions): Promise<DataGatewayResult<null>>
   remove(bucket: string, paths: string[]): Promise<DataGatewayResult<null>>
@@ -61,7 +75,14 @@ function applyReadOptions(query: any, options: ReadRowsOptions) {
   for (const filter of options.gte || []) next = next.gte(filter.column, filter.value)
   if (options.or) next = next.or(options.or)
   if (options.order) next = next.order(options.order.column, { ascending: options.order.ascending ?? true })
+  for (const order of options.orders || []) next = next.order(order.column, { ascending: order.ascending ?? true })
   if (typeof options.limit === 'number') next = next.limit(options.limit)
+  return next
+}
+
+function applyEqualityFilters(query: any, filters: ValueFilter[] = []) {
+  let next = query
+  for (const filter of filters) next = next.eq(filter.column, filter.value)
   return next
 }
 
@@ -76,6 +97,28 @@ class SupabaseDataGateway implements DataGateway {
     const query = applyReadOptions(supabase.from(table).select(options.columns || '*'), options)
     const { data, error } = options.required ? await query.single() : await query.maybeSingle()
     return { data: (data ?? null) as DataRow | null, error }
+  }
+
+  async insertRows(table: string, values: DataRow | DataRow[]): Promise<DataGatewayResult<DataRow[]>> {
+    const { data, error } = await supabase.from(table).insert(values).select()
+    return { data: ((data || []) as unknown) as DataRow[], error }
+  }
+
+  async updateRows(table: string, values: DataRow, eq: ValueFilter[] = []): Promise<DataGatewayResult<DataRow[]>> {
+    const query = applyEqualityFilters(supabase.from(table).update(values), eq)
+    const { data, error } = await query.select()
+    return { data: ((data || []) as unknown) as DataRow[], error }
+  }
+
+  async upsertRows(table: string, values: DataRow | DataRow[], options: UpsertOptions = {}): Promise<DataGatewayResult<DataRow[]>> {
+    const { data, error } = await supabase.from(table).upsert(values, { onConflict: options.onConflict }).select()
+    return { data: ((data || []) as unknown) as DataRow[], error }
+  }
+
+  async deleteRows(table: string, eq: ValueFilter[] = []): Promise<DataGatewayResult<DataRow[]>> {
+    const query = applyEqualityFilters(supabase.from(table).delete(), eq)
+    const { data, error } = await query.select()
+    return { data: ((data || []) as unknown) as DataRow[], error }
   }
 
   async rpc<T = unknown>(functionName: string, params: Record<string, unknown> = {}): Promise<DataGatewayResult<T | null>> {
@@ -93,6 +136,11 @@ class SupabaseDataGateway implements DataGateway {
     const { data, error } = await supabase.auth.getUser()
     const user = data.user
     return { data: user ? { id: user.id, email: user.email || '' } : null, error }
+  }
+
+  async listFiles(bucket: string, path: string, limit = 100): Promise<DataGatewayResult<DataGatewayFile[]>> {
+    const { data, error } = await supabase.storage.from(bucket).list(path, { limit })
+    return { data: (data || []).map((file) => ({ name: file.name })), error }
   }
 
   async createSignedUrl(bucket: string, path: string, expiresIn: number): Promise<DataGatewayResult<string>> {
