@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type MaintenanceAssigneeOption = {
   personCode: string
@@ -26,15 +26,15 @@ function text(value: unknown) {
 }
 
 export async function loadMaintenanceAssignees(): Promise<MaintenanceAssigneeOption[]> {
-  const { data, error } = await supabase
-    .from('org_people')
-    .select('person_code,display_name,unit_code,job_title,active')
-    .eq('active', true)
-    .order('display_name')
+  const { data, error } = await dataGateway.readRows('org_people', {
+    columns: 'person_code,display_name,unit_code,job_title,active',
+    eq: [{ column: 'active', value: true }],
+    order: { column: 'display_name' },
+  })
 
   if (error) throw error
 
-  return ((data || []) as Array<Record<string, unknown>>)
+  return data
     .map((row) => ({
       personCode: text(row.person_code),
       displayName: text(row.display_name),
@@ -45,17 +45,16 @@ export async function loadMaintenanceAssignees(): Promise<MaintenanceAssigneeOpt
 }
 
 export async function loadCurrentMaintenancePerson(): Promise<CurrentMaintenancePerson | null> {
-  const { data: authData, error: authError } = await supabase.auth.getUser()
+  const { data: user, error: authError } = await dataGateway.getCurrentUser()
   if (authError) throw authError
-  const email = text(authData.user?.email).toLowerCase()
+  const email = text(user?.email).toLowerCase()
   if (!email) return null
 
-  const { data, error } = await supabase
-    .from('org_people')
-    .select('person_code,display_name,auth_email,active')
-    .ilike('auth_email', email)
-    .eq('active', true)
-    .maybeSingle()
+  const { data, error } = await dataGateway.readOne('org_people', {
+    columns: 'person_code,display_name,auth_email,active',
+    ilike: [{ column: 'auth_email', value: email }],
+    eq: [{ column: 'active', value: true }],
+  })
 
   if (error) throw error
   if (!data) return null
@@ -82,11 +81,10 @@ export async function loadMaintenanceAssignment(workOrderId: string): Promise<Ma
   const id = workOrderId.trim()
   if (!id) throw new Error('WORK_ORDER_ID_REQUIRED')
 
-  const { data, error } = await supabase
-    .from('maintenance_work_order')
-    .select('work_order_id,source_data')
-    .eq('work_order_id', id)
-    .maybeSingle()
+  const { data, error } = await dataGateway.readOne('maintenance_work_order', {
+    columns: 'work_order_id,source_data',
+    eq: [{ column: 'work_order_id', value: id }],
+  })
 
   if (error) throw error
   if (!data) throw new Error('WORK_ORDER_NOT_FOUND')
@@ -99,14 +97,14 @@ export async function assignMaintenanceWorkOrder(input: {
   personCode: string
   operationId: string
 }): Promise<MaintenanceAssignmentState> {
-  const { data, error } = await supabase.rpc('rpc_assign_maintenance_work_order', {
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_assign_maintenance_work_order', {
     p_work_order_id: input.workOrderId.trim(),
     p_person_code: input.personCode.trim(),
     p_operation_id: input.operationId,
   })
 
   if (error) throw error
-  const result = (data || {}) as Record<string, unknown>
+  const result = data || {}
 
   return {
     workOrderId: text(result.workOrderId) || input.workOrderId.trim(),
