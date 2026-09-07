@@ -13,8 +13,12 @@ import { RequestsScreen } from '../screens/RequestsScreen'
 import { ScanAssetScreen } from '../screens/ScanAssetScreen'
 import { WorkOrdersScreen } from '../screens/WorkOrdersScreen'
 import { AccountSettingsScreen } from '../screens/settings/AccountSettingsScreen'
-import { getCurrentSession, signInWithPassword, signOutCurrentSession } from '../services/authService'
-import { supabase } from '../supabase'
+import {
+  getCurrentSession,
+  signInWithPassword,
+  signOutCurrentSession,
+  subscribeAuthState,
+} from '../features/auth'
 
 type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'scan' | 'work-orders' | 'requests' | 'more' | 'settings'
 
@@ -61,14 +65,14 @@ export function MobileShell() {
         if (mounted) setSession(null)
       })
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const unsubscribe = subscribeAuthState((_event, nextSession) => {
       setSession(nextSession)
       if (!nextSession) resetNavigation()
     })
 
     return () => {
       mounted = false
-      data.subscription.unsubscribe()
+      unsubscribe()
     }
   }, [resetNavigation])
 
@@ -108,9 +112,7 @@ export function MobileShell() {
 
   if (!session) return <LoginScreen onSignIn={handleSignIn} />
 
-  if (route === 'registration') {
-    return <EquipmentRegistrationScreen onBack={goBack} />
-  }
+  if (route === 'registration') return <EquipmentRegistrationScreen onBack={goBack} />
   if (route === 'equipment') {
     return (
       <EquipmentListScreen
@@ -144,13 +146,7 @@ export function MobileShell() {
   if (route === 'requests') return <RequestsScreen onBack={goBack} />
   if (route === 'more') return <MoreScreen onBack={goBack} />
   if (route === 'settings') {
-    return (
-      <AccountSettingsScreen
-        session={session}
-        onBack={goBack}
-        onSignOut={handleSignOut}
-      />
-    )
+    return <AccountSettingsScreen session={session} onBack={goBack} onSignOut={handleSignOut} />
   }
 
   return (
