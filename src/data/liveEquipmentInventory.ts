@@ -1,5 +1,5 @@
 import { isClientCacheFresh, readClientCache, writeClientCache } from './clientDataCache'
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type EquipmentInventoryStatus = 'FOUND_LABEL_OK' | 'FOUND_NO_LABEL' | 'MOVED' | 'NOT_FOUND' | 'DATA_INVALID'
 export type EquipmentInventorySource = 'QR' | 'MANUAL'
@@ -146,17 +146,23 @@ function queueTargetedSync(key: string, run: () => Promise<void>) {
 
 function syncSession(sessionId: string) {
   return queueTargetedSync(`session:${sessionId}`, async () => {
-    const { data, error } = await supabase.from('equipment_inventory_session').select('*').eq('session_id', sessionId).maybeSingle()
+    const { data, error } = await dataGateway.readOne('equipment_inventory_session', {
+      columns: '*',
+      eq: [{ column: 'session_id', value: sessionId }],
+    })
     if (error) throw error
-    if (data) patchSession(normalizeSession(data as Record<string, unknown>))
+    if (data) patchSession(normalizeSession(data))
   })
 }
 
 function syncResult(sessionId: string, equipmentId: string) {
   return queueTargetedSync(`result:${sessionId}:${equipmentId}`, async () => {
-    const { data, error } = await supabase.from('equipment_inventory_result').select('*').eq('session_id', sessionId).eq('equipment_id', equipmentId).maybeSingle()
+    const { data, error } = await dataGateway.readOne('equipment_inventory_result', {
+      columns: '*',
+      eq: [{ column: 'session_id', value: sessionId }, { column: 'equipment_id', value: equipmentId }],
+    })
     if (error) throw error
-    if (data) patchResult(normalizeResult(data as Record<string, unknown>))
+    if (data) patchResult(normalizeResult(data))
   })
 }
 
@@ -165,22 +171,35 @@ async function fetchInventoryFromServer(): Promise<EquipmentInventorySnapshot> {
 
   inventoryRefreshPromise = (async () => {
     const [equipmentResult, sessionResult] = await Promise.all([
-      supabase.from('equipment_master').select('equipment_id,equipment_name,status,active,source_data').eq('active', true).neq('status', 'DISPOSED').order('equipment_id'),
-      supabase.from('equipment_inventory_session').select('*').order('started_at', { ascending: false }).limit(MAX_SESSIONS),
+      dataGateway.readRows('equipment_master', {
+        columns: 'equipment_id,equipment_name,status,active,source_data',
+        eq: [{ column: 'active', value: true }],
+        neq: [{ column: 'status', value: 'DISPOSED' }],
+        order: { column: 'equipment_id' },
+      }),
+      dataGateway.readRows('equipment_inventory_session', {
+        columns: '*',
+        order: { column: 'started_at', ascending: false },
+        limit: MAX_SESSIONS,
+      }),
     ])
     if (equipmentResult.error) throw equipmentResult.error
     if (sessionResult.error) throw sessionResult.error
 
-    const sessions = ((sessionResult.data || []) as Array<Record<string, unknown>>).map(normalizeSession)
+    const sessions = sessionResult.data.map(normalizeSession)
     const sessionIds = sessions.map((item) => item.sessionId)
     let resultRows: Array<Record<string, unknown>> = []
     if (sessionIds.length) {
-      const result = await supabase.from('equipment_inventory_result').select('*').in('session_id', sessionIds).order('checked_at', { ascending: false })
+      const result = await dataGateway.readRows('equipment_inventory_result', {
+        columns: '*',
+        in: [{ column: 'session_id', values: sessionIds }],
+        order: { column: 'checked_at', ascending: false },
+      })
       if (result.error) throw result.error
-      resultRows = (result.data || []) as Array<Record<string, unknown>>
+      resultRows = result.data
     }
 
-    const equipment: EquipmentInventoryEquipment[] = ((equipmentResult.data || []) as Array<Record<string, unknown>>).map((row) => {
+    const equipment: EquipmentInventoryEquipment[] = equipmentResult.data.map((row) => {
       const source = sourceObject(row.source_data)
       return {
         equipmentId: text(row.equipment_id).toUpperCase(),
@@ -232,13 +251,13 @@ export async function createEquipmentInventorySession(name: string) {
   }
   patchSession(optimistic)
 
-  const { data, error } = await supabase.rpc('rpc_create_equipment_inventory_session', { p_session_id: sessionId, p_name: name.trim() })
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_create_equipment_inventory_session', { p_session_id: sessionId, p_name: name.trim() })
   if (error) {
     inventoryCache = previous
     persistInventoryCache()
     throw error
   }
-  const normalized = normalizeSession((data || {}) as Record<string, unknown>)
+  const normalized = normalizeSession(data || {})
   patchSession(normalized)
   void syncSession(normalized.sessionId)
   return normalized
@@ -272,7 +291,7 @@ export async function recordEquipmentInventory(input: {
   }
   patchResult(optimistic)
 
-  const { data, error } = await supabase.rpc('rpc_record_equipment_inventory', {
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_record_equipment_inventory', {
     p_session_id: sessionId,
     p_equipment_id: equipmentId,
     p_status: input.status,
@@ -287,7 +306,7 @@ export async function recordEquipmentInventory(input: {
     persistInventoryCache()
     throw error
   }
-  const normalized = normalizeResult((data || {}) as Record<string, unknown>)
+  const normalized = normalizeResult(data || {})
   patchResult(normalized)
   void syncResult(sessionId, equipmentId)
   return normalized
@@ -299,13 +318,13 @@ export async function closeEquipmentInventorySession(sessionId: string) {
   const existing = inventoryCache?.sessions.find((item) => item.sessionId === normalizedId)
   if (existing) patchSession({ ...existing, status: 'CLOSED', closedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
 
-  const { data, error } = await supabase.rpc('rpc_close_equipment_inventory_session', { p_session_id: normalizedId })
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_close_equipment_inventory_session', { p_session_id: normalizedId })
   if (error) {
     inventoryCache = previous
     persistInventoryCache()
     throw error
   }
-  const normalized = normalizeSession((data || {}) as Record<string, unknown>)
+  const normalized = normalizeSession(data || {})
   patchSession(normalized)
   void syncSession(normalizedId)
   return normalized
