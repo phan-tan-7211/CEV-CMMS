@@ -85,14 +85,14 @@ function syncUrl(nextView: View, equipmentId = '') {
   window.history.replaceState({}, '', url)
 }
 
-function LiveView({ view, equipmentTarget, onOpenEquipment, onCloseQrResult, onEditQrResult, onNavigate }: { view: View; equipmentTarget: string; onOpenEquipment: (equipmentId: string) => void; onCloseQrResult: () => void; onEditQrResult: () => void; onNavigate: (view: View) => void }) {
+function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, onCloseQrResult, onEditQrResult, onNavigate }: { view: View; equipmentTarget: string; contextEquipmentId: string; onOpenEquipment: (equipmentId: string) => void; onCloseQrResult: () => void; onEditQrResult: () => void; onNavigate: (view: View) => void }) {
   if (view === 'dashboard') return <LiveDashboardPanel onNavigate={onNavigate} />
   if (view === 'qr') return <LiveQrScannerPanel onOpenEquipment={onOpenEquipment} />
   if (view === 'equipment' && equipmentTarget) return <QrEquipmentResult equipmentId={equipmentTarget} onClose={onCloseQrResult} onEdit={onEditQrResult} />
   if (view === 'equipment') return <EquipmentWorkspace />
   if (view === 'inventory') return <LiveEquipmentInventoryPanel />
   if (view === 'inspection') return <LiveInspectionPanel />
-  if (view === 'maintenance') return <MaintenanceWorkspace />
+  if (view === 'maintenance') return <MaintenanceWorkspace equipmentId={contextEquipmentId} />
   if (view === 'spare') return <LiveSparePartsAutoPanel />
   if (view === 'tooling') return <LiveToolingPanel />
   if (view === 'calibration') return <div className="maintenance-workspace-stack"><LiveCalibrationPanel /><LiveCalibrationEvaluationPanel /><LiveCalibrationQuotePanel /></div>
@@ -144,12 +144,13 @@ function AppWorkspace({ session, signOut }: { session: LiveSession; signOut: () 
 
   const openContextView = useCallback((requestedView: View, equipmentId: string) => {
     const nextView = permittedView(requestedView, role)
+    const normalizedEquipmentId = equipmentId.trim().toUpperCase()
     setMobileMoreOpen(false)
-    setReturnEquipmentId(equipmentId.trim().toUpperCase())
+    setReturnEquipmentId(normalizedEquipmentId)
     markVisited(nextView)
     setView(nextView)
     setEquipmentTarget('')
-    syncUrl(nextView)
+    syncUrl(nextView, normalizedEquipmentId)
     window.scrollTo({ top: 0, behavior: 'auto' })
   }, [markVisited, role])
 
@@ -208,8 +209,8 @@ function AppWorkspace({ session, signOut }: { session: LiveSession; signOut: () 
       <DesktopSidebar items={visibleNav} currentView={view} roleLabel={ROLE_LABEL[role]} email={sessionEmail || ''} onNavigate={openView} onSignOut={() => void signOut()} />
       <div className="app-body">
         <main id="main-content" className={`main-content${view === 'equipment' ? ' equipment-main' : ''}`} tabIndex={-1}>
-          {returnEquipmentId && view !== 'equipment' ? <div className="equipment-context-nav"><button type="button" onClick={backToEquipmentContext}>← Trở về {returnEquipmentId}</button><span>Quay lại hồ sơ thiết bị trước đó</span></div> : null}
-          {mountedViews.map((item) => <section key={item.id} hidden={item.id !== view} aria-hidden={item.id !== view} className="workspace-keepalive-pane"><AppErrorBoundary><Suspense fallback={<div className="workspace-loading" role="status">Đang mở chức năng…</div>}><LiveView view={item.id} equipmentTarget={item.id === 'equipment' && view === 'equipment' ? equipmentTarget : ''} onOpenEquipment={openEquipmentFromQr} onCloseQrResult={closeQrResult} onEditQrResult={editQrResult} onNavigate={openView} /></Suspense></AppErrorBoundary></section>)}
+          {returnEquipmentId && view !== 'equipment' ? <div className="equipment-context-nav"><button type="button" onClick={backToEquipmentContext}>← Trở về {returnEquipmentId}</button><span>Đang làm việc trong ngữ cảnh thiết bị {returnEquipmentId}</span></div> : null}
+          {mountedViews.map((item) => <section key={item.id} hidden={item.id !== view} aria-hidden={item.id !== view} className="workspace-keepalive-pane"><AppErrorBoundary><Suspense fallback={<div className="workspace-loading" role="status">Đang mở chức năng…</div>}><LiveView view={item.id} equipmentTarget={item.id === 'equipment' && view === 'equipment' ? equipmentTarget : ''} contextEquipmentId={item.id === view ? returnEquipmentId : ''} onOpenEquipment={openEquipmentFromQr} onCloseQrResult={closeQrResult} onEditQrResult={editQrResult} onNavigate={openView} /></Suspense></AppErrorBoundary></section>)}
         </main>
       </div>
     </div>
