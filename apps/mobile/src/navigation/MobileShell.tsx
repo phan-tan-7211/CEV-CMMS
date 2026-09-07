@@ -11,6 +11,7 @@ import { MoreScreen } from '../screens/MoreScreen'
 import { ScanAssetScreen } from '../screens/ScanAssetScreen'
 import { WorkOrdersScreen } from '../screens/WorkOrdersScreen'
 import { AccountSettingsScreen } from '../screens/settings/AccountSettingsScreen'
+import { getCurrentSession, signInWithPassword, signOutCurrentSession } from '../services/authService'
 import { supabase } from '../supabase'
 
 type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'scan' | 'work-orders' | 'more' | 'settings'
@@ -21,12 +22,27 @@ export function MobileShell() {
   const [selectedEquipmentId, setSelectedEquipmentId] = useState('')
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    let mounted = true
+    void getCurrentSession()
+      .then((currentSession) => {
+        if (mounted) setSession(currentSession)
+      })
+      .catch(() => {
+        if (mounted) setSession(null)
+      })
+
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
-      if (!nextSession) setRoute('home')
+      if (!nextSession) {
+        setSelectedEquipmentId('')
+        setRoute('home')
+      }
     })
-    return () => data.subscription.unsubscribe()
+
+    return () => {
+      mounted = false
+      data.subscription.unsubscribe()
+    }
   }, [])
 
   useEffect(() => {
@@ -42,6 +58,19 @@ export function MobileShell() {
     return () => subscription.remove()
   }, [route])
 
+  async function handleSignIn(email: string, password: string) {
+    const nextSession = await signInWithPassword(email, password)
+    setSession(nextSession)
+    setRoute('home')
+  }
+
+  async function handleSignOut() {
+    await signOutCurrentSession()
+    setSelectedEquipmentId('')
+    setRoute('home')
+    setSession(null)
+  }
+
   if (session === undefined) {
     return (
       <View style={styles.loadingScreen}>
@@ -50,7 +79,7 @@ export function MobileShell() {
     )
   }
 
-  if (!session) return <LoginScreen />
+  if (!session) return <LoginScreen onSignIn={handleSignIn} />
 
   if (route === 'registration') return <EquipmentRegistrationScreen />
   if (route === 'equipment') {
@@ -71,7 +100,15 @@ export function MobileShell() {
   if (route === 'scan') return <ScanAssetScreen onBack={() => setRoute('home')} />
   if (route === 'work-orders') return <WorkOrdersScreen onBack={() => setRoute('home')} />
   if (route === 'more') return <MoreScreen onBack={() => setRoute('home')} />
-  if (route === 'settings') return <AccountSettingsScreen session={session} onBack={() => setRoute('home')} onSignOut={() => { void supabase.auth.signOut() }} />
+  if (route === 'settings') {
+    return (
+      <AccountSettingsScreen
+        session={session}
+        onBack={() => setRoute('home')}
+        onSignOut={handleSignOut}
+      />
+    )
+  }
 
   return (
     <HomeScreen
