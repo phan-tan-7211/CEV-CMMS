@@ -30,9 +30,8 @@ export function EquipmentDesktopPanel() {
     c.setColumnFilters((current) => {
       const selected = current.status || []
       const next = selected.includes(label) ? selected.filter((item) => item !== label) : [...selected, label]
-      const result = { ...current, status: next }
-      if (!next.length) delete result.status
-      return result
+      if (next.length) return { ...current, status: next }
+      return Object.fromEntries(Object.entries(current).filter(([key]) => key !== 'status')) as typeof current
     })
   }
 
