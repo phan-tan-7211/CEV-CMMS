@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './MaintenanceSpareFlow.css'
 import './maintenance/MaintenanceDrawerLayoutFix.css'
+import { WorkOrderClassificationPanel } from './maintenance/WorkOrderClassificationPanel'
 import { WorkOrderAssignmentPanel } from './maintenance/WorkOrderAssignmentPanel'
 import { WorkOrderExecutionPanel } from './maintenance/WorkOrderExecutionPanel'
 import { loadSpareParts, loadWorkOrderSpareUsage, recordSpareUsage, saveSparePart, type LiveSparePart, type SpareUsage } from './data/liveSpareParts'
@@ -97,6 +98,7 @@ export function MaintenanceSpareFlow({ equipmentId, workOrderId }: Props) {
   }
 
   return <>
+    <WorkOrderClassificationPanel workOrderId={workOrderId} />
     <WorkOrderAssignmentPanel workOrderId={workOrderId} />
     <WorkOrderExecutionPanel workOrderId={workOrderId} />
     <section className="maintenance-spare-flow" aria-labelledby={`maintenance-spare-${workOrderId}`}>
