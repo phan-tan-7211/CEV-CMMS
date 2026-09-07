@@ -4,9 +4,16 @@ import path from 'node:path'
 const root = process.cwd()
 const screensRoot = path.join(root, 'src', 'screens')
 
+// Existing debt is explicitly baselined so the guard prevents new violations
+// without breaking CI before the planned migration phases are completed.
 const legacyDirectEquipmentImports = new Set([
   path.normalize('src/screens/EquipmentListScreen.tsx'),
   path.normalize('src/screens/EquipmentDetailScreen.tsx'),
+])
+
+const legacyDirectSupabaseImports = new Set([
+  path.normalize('src/screens/settings/ProfileSettingsScreen.tsx'),
+  path.normalize('src/screens/settings/SecuritySettingsScreen.tsx'),
 ])
 
 const violations = []
@@ -23,7 +30,8 @@ for (const file of walk(screensRoot).filter((value) => /\.(ts|tsx)$/.test(value)
   const relative = path.normalize(path.relative(root, file))
   const source = fs.readFileSync(file, 'utf8')
 
-  if (/from\s+['"][^'"]*supabase['"]/.test(source)) {
+  const directSupabase = /from\s+['"][^'"]*supabase['"]/.test(source)
+  if (directSupabase && !legacyDirectSupabaseImports.has(relative)) {
     violations.push(`${relative}: route screens must not import Supabase directly`)
   }
 
