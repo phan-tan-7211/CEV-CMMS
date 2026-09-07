@@ -16,6 +16,12 @@ function cacheKey(table: string, filter?: { column: string; value: unknown }) {
   return filter ? `${table}|${filter.column}|${String(filter.value ?? '')}` : `${table}|*`
 }
 
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object' && 'message' in error) return String((error as { message?: unknown }).message || error)
+  return String(error)
+}
+
 export function invalidateSourceRows(table: string, filter?: { column: string; value: unknown }) {
   if (filter) {
     sourceRowsInFlight.delete(cacheKey(table, filter))
@@ -48,7 +54,7 @@ export async function fetchSourceRows(table: string, filter?: { column: string; 
         order: { column: id },
         limit: 500,
       })
-      if (error) throw new Error(`${table}: ${error instanceof Error ? error.message : String(error)}`)
+      if (error) throw new Error(`${table}: ${errorMessage(error)}`)
       if (!data.length) return rows
       const next = String(data[data.length - 1][id])
       if (next === after || data.some(row => row[id] == null)) throw new Error(`${table}: invalid pagination`)
