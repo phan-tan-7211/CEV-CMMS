@@ -21,16 +21,21 @@ function walk(dir) {
   })
 }
 
-for (const file of walk(screensRoot).filter((value) => /\.(ts|tsx)$/.test(value))) {
+const filesToCheck = [
+  ...walk(screensRoot).filter((value) => /\.(ts|tsx)$/.test(value)),
+  path.join(root, 'App.tsx'),
+].filter((value) => fs.existsSync(value))
+
+for (const file of filesToCheck) {
   const relative = path.normalize(path.relative(root, file))
   const source = fs.readFileSync(file, 'utf8')
 
   const directSupabase = /from\s+['"][^'"]*supabase['"]/.test(source)
   if (directSupabase && !legacyDirectSupabaseImports.has(relative)) {
-    violations.push(`${relative}: route screens must not import Supabase directly`)
+    violations.push(`${relative}: route/entry UI must not import Supabase directly`)
   }
 
-  const directEquipmentImplementation = /from\s+['"][^'"]*(?:services\/(?:equipmentService|equipmentImageService|equipmentStatusService)|components\/EquipmentPhoto|features\/equipment\/(?:api|model|ui)\/)[^'"]*['"]/.test(source)
+  const directEquipmentImplementation = /from\s+['"][^'"]*(?:services\/(?:equipmentService|equipmentImageService|equipmentStatusService)|components\/EquipmentPhoto|equipmentSuggestions|SuggestField|features\/equipment\/(?:api|model|ui)\/)[^'"]*['"]/.test(source)
   if (directEquipmentImplementation) {
     violations.push(`${relative}: import Equipment capabilities from features/equipment public API only`)
   }
