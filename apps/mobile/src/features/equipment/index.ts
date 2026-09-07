@@ -5,20 +5,33 @@
 export { EquipmentPhoto } from './ui/EquipmentPhoto'
 export { SuggestField } from './ui/SuggestField'
 
-export {
-  getEquipmentDetail,
-  listEquipment,
-  updateEquipmentStatus,
-  type EquipmentDetail,
-  type EquipmentListItem,
+export type {
+  EquipmentDetail,
+  EquipmentListItem,
 } from './api/equipmentService'
 
 export {
-  createEquipmentStatus,
-  deleteEquipmentStatusMaster,
-  listEquipmentStatuses,
+  getEquipmentDetailSnapshot,
+  getEquipmentListSnapshot,
+  isEquipmentDetailStale,
+  isEquipmentListStale,
+  rememberCreatedEquipment,
+  revalidateEquipmentDetail,
+  revalidateEquipmentList,
+  subscribeEquipmentDetail,
+  subscribeEquipmentList,
+  updateEquipmentStatusCached as updateEquipmentStatus,
+} from './api/equipmentRepository'
+
+export {
+  createEquipmentStatusCached as createEquipmentStatus,
+  deleteEquipmentStatusMasterCached as deleteEquipmentStatusMaster,
+  listEquipmentStatusesCached as listEquipmentStatuses,
+  updateEquipmentStatusMasterCached as updateEquipmentStatusMaster,
+} from './api/equipmentStatusRepository'
+
+export {
   setEquipmentStatus,
-  updateEquipmentStatusMaster,
   type EquipmentStatusMaster,
 } from './api/equipmentStatusService'
 
