@@ -1,32 +1,6 @@
 import { getEquipmentPhotoUrl, getEquipmentPhotoUrls } from './equipmentImageService'
+import { setEquipmentStatus } from './equipmentStatusService'
 import { supabase } from '../supabase'
-
-export type EquipmentStatus = 'RUNNING' | 'DOWN' | 'MAINTENANCE' | 'STOPPED'
-
-export const EQUIPMENT_STATUS_OPTIONS: Array<{
-  value: EquipmentStatus
-  label: string
-  color: string
-  backgroundColor: string
-}> = [
-  { value: 'RUNNING', label: 'Hoạt động', color: '#067647', backgroundColor: '#D1FADF' },
-  { value: 'DOWN', label: 'Không hoạt động', color: '#B42318', backgroundColor: '#FEE4E2' },
-  { value: 'MAINTENANCE', label: 'Bảo trì', color: '#B54708', backgroundColor: '#FEF0C7' },
-  { value: 'STOPPED', label: 'Dừng', color: '#475467', backgroundColor: '#F2F4F7' },
-]
-
-export function equipmentStatusLabel(status: string) {
-  return EQUIPMENT_STATUS_OPTIONS.find((option) => option.value === status.toUpperCase())?.label || status || 'Không xác định'
-}
-
-export function equipmentStatusVisual(status: string) {
-  return EQUIPMENT_STATUS_OPTIONS.find((option) => option.value === status.toUpperCase()) || {
-    value: 'STOPPED' as EquipmentStatus,
-    label: status || 'Không xác định',
-    color: '#475467',
-    backgroundColor: '#F2F4F7',
-  }
-}
 
 export type EquipmentListItem = {
   equipmentId: string
@@ -120,23 +94,12 @@ export async function getEquipmentDetail(equipmentId: string): Promise<Equipment
   return mapRow(data as EquipmentMasterRow, imageUrl)
 }
 
-export async function updateEquipmentStatus(equipmentId: string, status: EquipmentStatus) {
+export async function updateEquipmentStatus(equipmentId: string, status: string) {
   const normalizedId = equipmentId.trim()
+  const normalizedStatus = status.trim()
   if (!normalizedId) throw new Error('Thiếu mã thiết bị.')
-  if (!EQUIPMENT_STATUS_OPTIONS.some((option) => option.value === status)) {
-    throw new Error('Trạng thái thiết bị không hợp lệ.')
-  }
+  if (!normalizedStatus) throw new Error('Thiếu trạng thái thiết bị.')
 
-  const { data, error } = await supabase
-    .from('equipment_master')
-    .update({ status })
-    .eq('equipment_id', normalizedId)
-    .select('equipment_id,status')
-    .single()
-
-  if (error) throw new Error(error.message || 'Không cập nhật được trạng thái thiết bị.')
-  return {
-    equipmentId: String(data?.equipment_id || normalizedId),
-    status: String(data?.status || status) as EquipmentStatus,
-  }
+  const savedStatus = await setEquipmentStatus(normalizedId, normalizedStatus)
+  return { equipmentId: normalizedId, status: savedStatus }
 }
