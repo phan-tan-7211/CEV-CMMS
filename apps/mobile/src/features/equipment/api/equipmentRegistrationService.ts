@@ -1,4 +1,5 @@
 import { createEquipment, mobileSupabaseConfigured, uploadEquipmentPhoto } from '../../../supabase'
+import { rememberCreatedEquipment } from './equipmentRepository'
 
 export const equipmentRegistrationConfigured = mobileSupabaseConfigured
 export type EquipmentRegistrationInput = Parameters<typeof createEquipment>[0]
@@ -10,12 +11,17 @@ export async function submitEquipmentRegistration(
 ): Promise<EquipmentRegistrationResult> {
   const result = await createEquipment(input)
 
-  if (!photoUri) return result
+  if (!photoUri) {
+    void rememberCreatedEquipment(result.equipmentId)
+    return result
+  }
 
   try {
     await uploadEquipmentPhoto(result.equipmentId, photoUri)
+    void rememberCreatedEquipment(result.equipmentId)
     return result
   } catch (error) {
+    void rememberCreatedEquipment(result.equipmentId)
     return {
       ...result,
       photoError: error instanceof Error ? error.message : 'Không tải được ảnh.',
