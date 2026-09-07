@@ -23,6 +23,12 @@ type RouteEntry = {
 
 const HOME_ENTRY: RouteEntry = { name: 'home' }
 
+function isAdminSession(session: Session) {
+  const metadata = session.user.user_metadata || {}
+  const role = String(metadata.role || metadata.app_role || '').trim().toLowerCase()
+  return role === 'admin' || role === 'administrator' || role === 'super_admin' || role === 'superadmin'
+}
+
 export function MobileShell() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [routeStack, setRouteStack] = useState<RouteEntry[]>([HOME_ENTRY])
@@ -135,6 +141,7 @@ export function MobileShell() {
       onOpenEquipment={() => navigate({ name: 'equipment' })}
       onOpenMore={() => navigate({ name: 'more' })}
       onOpenSettings={() => navigate({ name: 'settings' })}
+      isAdmin={isAdminSession(session)}
     />
   )
 }

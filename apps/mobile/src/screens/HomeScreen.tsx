@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState } from 'react'
 
+import { GlobalCreateSheet } from '../components/GlobalCreateSheet'
+
 type IconName = keyof typeof Ionicons.glyphMap
 
 type HomeScreenProps = {
@@ -13,6 +15,7 @@ type HomeScreenProps = {
   onOpenEquipment: () => void
   onOpenMore: () => void
   onOpenSettings: () => void
+  isAdmin?: boolean
 }
 
 const QUICK_ACTIONS: Array<{ label: string; icon: IconName; primary?: boolean }> = [
@@ -44,8 +47,10 @@ export function HomeScreen({
   onOpenEquipment,
   onOpenMore,
   onOpenSettings,
+  isAdmin = false,
 }: HomeScreenProps) {
   const [assignedOnly, setAssignedOnly] = useState(true)
+  const [createMenuOpen, setCreateMenuOpen] = useState(false)
 
   function handleQuickAction(label: string) {
     if (label === 'Quét') return onOpenScan()
@@ -174,14 +179,22 @@ export function HomeScreen({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Thêm thiết bị"
-            onPress={onCreateEquipment}
+            accessibilityLabel="Tạo mới"
+            onPress={() => setCreateMenuOpen(true)}
             style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
           >
             <Ionicons name="add" size={34} color="#FFFFFF" />
           </Pressable>
         </View>
       </View>
+
+      <GlobalCreateSheet
+        visible={createMenuOpen}
+        isAdmin={isAdmin}
+        onClose={() => setCreateMenuOpen(false)}
+        onCreateEquipment={onCreateEquipment}
+        onComingSoon={showComingSoon}
+      />
     </SafeAreaView>
   )
 }
