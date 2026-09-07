@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker'
 import type { Session } from '@supabase/supabase-js'
 import { createEquipment, mobileSupabaseConfigured, supabase, uploadEquipmentPhoto } from './src/supabase'
 import { SuggestField } from './src/SuggestField'
+import { DateField } from './src/DateField'
 import {
   canonicalizeEquipmentValue,
   EMPTY_EQUIPMENT_SUGGESTIONS,
@@ -611,8 +612,8 @@ function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
                   <Field icon="speedometer-outline" label="Thông số kỹ thuật" value={form.technicalSpecification} onChangeText={(value) => patch('technicalSpecification', value)} placeholder="Công suất, điện áp, phạm vi..." multiline />
                   <Field icon="reader-outline" label="Mô tả" value={form.description} onChangeText={(value) => patch('description', value)} placeholder="Mô tả ngắn về chức năng thiết bị" multiline />
                   <SuggestField icon="earth-outline" label="Xuất xứ" value={form.origin} onChangeText={(value) => patch('origin', value)} suggestions={suggestions.origin} loading={suggestionsLoading} placeholder="Hàn Quốc / Nhật Bản / Việt Nam..." />
-                  <Field icon="calendar-outline" label="Ngày đưa vào dùng" value={form.inServiceDate} onChangeText={(value) => patch('inServiceDate', value)} placeholder="YYYY-MM-DD" />
-                  <Field icon="shield-checkmark-outline" label="Hết bảo hành" value={form.warrantyUntil} onChangeText={(value) => patch('warrantyUntil', value)} placeholder="YYYY-MM-DD" />
+                  <DateField label="Ngày đưa vào dùng" value={form.inServiceDate} onChange={(value) => patch('inServiceDate', value)} maximumDate={new Date()} helper="Chạm để chọn ngày trên lịch; hệ thống lưu theo YYYY-MM-DD." />
+                  <DateField label="Hết bảo hành" value={form.warrantyUntil} onChange={(value) => patch('warrantyUntil', value)} helper="Chạm để chọn ngày trên lịch; có thể xóa nếu chưa xác định." />
                   <Field icon="call-outline" label="Liên hệ bảo hành" value={form.warrantyContact} onChangeText={(value) => patch('warrantyContact', value)} placeholder="Tên / điện thoại / email" />
                 </SectionCard>
               </>
