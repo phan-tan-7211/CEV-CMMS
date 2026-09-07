@@ -8,6 +8,7 @@ import { EquipmentPhoto } from '../components/EquipmentPhoto'
 import { listEquipment, type EquipmentListItem } from '../services/equipmentService'
 
 type SortMode = 'name-asc' | 'name-desc' | 'location-asc' | 'location-desc'
+type StatusFilter = 'all' | 'active' | 'inactive' | 'custom'
 
 const SORT_OPTIONS: Array<{ value: SortMode; label: string }> = [
   { value: 'name-asc', label: 'Tên (A đến Z)' },
@@ -16,12 +17,27 @@ const SORT_OPTIONS: Array<{ value: SortMode; label: string }> = [
   { value: 'location-desc', label: 'Vị trí (Z đến A)' },
 ]
 
+const STATUS_FILTER_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
+  { value: 'all', label: 'Tất cả (mặc định)' },
+  { value: 'active', label: 'Hoạt động' },
+  { value: 'inactive', label: 'Không hoạt động' },
+  { value: 'custom', label: 'Trạng thái tùy chỉnh' },
+]
+
 function statusColor(status: string) {
   const key = status.toUpperCase()
   if (key === 'RUNNING') return '#12B76A'
   if (key === 'MAINTENANCE') return '#F79009'
   if (key === 'DOWN' || key === 'STOPPED') return '#D92D20'
   return '#98A2B3'
+}
+
+function matchesStatusFilter(status: string, filter: StatusFilter) {
+  if (filter === 'all') return true
+  const key = status.toUpperCase()
+  if (filter === 'active') return key === 'RUNNING'
+  if (filter === 'inactive') return key === 'DOWN'
+  return key !== 'RUNNING' && key !== 'DOWN'
 }
 
 function compareText(a: string, b: string) {
@@ -45,6 +61,8 @@ export function EquipmentListScreen({
   const [query, setQuery] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>('name-asc')
   const [sortOpen, setSortOpen] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [statusOpen, setStatusOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
@@ -67,8 +85,10 @@ export function EquipmentListScreen({
 
   const filteredItems = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase('vi')
-    const nextItems = needle
-      ? items.filter((item) => [
+    const nextItems = items.filter((item) => {
+      if (!matchesStatusFilter(item.status, statusFilter)) return false
+      if (!needle) return true
+      return [
         item.equipmentId,
         item.equipmentName,
         item.model,
@@ -76,8 +96,8 @@ export function EquipmentListScreen({
         item.area,
         item.line,
         item.category,
-      ].some((value) => value.toLocaleLowerCase('vi').includes(needle)))
-      : [...items]
+      ].some((value) => value.toLocaleLowerCase('vi').includes(needle))
+    })
 
     nextItems.sort((a, b) => {
       if (sortMode === 'name-asc') return compareText(a.equipmentName || a.equipmentId, b.equipmentName || b.equipmentId)
@@ -87,9 +107,17 @@ export function EquipmentListScreen({
     })
 
     return nextItems
-  }, [items, query, sortMode])
+  }, [items, query, sortMode, statusFilter])
 
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sortMode)?.label || 'Tên (A đến Z)'
+  const statusLabel = statusFilter === 'all'
+    ? 'Trạng thái'
+    : STATUS_FILTER_OPTIONS.find((option) => option.value === statusFilter)?.label || 'Trạng thái'
+  const hasActiveFilter = statusFilter !== 'all'
+
+  function resetFilters() {
+    setStatusFilter('all')
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -105,12 +133,42 @@ export function EquipmentListScreen({
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Tìm mã, tên, model, khu vực..."
+          placeholder="Tìm kiếm tất cả thiết bị"
           placeholderTextColor="#98A2B3"
           autoCorrect={false}
           style={styles.searchInput}
         />
         {query ? <Pressable accessibilityRole="button" accessibilityLabel="Xóa tìm kiếm" onPress={() => setQuery('')} hitSlop={8}><Ionicons name="close-circle" size={19} color="#98A2B3" /></Pressable> : null}
+      </View>
+
+      <View style={styles.filterToolsRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Bộ lọc danh mục, sẽ được bổ sung sau"
+          style={({ pressed }) => [styles.filterIconButton, pressed && styles.toolPressed]}
+        >
+          <Ionicons name="options-outline" size={20} color="#101828" />
+        </Pressable>
+        <View style={styles.toolDivider} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Lọc trạng thái: ${statusLabel}`}
+          onPress={() => setStatusOpen(true)}
+          style={({ pressed }) => [styles.statusFilterButton, hasActiveFilter && styles.statusFilterButtonActive, pressed && styles.toolPressed]}
+        >
+          <Text style={[styles.statusFilterText, hasActiveFilter && styles.statusFilterTextActive]} numberOfLines={1}>{statusLabel}</Text>
+          <Ionicons name="chevron-down" size={17} color={hasActiveFilter ? '#FFFFFF' : '#101828'} />
+        </Pressable>
+        <View style={styles.toolDivider} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Đặt lại tất cả bộ lọc"
+          onPress={resetFilters}
+          disabled={!hasActiveFilter}
+          style={({ pressed }) => [styles.resetButton, !hasActiveFilter && styles.resetButtonHidden, pressed && hasActiveFilter && styles.toolPressed]}
+        >
+          <Text style={styles.resetText}>Đặt lại tất cả</Text>
+        </Pressable>
       </View>
 
       <View style={styles.summaryRow}>
@@ -123,7 +181,7 @@ export function EquipmentListScreen({
           <Ionicons name="swap-vertical-outline" size={18} color="#101828" />
           <Text style={styles.sortText}>{sortLabel}</Text>
         </Pressable>
-        <Text style={styles.summaryText}>{filteredItems.length} thiết bị</Text>
+        <Text style={styles.summaryText}>{filteredItems.length} kết quả</Text>
       </View>
 
       {loading ? (
@@ -173,13 +231,48 @@ export function EquipmentListScreen({
             </Pressable>
           )}
           ListEmptyComponent={(
-            <View style={styles.empty}>
-              <Ionicons name="search-outline" size={30} color="#98A2B3" />
-              <Text style={styles.centerText}>Không tìm thấy thiết bị phù hợp.</Text>
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>Không có kết quả</Text>
+              <Text style={styles.emptyDescription}>Thử điều chỉnh bộ lọc của bạn.</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Đặt lại bộ lọc"
+                onPress={resetFilters}
+                style={({ pressed }) => [styles.emptyResetButton, pressed && styles.toolPressed]}
+              >
+                <Text style={styles.emptyResetText}>Đặt lại bộ lọc</Text>
+              </Pressable>
             </View>
           )}
         />
       )}
+
+      <Modal visible={statusOpen} transparent animationType="fade" onRequestClose={() => setStatusOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setStatusOpen(false)}>
+          <Pressable style={styles.sortSheet} onPress={() => undefined}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Trạng thái</Text>
+            {STATUS_FILTER_OPTIONS.map((option) => {
+              const selected = option.value === statusFilter
+              return (
+                <Pressable
+                  key={option.value}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
+                  onPress={() => {
+                    setStatusFilter(option.value)
+                    setStatusOpen(false)
+                  }}
+                  style={({ pressed }) => [styles.sortOption, pressed && styles.sortOptionPressed]}
+                >
+                  <Text style={[styles.sortOptionText, selected && styles.sortOptionTextSelected]}>{option.label}</Text>
+                  {selected ? <Ionicons name="checkmark" size={23} color="#155EEF" /> : null}
+                </Pressable>
+              )
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={sortOpen} transparent animationType="fade" onRequestClose={() => setSortOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setSortOpen(false)}>
@@ -216,15 +309,26 @@ const styles = StyleSheet.create({
   header: { minHeight: 58, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0', backgroundColor: '#FFFFFF' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '900', color: '#101828' },
-  searchWrap: { minHeight: 46, margin: 12, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 13, borderWidth: 1, borderColor: '#E4E7EC', backgroundColor: '#FFFFFF' },
+  searchWrap: { minHeight: 46, marginHorizontal: 12, marginTop: 12, marginBottom: 9, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 23, borderWidth: 1, borderColor: '#E4E7EC', backgroundColor: '#FFFFFF' },
   searchInput: { flex: 1, minHeight: 44, fontSize: 14, color: '#101828' },
-  summaryRow: { minHeight: 40, paddingHorizontal: 15, paddingBottom: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  filterToolsRow: { minHeight: 47, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF' },
+  filterIconButton: { width: 43, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2F4F7' },
+  toolDivider: { width: StyleSheet.hairlineWidth, height: 30, backgroundColor: '#D0D5DD' },
+  statusFilterButton: { maxWidth: 190, minHeight: 36, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 18, backgroundColor: '#F2F4F7' },
+  statusFilterButtonActive: { backgroundColor: '#2D2D2D' },
+  statusFilterText: { flexShrink: 1, fontSize: 13.5, fontWeight: '800', color: '#101828' },
+  statusFilterTextActive: { color: '#FFFFFF' },
+  resetButton: { flexShrink: 1, minHeight: 36, justifyContent: 'center' },
+  resetButtonHidden: { opacity: 0 },
+  resetText: { fontSize: 13.5, fontWeight: '800', color: '#1570EF' },
+  toolPressed: { opacity: 0.65 },
+  summaryRow: { minHeight: 43, paddingHorizontal: 15, paddingBottom: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#D0D5DD', backgroundColor: '#FFFFFF' },
   sortButton: { flex: 1, minWidth: 0, minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 6 },
   sortButtonPressed: { opacity: 0.65 },
   sortText: { flexShrink: 1, fontSize: 12.5, fontWeight: '800', color: '#101828' },
   summaryText: { fontSize: 12.5, fontWeight: '700', color: '#667085' },
   list: { flex: 1 },
-  listContent: { paddingHorizontal: 8, paddingBottom: 22, gap: 6 },
+  listContent: { paddingHorizontal: 8, paddingTop: 6, paddingBottom: 22, gap: 6 },
   listContentEmpty: { flexGrow: 1 },
   row: { minHeight: 84, paddingHorizontal: 4, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: '#EAECF0', backgroundColor: '#FFFFFF' },
   rowPressed: { backgroundColor: '#F9FAFB' },
@@ -239,7 +343,11 @@ const styles = StyleSheet.create({
   errorText: { marginTop: 10, textAlign: 'center', fontSize: 13, lineHeight: 19, color: '#B42318' },
   retryButton: { marginTop: 14, minHeight: 44, paddingHorizontal: 18, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
   retryText: { fontSize: 13, fontWeight: '900', color: '#FFFFFF' },
-  empty: { flex: 1, paddingVertical: 52, alignItems: 'center', justifyContent: 'center' },
+  emptyState: { flex: 1, paddingHorizontal: 28, alignItems: 'center', justifyContent: 'center' },
+  emptyTitle: { fontSize: 18, fontWeight: '900', color: '#101828' },
+  emptyDescription: { marginTop: 12, textAlign: 'center', fontSize: 14, color: '#667085' },
+  emptyResetButton: { minHeight: 44, marginTop: 18, justifyContent: 'center' },
+  emptyResetText: { fontSize: 15, fontWeight: '800', color: '#1570EF' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16,24,40,0.42)' },
   sortSheet: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 26, borderTopLeftRadius: 18, borderTopRightRadius: 18, backgroundColor: '#FFFFFF' },
   sheetHandle: { alignSelf: 'center', width: 38, height: 4, marginBottom: 12, borderRadius: 2, backgroundColor: '#D0D5DD' },
