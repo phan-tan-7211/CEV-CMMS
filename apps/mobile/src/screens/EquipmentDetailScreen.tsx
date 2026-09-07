@@ -4,9 +4,13 @@ import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { EquipmentPhoto } from '../components/EquipmentPhoto'
-import { getEquipmentDetail, type EquipmentDetail } from '../services/equipmentService'
-import { listEquipmentStatuses, type EquipmentStatusMaster } from '../services/equipmentStatusService'
+import {
+  EquipmentPhoto,
+  getEquipmentDetail,
+  listEquipmentStatuses,
+  type EquipmentDetail,
+  type EquipmentStatusMaster,
+} from '../features/equipment'
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   if (!value) return null
