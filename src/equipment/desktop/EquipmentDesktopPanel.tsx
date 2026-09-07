@@ -1,3 +1,4 @@
+import './EquipmentDesktopOperations.css'
 import '../shared/styles/EquipmentPrimitives.css'
 import '../shared/styles/EquipmentSheetPrimitives.css'
 import { EquipmentProfile } from '../../EquipmentProfile'
