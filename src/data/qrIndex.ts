@@ -1,5 +1,5 @@
 import { readClientCache } from './clientDataCache'
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 import type { LiveEquipment } from './liveEquipment'
 
 export type QrEquipmentIndexItem = {
@@ -48,15 +48,14 @@ export async function loadQrEquipmentIndex(options: { force?: boolean } = {}): P
     if (cached?.data?.length) return fromEquipmentCache(cached.data)
   }
 
-  const { data, error } = await supabase
-    .from('equipment_master')
-    .select('equipment_id,equipment_name,equipment_type,status')
-    .eq('active', true)
-    .order('equipment_id')
+  const { data, error } = await dataGateway.readRows('equipment_master', {
+    columns: 'equipment_id,equipment_name,equipment_type,status',
+    eq: [{ column: 'active', value: true }],
+    order: { column: 'equipment_id' },
+  })
+  if (error) throw new Error(`QR_EQUIPMENT_INDEX_FAILED: ${error instanceof Error ? error.message : String(error)}`)
 
-  if (error) throw new Error(`QR_EQUIPMENT_INDEX_FAILED: ${error.message}`)
-
-  return (data || []).map((row) => ({
+  return data.map((row) => ({
     equipmentId: String(row.equipment_id || ''),
     equipmentName: String(row.equipment_name || row.equipment_id || ''),
     equipmentType: row.equipment_type as QrEquipmentIndexItem['equipmentType'],
