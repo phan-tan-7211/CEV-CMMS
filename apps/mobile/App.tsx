@@ -423,7 +423,7 @@ function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
       <View style={styles.shell}>
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={styles.topBar}>
             <Pressable
               accessibilityRole="button"
@@ -705,8 +705,15 @@ function LoginScreen() {
   return (
     <SafeAreaView style={styles.loginSafeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
-      <KeyboardAvoidingView style={styles.loginBody} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.loginBrand}>
+      <KeyboardAvoidingView style={styles.loginKeyboard} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView
+          style={styles.loginScroll}
+          contentContainerStyle={styles.loginScrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.loginBrand}>
           <View style={styles.loginLogo}><Ionicons name="construct" size={28} color="#FFFFFF" /></View>
           <Text style={styles.loginEyebrow}>CORE ELECTRONICS VIETNAM</Text>
           <Text style={styles.loginTitle}>CEV CMMS</Text>
@@ -762,7 +769,8 @@ function LoginScreen() {
             {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="log-in-outline" size={19} color="#FFFFFF" />}
             <Text style={styles.loginButtonText}>{submitting ? 'Đang đăng nhập...' : 'Đăng nhập'}</Text>
           </Pressable>
-        </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   )
@@ -925,7 +933,9 @@ const styles = StyleSheet.create({
   primaryActionText: { fontSize: 14, fontWeight: '900', color: '#FFFFFF' },
   loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F8FA' },
   loginSafeArea: { flex: 1, backgroundColor: '#F3F5F7' },
-  loginBody: { flex: 1, justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 28 },
+  loginKeyboard: { flex: 1 },
+  loginScroll: { flex: 1 },
+  loginScrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 22, paddingTop: 28, paddingBottom: 36 },
   loginBrand: { alignItems: 'center', marginBottom: 24 },
   loginLogo: { width: 58, height: 58, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#101828' },
   loginEyebrow: { marginTop: 17, fontSize: 9.5, fontWeight: '900', letterSpacing: 1.2, color: '#667085' },
