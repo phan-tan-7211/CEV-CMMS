@@ -1,5 +1,5 @@
 import { isClientCacheFresh, readClientCache, writeClientCache } from './clientDataCache'
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type MaintenanceResultItem = {
   resultItemId: string
@@ -62,14 +62,14 @@ async function fetchMaintenanceResultsFromServer() {
   if (resultRefreshPromise) return resultRefreshPromise
   resultRefreshPromise = (async () => {
     const [executionResult, itemResult] = await Promise.all([
-      supabase.from('maintenance_execution').select('*').order('created_at', { ascending: false }),
-      supabase.from('maintenance_result_item').select('*'),
+      dataGateway.readRows('maintenance_execution', { columns: '*', order: { column: 'created_at', ascending: false } }),
+      dataGateway.readRows('maintenance_result_item', { columns: '*' }),
     ])
     if (executionResult.error) throw executionResult.error
     if (itemResult.error) throw itemResult.error
 
     const itemsByExecution = new Map<string, MaintenanceResultItem[]>()
-    for (const row of (itemResult.data || []) as Array<Record<string, unknown>>) {
+    for (const row of itemResult.data) {
       const source = (row.source_data as Record<string, unknown> | null) || {}
       const executionId = text(row.execution_id)
       const item: MaintenanceResultItem = {
@@ -84,7 +84,7 @@ async function fetchMaintenanceResultsFromServer() {
       itemsByExecution.set(executionId, [...(itemsByExecution.get(executionId) || []), item])
     }
 
-    resultCache = ((executionResult.data || []) as Array<Record<string, unknown>>).map((row): MaintenanceExecutionResult => {
+    resultCache = executionResult.data.map((row): MaintenanceExecutionResult => {
       const source = (row.source_data as Record<string, unknown> | null) || {}
       const executionId = text(row.execution_id)
       return {
@@ -116,9 +116,9 @@ export async function loadMaintenanceExecutionResults(options: { force?: boolean
 }
 
 export async function recordMaintenanceResult(input: MaintenanceResultInput) {
-  const { data, error } = await supabase.rpc('rpc_record_maintenance_result', { p_input: input })
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_record_maintenance_result', { p_input: input })
   if (error) throw error
-  const result = (data || {}) as Record<string, unknown>
+  const result = data || {}
   const normalized = {
     executionId: text(result.executionId),
     workOrderId: text(result.workOrderId),
