@@ -6,7 +6,8 @@
   },
   "rules": {
     "react/react-in-jsx-scope": "off",
-    "react-hooks/set-state-in-effect": "warn"
+    "react-hooks/set-state-in-effect": "warn",
+    "react-hooks/preserve-manual-memoization": "off"
   },
   "ignorePatterns": ["dist/**", "apps/mobile/**"]
 }
