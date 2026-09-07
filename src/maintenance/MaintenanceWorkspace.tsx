@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import './MaintenanceWorkspace.css'
+import './MaintenanceWorkflowHistory.css'
 
 const LiveMaintenancePanel = lazy(() => import('../LiveMaintenancePanel').then((module) => ({ default: module.LiveMaintenancePanel })))
 const LiveMaintenancePlanPanel = lazy(() => import('../LiveMaintenancePlanPanel').then((module) => ({ default: module.LiveMaintenancePlanPanel })))
