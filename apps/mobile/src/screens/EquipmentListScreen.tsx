@@ -8,20 +8,12 @@ import { EquipmentPhoto } from '../components/EquipmentPhoto'
 import { listEquipment, type EquipmentListItem } from '../services/equipmentService'
 
 type SortMode = 'name-asc' | 'name-desc' | 'location-asc' | 'location-desc'
-type StatusFilter = 'all' | 'active' | 'inactive' | 'custom'
 
 const SORT_OPTIONS: Array<{ value: SortMode; label: string }> = [
   { value: 'name-asc', label: 'Tên (A đến Z)' },
   { value: 'name-desc', label: 'Tên (Z đến A)' },
   { value: 'location-asc', label: 'Vị trí (A đến Z)' },
   { value: 'location-desc', label: 'Vị trí (Z đến A)' },
-]
-
-const STATUS_FILTER_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
-  { value: 'all', label: 'Tất cả (mặc định)' },
-  { value: 'active', label: 'Hoạt động' },
-  { value: 'inactive', label: 'Không hoạt động' },
-  { value: 'custom', label: 'Trạng thái tùy chỉnh' },
 ]
 
 function statusColor(status: string) {
@@ -32,12 +24,8 @@ function statusColor(status: string) {
   return '#98A2B3'
 }
 
-function matchesStatusFilter(status: string, filter: StatusFilter) {
-  if (filter === 'all') return true
-  const key = status.toUpperCase()
-  if (filter === 'active') return key === 'RUNNING'
-  if (filter === 'inactive') return key === 'DOWN'
-  return key !== 'RUNNING' && key !== 'DOWN'
+function normalizeStatus(status: string) {
+  return status.trim().toLocaleUpperCase('vi')
 }
 
 function compareText(a: string, b: string) {
@@ -61,7 +49,7 @@ export function EquipmentListScreen({
   const [query, setQuery] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>('name-asc')
   const [sortOpen, setSortOpen] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [statusOpen, setStatusOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -83,10 +71,29 @@ export function EquipmentListScreen({
 
   useEffect(() => { void load() }, [])
 
+  const statusOptions = useMemo(() => {
+    const labelsByKey = new Map<string, string>()
+    for (const item of items) {
+      const label = item.status.trim()
+      if (!label) continue
+      const key = normalizeStatus(label)
+      if (!labelsByKey.has(key)) labelsByKey.set(key, label)
+    }
+    return Array.from(labelsByKey.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => compareText(a.label, b.label))
+  }, [items])
+
+  useEffect(() => {
+    if (statusFilter && !statusOptions.some((option) => option.value === statusFilter)) {
+      setStatusFilter(null)
+    }
+  }, [statusFilter, statusOptions])
+
   const filteredItems = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase('vi')
     const nextItems = items.filter((item) => {
-      if (!matchesStatusFilter(item.status, statusFilter)) return false
+      if (statusFilter && normalizeStatus(item.status) !== statusFilter) return false
       if (!needle) return true
       return [
         item.equipmentId,
@@ -110,13 +117,12 @@ export function EquipmentListScreen({
   }, [items, query, sortMode, statusFilter])
 
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sortMode)?.label || 'Tên (A đến Z)'
-  const statusLabel = statusFilter === 'all'
-    ? 'Trạng thái'
-    : STATUS_FILTER_OPTIONS.find((option) => option.value === statusFilter)?.label || 'Trạng thái'
-  const hasActiveFilter = statusFilter !== 'all'
+  const selectedStatusOption = statusOptions.find((option) => option.value === statusFilter)
+  const statusLabel = selectedStatusOption?.label || 'Trạng thái'
+  const hasActiveFilter = statusFilter !== null
 
   function resetFilters() {
-    setStatusFilter('all')
+    setStatusFilter(null)
   }
 
   return (
@@ -252,7 +258,19 @@ export function EquipmentListScreen({
           <Pressable style={styles.sortSheet} onPress={() => undefined}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Trạng thái</Text>
-            {STATUS_FILTER_OPTIONS.map((option) => {
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Tất cả trạng thái"
+              onPress={() => {
+                setStatusFilter(null)
+                setStatusOpen(false)
+              }}
+              style={({ pressed }) => [styles.sortOption, pressed && styles.sortOptionPressed]}
+            >
+              <Text style={[styles.sortOptionText, !statusFilter && styles.sortOptionTextSelected]}>Tất cả (mặc định)</Text>
+              {!statusFilter ? <Ionicons name="checkmark" size={23} color="#155EEF" /> : null}
+            </Pressable>
+            {statusOptions.map((option) => {
               const selected = option.value === statusFilter
               return (
                 <Pressable
