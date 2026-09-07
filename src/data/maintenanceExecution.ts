@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type MaintenanceExecutionDetail = {
   workOrderId: string
@@ -28,8 +28,16 @@ export async function loadMaintenanceExecutionDetail(workOrderId: string): Promi
   if (!id) throw new Error('WORK_ORDER_ID_REQUIRED')
 
   const [woResult, downtimeResult] = await Promise.all([
-    supabase.from('maintenance_work_order').select('work_order_id,status,source_data').eq('work_order_id', id).maybeSingle(),
-    supabase.from('downtime_event').select('downtime_id,started_at,ended_at,source_data').eq('work_order_id', id).order('started_at', { ascending: false }).limit(1).maybeSingle(),
+    dataGateway.readOne('maintenance_work_order', {
+      columns: 'work_order_id,status,source_data',
+      eq: [{ column: 'work_order_id', value: id }],
+    }),
+    dataGateway.readOne('downtime_event', {
+      columns: 'downtime_id,started_at,ended_at,source_data',
+      eq: [{ column: 'work_order_id', value: id }],
+      order: { column: 'started_at', ascending: false },
+      limit: 1,
+    }),
   ])
   if (woResult.error) throw woResult.error
   if (downtimeResult.error) throw downtimeResult.error
@@ -74,7 +82,7 @@ export async function saveMaintenanceExecutionDetail(input: {
   downtimeDetail: string
   operationId: string
 }) {
-  const { data, error } = await supabase.rpc('rpc_save_maintenance_execution', {
+  const { data, error } = await dataGateway.rpc<{ workOrderId: string; downtimeId: string; updatedBy: string; updatedAt: string }>('rpc_save_maintenance_execution', {
     p_work_order_id: input.workOrderId.trim(),
     p_input: {
       rootCause: input.rootCause.trim(),
@@ -91,5 +99,5 @@ export async function saveMaintenanceExecutionDetail(input: {
     p_operation_id: input.operationId,
   })
   if (error) throw error
-  return data as { workOrderId: string; downtimeId: string; updatedBy: string; updatedAt: string }
+  return data || { workOrderId: input.workOrderId.trim(), downtimeId: '', updatedBy: '', updatedAt: '' }
 }
