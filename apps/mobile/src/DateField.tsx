@@ -11,6 +11,8 @@ export function DateField({
   value: string
   onChange: (value: string) => void
   helper?: string
+  maximumDate?: Date
+  minimumDate?: Date
 }) {
   return (
     <View style={styles.block}>
