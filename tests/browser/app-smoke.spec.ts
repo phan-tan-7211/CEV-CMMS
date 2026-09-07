@@ -66,10 +66,6 @@ async function openMore(page: Page) {
 }
 
 async function expectNoPageHorizontalOverflow(page: Page) {
-  await page.evaluate(() => {
-    const active = document.activeElement
-    if (active instanceof HTMLElement) active.blur()
-  })
   await expect.poll(async () => page.evaluate(() => {
     const root = document.documentElement
     const body = document.body
