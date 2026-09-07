@@ -15,6 +15,12 @@ export type MaintenanceAssignmentState = {
   assignedAt: string
 }
 
+export type CurrentMaintenancePerson = {
+  personCode: string
+  displayName: string
+  authEmail: string
+}
+
 function text(value: unknown) {
   return value == null ? '' : String(value).trim()
 }
@@ -36,6 +42,29 @@ export async function loadMaintenanceAssignees(): Promise<MaintenanceAssigneeOpt
       jobTitle: text(row.job_title),
     }))
     .filter((item) => item.personCode && item.displayName)
+}
+
+export async function loadCurrentMaintenancePerson(): Promise<CurrentMaintenancePerson | null> {
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  if (authError) throw authError
+  const email = text(authData.user?.email).toLowerCase()
+  if (!email) return null
+
+  const { data, error } = await supabase
+    .from('org_people')
+    .select('person_code,display_name,auth_email,active')
+    .ilike('auth_email', email)
+    .eq('active', true)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) return null
+
+  return {
+    personCode: text(data.person_code),
+    displayName: text(data.display_name),
+    authEmail: text(data.auth_email).toLowerCase(),
+  }
 }
 
 export function assignmentFromSource(workOrderId: string, sourceData: unknown): MaintenanceAssignmentState {
