@@ -1,5 +1,5 @@
 import { isClientCacheFresh, readClientCache, writeClientCache } from './clientDataCache'
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type CalibrationLinkState = 'LINKED' | 'UNLINKED' | 'ORPHAN' | 'INVALID_TYPE'
 
@@ -95,19 +95,19 @@ async function fetchCalibrationFromServer(): Promise<LiveCalibration[]> {
   if (calibrationRefreshPromise) return calibrationRefreshPromise
   calibrationRefreshPromise = (async () => {
     const [calibrationResult, equipmentResult] = await Promise.all([
-      supabase.from('calibration_master').select('*').order('equipment_id'),
-      supabase.from('equipment_master').select('*'),
+      dataGateway.readRows('calibration_master', { columns: '*', order: { column: 'equipment_id' } }),
+      dataGateway.readRows('equipment_master', { columns: '*' }),
     ])
     if (calibrationResult.error) throw calibrationResult.error
     if (equipmentResult.error) throw equipmentResult.error
 
     const equipmentMap = new Map<string, EquipmentIdentity>()
-    ;((equipmentResult.data || []) as Array<Record<string, unknown>>).forEach((row) => {
+    equipmentResult.data.forEach((row) => {
       const equipment = toEquipment(row)
       if (equipment.equipmentId) equipmentMap.set(equipment.equipmentId, equipment)
     })
 
-    calibrationCache = ((calibrationResult.data || []) as Array<Record<string, unknown>>).map((row) => {
+    calibrationCache = calibrationResult.data.map((row) => {
       const equipmentId = text(row.equipment_id)
       const equipment = equipmentMap.get(equipmentId)
       const source = ((row.source_data as Record<string, unknown> | null) || {})
@@ -148,19 +148,23 @@ export async function loadCalibrationLogs(equipmentId: string, options: { force?
   if (inFlight) return inFlight
 
   const task = (async () => {
-    const { data, error } = await supabase.from('calibration_log').select('*').eq('equipment_id', id).order('calibration_date', { ascending: false }).limit(50)
+    const { data, error } = await dataGateway.readRows('calibration_log', {
+      columns: '*',
+      eq: [{ column: 'equipment_id', value: id }],
+      order: { column: 'calibration_date', ascending: false },
+      limit: 50,
+    })
     if (error) {
       if (cached) return cached.data
       throw error
     }
-    const rows = (data || []) as Array<Record<string, unknown>>
-    const normalized = await Promise.all(rows.map(async (row) => {
+    const normalized = await Promise.all(data.map(async (row) => {
       const source = (row.source_data as Record<string, unknown> | null) || {}
       const certificatePath = text(source.certificatePath)
       let certificateUrl = ''
       if (certificatePath) {
-        const signed = await supabase.storage.from('calibration-certificates').createSignedUrl(certificatePath, 3600)
-        if (!signed.error) certificateUrl = signed.data.signedUrl
+        const signed = await dataGateway.createSignedUrl('calibration-certificates', certificatePath, 3600)
+        if (!signed.error) certificateUrl = signed.data
       }
       return {
         calibrationLogId: text(row.calibration_log_id), equipmentId: text(row.equipment_id), calibrationDate: text(row.calibration_date), nextDueDate: text(row.next_due_date), result: text(row.result), actorEmail: text(row.actor_email), provider: text(source.provider), note: text(source.note), certificatePath, certificateUrl, createdAt: text(row.created_at),
@@ -178,7 +182,7 @@ async function uploadCalibrationCertificate(equipmentId: string, file: File) {
   if (file.size > 15 * 1024 * 1024) throw new Error('CERTIFICATE_TOO_LARGE_MAX_15MB')
   const extension = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() || 'bin' : 'bin'
   const path = `${equipmentId}/${Date.now()}-${crypto.randomUUID()}.${extension}`
-  const { error } = await supabase.storage.from('calibration-certificates').upload(path, file, { upsert: false, contentType: file.type || undefined })
+  const { error } = await dataGateway.upload('calibration-certificates', path, file, { upsert: false, contentType: file.type || undefined })
   if (error) throw error
   return path
 }
@@ -195,7 +199,7 @@ export async function recordCalibration(input: {
   let certificatePath = ''
   try {
     if (input.certificate) certificatePath = await uploadCalibrationCertificate(input.equipmentId, input.certificate)
-    const { data, error } = await supabase.rpc('rpc_record_calibration', {
+    const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_record_calibration', {
       p_equipment_id: input.equipmentId,
       p_calibration_date: input.calibrationDate,
       p_next_due_date: input.nextDueDate,
@@ -207,9 +211,9 @@ export async function recordCalibration(input: {
     if (error) throw error
     patchCalibrationCacheAfterRecord(input.equipmentId, input.calibrationDate, input.nextDueDate, input.result)
     invalidateCalibrationLogs(input.equipmentId)
-    return data as Record<string, unknown>
+    return data || {}
   } catch (cause) {
-    if (certificatePath) await supabase.storage.from('calibration-certificates').remove([certificatePath])
+    if (certificatePath) await dataGateway.remove('calibration-certificates', [certificatePath])
     throw cause
   }
 }
