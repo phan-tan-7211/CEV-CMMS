@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { EquipmentPhoto } from '../components/EquipmentPhoto'
 import { listEquipment, type EquipmentListItem } from '../services/equipmentService'
 
 function statusColor(status: string) {
@@ -63,9 +64,9 @@ export function EquipmentListScreen({
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <Pressable onPress={onBack} hitSlop={8} style={styles.iconButton}><Ionicons name="chevron-back" size={25} color="#101828" /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Quay lại" onPress={onBack} hitSlop={8} style={styles.iconButton}><Ionicons name="chevron-back" size={25} color="#101828" /></Pressable>
         <Text style={styles.headerTitle}>Thiết bị</Text>
-        <Pressable onPress={onCreateEquipment} hitSlop={8} style={styles.iconButton}><Ionicons name="add" size={27} color="#155EEF" /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Thêm thiết bị" onPress={onCreateEquipment} hitSlop={8} style={styles.iconButton}><Ionicons name="add" size={27} color="#155EEF" /></Pressable>
       </View>
 
       <View style={styles.searchWrap}>
@@ -78,7 +79,7 @@ export function EquipmentListScreen({
           autoCorrect={false}
           style={styles.searchInput}
         />
-        {query ? <Pressable onPress={() => setQuery('')} hitSlop={8}><Ionicons name="close-circle" size={19} color="#98A2B3" /></Pressable> : null}
+        {query ? <Pressable accessibilityRole="button" accessibilityLabel="Xóa tìm kiếm" onPress={() => setQuery('')} hitSlop={8}><Ionicons name="close-circle" size={19} color="#98A2B3" /></Pressable> : null}
       </View>
 
       <View style={styles.summaryRow}>
@@ -92,18 +93,34 @@ export function EquipmentListScreen({
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={32} color="#D92D20" />
           <Text style={styles.errorText}>{error}</Text>
-          <Pressable onPress={() => { void load() }} style={styles.retryButton}><Text style={styles.retryText}>Thử lại</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Thử tải lại" onPress={() => { void load() }} style={styles.retryButton}><Text style={styles.retryText}>Thử lại</Text></Pressable>
         </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={filteredItems}
+          keyExtractor={(item) => item.equipmentId}
           style={styles.list}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, filteredItems.length === 0 && styles.listContentEmpty]}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void load('refresh') }} />}
-        >
-          {filteredItems.map((item) => (
-            <Pressable key={item.equipmentId} onPress={() => onOpenEquipment(item.equipmentId)} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-              <View style={styles.assetIcon}><Ionicons name="cube-outline" size={21} color="#155EEF" /></View>
+          initialNumToRender={10}
+          maxToRenderPerBatch={12}
+          windowSize={7}
+          removeClippedSubviews
+          renderItem={({ item }) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${item.equipmentName || 'Thiết bị chưa đặt tên'}, ${item.equipmentId}`}
+              onPress={() => onOpenEquipment(item.equipmentId)}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            >
+              <EquipmentPhoto
+                uri={item.imageUrl}
+                width={56}
+                height={56}
+                borderRadius={12}
+                accessibilityLabel={`Ảnh thiết bị ${item.equipmentId}`}
+              />
               <View style={styles.rowCopy}>
                 <View style={styles.titleRow}>
                   <Text style={styles.assetName} numberOfLines={1}>{item.equipmentName || 'Thiết bị chưa đặt tên'}</Text>
@@ -114,9 +131,14 @@ export function EquipmentListScreen({
               </View>
               <Ionicons name="chevron-forward" size={22} color="#B0B7C3" />
             </Pressable>
-          ))}
-          {filteredItems.length === 0 ? <View style={styles.empty}><Ionicons name="search-outline" size={30} color="#98A2B3" /><Text style={styles.centerText}>Không tìm thấy thiết bị phù hợp.</Text></View> : null}
-        </ScrollView>
+          )}
+          ListEmptyComponent={(
+            <View style={styles.empty}>
+              <Ionicons name="search-outline" size={30} color="#98A2B3" />
+              <Text style={styles.centerText}>Không tìm thấy thiết bị phù hợp.</Text>
+            </View>
+          )}
+        />
       )}
     </SafeAreaView>
   )
@@ -134,9 +156,9 @@ const styles = StyleSheet.create({
   summaryHint: { fontSize: 10.5, color: '#98A2B3' },
   list: { flex: 1 },
   listContent: { paddingHorizontal: 12, paddingBottom: 22, gap: 7 },
-  row: { minHeight: 76, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: '#DDE1E7', backgroundColor: '#FFFFFF' },
+  listContentEmpty: { flexGrow: 1 },
+  row: { minHeight: 82, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: '#DDE1E7', backgroundColor: '#FFFFFF' },
   rowPressed: { backgroundColor: '#F9FAFB' },
-  assetIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF4FF' },
   rowCopy: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   assetName: { flex: 1, fontSize: 14.5, fontWeight: '900', color: '#101828' },
@@ -146,7 +168,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, paddingHorizontal: 28, alignItems: 'center', justifyContent: 'center' },
   centerText: { marginTop: 10, textAlign: 'center', fontSize: 13, color: '#667085' },
   errorText: { marginTop: 10, textAlign: 'center', fontSize: 13, lineHeight: 19, color: '#B42318' },
-  retryButton: { marginTop: 14, minHeight: 42, paddingHorizontal: 18, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
+  retryButton: { marginTop: 14, minHeight: 44, paddingHorizontal: 18, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
   retryText: { fontSize: 13, fontWeight: '900', color: '#FFFFFF' },
-  empty: { paddingVertical: 52, alignItems: 'center' },
+  empty: { flex: 1, paddingVertical: 52, alignItems: 'center', justifyContent: 'center' },
 })
