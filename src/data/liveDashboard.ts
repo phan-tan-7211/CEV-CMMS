@@ -44,7 +44,7 @@ export type LiveDashboardData = {
 }
 
 const DASHBOARD_CACHE_KEY = 'cev:data:dashboard'
-const DASHBOARD_CACHE_VERSION = 2
+const DASHBOARD_CACHE_VERSION = 3
 const DASHBOARD_CACHE_FRESH_MS = 30_000
 const DAY_MS = 24 * 60 * 60 * 1000
 const restoredDashboardCache = readClientCache<LiveDashboardData>(DASHBOARD_CACHE_KEY, DASHBOARD_CACHE_VERSION)
@@ -86,7 +86,7 @@ export async function loadLiveDashboard(asOfDate = new Date().toISOString().slic
     supabase.from('equipment_master').select('equipment_id,equipment_name,equipment_type,status,active').eq('active', true),
     supabase.from('calibration_master').select('calibration_id,equipment_id,next_due_date,status'),
     supabase.from('maintenance_plan').select('plan_id,equipment_id,source_data,active'),
-    supabase.from('maintenance_work_order').select('work_order_id,equipment_id,status,priority,reason,created_at,planned_end_at,assigned_person_code'),
+    supabase.from('maintenance_work_order').select('work_order_id,equipment_id,status,priority,reason,created_at,source_data'),
     supabase.from('downtime_event').select('downtime_id,equipment_id,started_at,ended_at'),
   ])
   const failed = [equipmentResult, calibrationResult, planResult, woResult, downtimeResult].find((result) => result.error)
@@ -126,15 +126,15 @@ export async function loadLiveDashboard(asOfDate = new Date().toISOString().slic
     workOrderCompleted: openWorkOrders.filter((row) => text(row.status) === 'COMPLETED').length,
     workOrderVerified: openWorkOrders.filter((row) => text(row.status) === 'VERIFIED').length,
     workOrderOverdue: openWorkOrders.filter((row) => {
-      const due = Date.parse(text(row.planned_end_at))
+      const due = Date.parse(sourceValue(row, 'plannedEndAt'))
       return Number.isFinite(due) && due < now
     }).length,
     workOrderDueSoon: openWorkOrders.filter((row) => {
-      const due = Date.parse(text(row.planned_end_at))
+      const due = Date.parse(sourceValue(row, 'plannedEndAt'))
       return Number.isFinite(due) && due >= now && due - now <= DAY_MS
     }).length,
-    workOrderAssigned: openWorkOrders.filter((row) => Boolean(text(row.assigned_person_code))).length,
-    workOrderUnassigned: openWorkOrders.filter((row) => !text(row.assigned_person_code)).length,
+    workOrderAssigned: openWorkOrders.filter((row) => Boolean(sourceValue(row, 'assignedPersonCode'))).length,
+    workOrderUnassigned: openWorkOrders.filter((row) => !sourceValue(row, 'assignedPersonCode')).length,
     criticalOpen: openWorkOrders.filter((row) => text(row.priority) === 'CRITICAL').length,
     pmOverdue: plans.filter((row) => sourceValue(row, 'status') === 'OVERDUE').length,
     downtimeOpen: downtime.filter((row) => !row.ended_at).length,
