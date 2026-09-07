@@ -1,5 +1,5 @@
 import { isClientCacheFresh, readClientCache, writeClientCache } from './clientDataCache'
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 import type { MaintenanceWorkflowAction, MaintenanceWorkflowStatus } from '../domain/workflow'
 
 export type MaintenanceEquipmentOption = { equipmentId: string; equipmentName: string }
@@ -161,23 +161,31 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
 
   maintenanceRefreshPromise = (async () => {
     const [equipmentResult, planResult, planItemResult, woResult, handoverResult, transitionResult, downtimeResult] = await Promise.all([
-      supabase.from('equipment_master').select('equipment_id,equipment_name,equipment_type,status,active').eq('active', true),
-      supabase.from('maintenance_plan').select('*').order('created_at', { ascending: false }),
-      supabase.from('maintenance_plan_item').select('*'),
-      supabase.from('maintenance_work_order').select('*').order('created_at', { ascending: false }),
-      supabase.from('equipment_handover').select('*').order('created_at', { ascending: false }),
-      supabase.from('audit_log').select('audit_id,entity_id,action,actor_email,detail,created_at').eq('entity_type', 'Maintenance_Work_Order').order('created_at', { ascending: false }).limit(1000),
-      supabase.from('downtime_event').select('work_order_id'),
+      dataGateway.readRows('equipment_master', {
+        columns: 'equipment_id,equipment_name,equipment_type,status,active',
+        eq: [{ column: 'active', value: true }],
+      }),
+      dataGateway.readRows('maintenance_plan', { order: { column: 'created_at', ascending: false } }),
+      dataGateway.readRows('maintenance_plan_item'),
+      dataGateway.readRows('maintenance_work_order', { order: { column: 'created_at', ascending: false } }),
+      dataGateway.readRows('equipment_handover', { order: { column: 'created_at', ascending: false } }),
+      dataGateway.readRows('audit_log', {
+        columns: 'audit_id,entity_id,action,actor_email,detail,created_at',
+        eq: [{ column: 'entity_type', value: 'Maintenance_Work_Order' }],
+        order: { column: 'created_at', ascending: false },
+        limit: 1000,
+      }),
+      dataGateway.readRows('downtime_event', { columns: 'work_order_id' }),
     ])
     for (const result of [equipmentResult, planResult, planItemResult, woResult, handoverResult, transitionResult, downtimeResult]) if (result.error) throw result.error
 
-    const equipment: MaintenanceEquipmentOption[] = ((equipmentResult.data || []) as Array<Record<string, unknown>>)
+    const equipment: MaintenanceEquipmentOption[] = equipmentResult.data
       .filter((row) => text(row.equipment_id) && text(row.equipment_type) === 'PRODUCTION' && text(row.status) !== 'DISPOSED')
       .map((row) => ({ equipmentId: text(row.equipment_id), equipmentName: text(row.equipment_name) }))
       .toSorted((a, b) => a.equipmentId.localeCompare(b.equipmentId))
 
     const itemsByPlan = new Map<string, LiveMaintenancePlanItem[]>()
-    for (const row of (planItemResult.data || []) as Array<Record<string, unknown>>) {
+    for (const row of planItemResult.data) {
       const source = (row.source_data as Record<string, unknown> | null) || {}
       const item: LiveMaintenancePlanItem = {
         itemId: text(row.item_id), itemName: text(source.itemName), standard: text(source.standard), method: text(source.method), note: text(source.note), sequence: number(source.sequence),
@@ -186,7 +194,7 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
       itemsByPlan.set(planId, [...(itemsByPlan.get(planId) || []), item])
     }
 
-    const plans: LiveMaintenancePlan[] = ((planResult.data || []) as Array<Record<string, unknown>>).map((row) => {
+    const plans: LiveMaintenancePlan[] = planResult.data.map((row) => {
       const source = (row.source_data as Record<string, unknown> | null) || {}
       const planId = text(row.plan_id)
       return {
@@ -204,8 +212,8 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
       }
     })
 
-    const downtimeWorkOrders = new Set(((downtimeResult.data || []) as Array<Record<string, unknown>>).map((row) => text(row.work_order_id)).filter(Boolean))
-    const workOrders: LiveMaintenanceWorkOrder[] = ((woResult.data || []) as Array<Record<string, unknown>>).map((row) => {
+    const downtimeWorkOrders = new Set(downtimeResult.data.map((row) => text(row.work_order_id)).filter(Boolean))
+    const workOrders: LiveMaintenanceWorkOrder[] = woResult.data.map((row) => {
       const source = (row.source_data as Record<string, unknown> | null) || {}
       const workOrderId = text(row.work_order_id)
       return {
@@ -231,11 +239,11 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
       }
     })
 
-    const handovers: LiveHandover[] = ((handoverResult.data || []) as Array<Record<string, unknown>>).map((row) => ({
+    const handovers: LiveHandover[] = handoverResult.data.map((row) => ({
       handoverId: text(row.handover_id), workOrderId: text(row.work_order_id), equipmentId: text(row.equipment_id), accepted: bool(row.accepted), condition: text(row.equipment_condition), handoverAt: text(row.created_at),
     }))
 
-    const transitions: LiveMaintenanceTransition[] = ((transitionResult.data || []) as Array<Record<string, unknown>>).map((row) => ({
+    const transitions: LiveMaintenanceTransition[] = transitionResult.data.map((row) => ({
       auditId: text(row.audit_id),
       workOrderId: text(row.entity_id),
       action: text(row.action),
@@ -264,15 +272,15 @@ export async function loadLiveMaintenance(options: { force?: boolean } = {}) {
 }
 
 export async function upsertMaintenancePlan(input: MaintenancePlanInput) {
-  const { data, error } = await supabase.rpc('rpc_upsert_maintenance_plan', { p_input: input })
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_upsert_maintenance_plan', { p_input: input })
   if (error) throw error
-  const result = (data || {}) as Record<string, unknown>
+  const result = data || {}
   void loadLiveMaintenance({ force: true }).catch(() => undefined)
   return { planId: text(result.planId), equipmentId: text(result.equipmentId), itemCount: number(result.itemCount) }
 }
 
 export async function createManualWorkOrder(request: { operationId: string; input: { equipmentId: string; sourceType: string; sourceId: string; reason: string; priority: string; method?: string; plannedStartAt?: string; plannedEndAt?: string } }) {
-  const { data, error } = await supabase.rpc('rpc_create_maintenance_work_order', {
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_create_maintenance_work_order', {
     p_operation_id: request.operationId,
     p_equipment_id: request.input.equipmentId,
     p_source_type: request.input.sourceType,
@@ -284,7 +292,7 @@ export async function createManualWorkOrder(request: { operationId: string; inpu
     p_planned_end_at: request.input.plannedEndAt || '',
   })
   if (error) throw error
-  const result = (data || {}) as Record<string, unknown>
+  const result = data || {}
   const normalized = { workOrderId: text(result.workOrderId), status: text(result.status) as MaintenanceWorkflowStatus }
   insertCreatedWorkOrder({
     workOrderId: normalized.workOrderId,
@@ -302,13 +310,13 @@ export async function createManualWorkOrder(request: { operationId: string; inpu
 }
 
 export async function transitionLiveMaintenance(request: { workOrderId: string; workflowAction: MaintenanceWorkflowAction; operationId: string }) {
-  const { data, error } = await supabase.rpc('rpc_transition_maintenance', {
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_transition_maintenance', {
     p_work_order_id: request.workOrderId,
     p_action: request.workflowAction,
     p_operation_id: request.operationId,
   })
   if (error) throw error
-  const result = (data || {}) as Record<string, unknown>
+  const result = data || {}
   const status = text(result.status) as MaintenanceWorkflowStatus
   appendTransition(request.workOrderId, request.workflowAction, status)
   patchWorkOrderStatus(request.workOrderId, status)
