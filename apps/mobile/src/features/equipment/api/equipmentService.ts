@@ -1,6 +1,6 @@
 import { getEquipmentPhotoUrl, getEquipmentPhotoUrls } from './equipmentImageService'
 import { setEquipmentStatus } from './equipmentStatusService'
-import { supabase } from '../../../supabase'
+import { supabase } from '../../../lib/supabase/client'
 
 export type EquipmentListItem = {
   equipmentId: string
