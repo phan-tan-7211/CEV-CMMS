@@ -64,105 +64,107 @@ export function SuggestField({
   }
 
   return (
-    <View style={styles.fieldBlock}>
+    <View style={[styles.fieldBlock, focused && styles.fieldBlockFocused]}>
       <Text style={styles.label}>
         {label}
         {required ? <Text style={styles.required}> *</Text> : null}
       </Text>
-      <View style={[styles.inputShell, focused && styles.inputShellFocused]}>
-        {icon ? <Ionicons name={icon} size={18} color="#98A2B3" style={styles.inputIcon} /> : null}
-        <TextInput
-          ref={inputRef}
-          value={value}
-          onChangeText={onChangeText}
-          onFocus={() => {
-            focusStartedAtRef.current = Date.now()
-            setFocused(true)
-          }}
-          onBlur={() => {
-            if (selectionActiveRef.current) return
 
-            // Android can emit a transient blur while the suggestion panel is being
-            // inserted and the KeyboardAvoidingView/ScrollView re-layouts. In that
-            // case immediately restore focus so the soft keyboard does not flash shut.
-            if (Date.now() - focusStartedAtRef.current < 700) {
-              setTimeout(() => {
-                if (!selectionActiveRef.current) {
-                  setFocused(true)
-                  inputRef.current?.focus()
-                }
-              }, 60)
-              return
-            }
+      <View style={styles.inputAndMenuWrap}>
+        <View style={[styles.inputShell, focused && styles.inputShellFocused]}>
+          {icon ? <Ionicons name={icon} size={18} color="#98A2B3" style={styles.inputIcon} /> : null}
+          <TextInput
+            ref={inputRef}
+            value={value}
+            onChangeText={onChangeText}
+            onFocus={() => {
+              focusStartedAtRef.current = Date.now()
+              setFocused(true)
+            }}
+            onBlur={() => {
+              if (selectionActiveRef.current) return
 
-            commitFreeText()
-          }}
-          onSubmitEditing={commitFreeText}
-          placeholder={placeholder}
-          placeholderTextColor="#98A2B3"
-          autoCorrect={false}
-          autoCapitalize="sentences"
-          returnKeyType="done"
-          blurOnSubmit={false}
-          style={styles.input}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Mở gợi ý ${label}`}
-          hitSlop={8}
-          onPress={openAndFocus}
-          style={styles.endButton}
-        >
-          <Ionicons name={focused ? 'chevron-up' : 'chevron-down'} size={17} color="#667085" />
-        </Pressable>
-      </View>
+              // Android can emit a transient blur while the keyboard/ScrollView lays out.
+              // Restore focus only for that short window so the keyboard stays open.
+              if (Date.now() - focusStartedAtRef.current < 700) {
+                setTimeout(() => {
+                  if (!selectionActiveRef.current) {
+                    setFocused(true)
+                    inputRef.current?.focus()
+                  }
+                }, 60)
+                return
+              }
 
-      {focused ? (
-        <View style={styles.menu}>
-          {loading ? (
-            <View style={styles.menuRow}>
-              <Ionicons name="sync-outline" size={16} color="#667085" />
-              <Text style={styles.loadingText}>Đang tải dữ liệu chuẩn...</Text>
-            </View>
-          ) : null}
-
-          {!loading ? filtered.map((option) => {
-            const active = equipmentMatchKey(option) === matchKey
-            return (
-              <Pressable
-                key={`${label}-${option}`}
-                onPressIn={() => { selectionActiveRef.current = true }}
-                onPress={() => choose(option)}
-                style={({ pressed }) => [styles.optionRow, active && styles.optionRowActive, pressed && styles.pressed]}
-              >
-                <Ionicons name={active ? 'checkmark-circle' : 'search-outline'} size={17} color={active ? '#155EEF' : '#667085'} />
-                <Text style={[styles.optionText, active && styles.optionTextActive]} numberOfLines={2}>{option}</Text>
-              </Pressable>
-            )
-          }) : null}
-
-          {!loading && filtered.length === 0 && !cleanedValue ? (
-            <View style={styles.emptyRow}>
-              <Ionicons name="information-circle-outline" size={17} color="#667085" />
-              <Text style={styles.emptyText}>Chưa có dữ liệu gợi ý cho trường này.</Text>
-            </View>
-          ) : null}
-
-          {!loading && cleanedValue && !exact ? (
-            <Pressable
-              onPressIn={() => { selectionActiveRef.current = true }}
-              onPress={() => choose(cleanedValue)}
-              style={({ pressed }) => [styles.createRow, pressed && styles.pressed]}
-            >
-              <Ionicons name="add-circle-outline" size={18} color="#155EEF" />
-              <View style={styles.createCopy}>
-                <Text style={styles.createTitle}>Thêm mới “{cleanedValue}”</Text>
-                <Text style={styles.createHint}>Không có trong dữ liệu hiện tại</Text>
-              </View>
-            </Pressable>
-          ) : null}
+              commitFreeText()
+            }}
+            onSubmitEditing={commitFreeText}
+            placeholder={placeholder}
+            placeholderTextColor="#98A2B3"
+            autoCorrect={false}
+            autoCapitalize="sentences"
+            returnKeyType="done"
+            blurOnSubmit={false}
+            style={styles.input}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Mở gợi ý ${label}`}
+            hitSlop={8}
+            onPress={openAndFocus}
+            style={styles.endButton}
+          >
+            <Ionicons name={focused ? 'chevron-up' : 'chevron-down'} size={17} color="#667085" />
+          </Pressable>
         </View>
-      ) : null}
+
+        {focused ? (
+          <View style={styles.menu}>
+            {loading ? (
+              <View style={styles.menuRow}>
+                <Ionicons name="sync-outline" size={16} color="#667085" />
+                <Text style={styles.loadingText}>Đang tải dữ liệu chuẩn...</Text>
+              </View>
+            ) : null}
+
+            {!loading ? filtered.map((option) => {
+              const active = equipmentMatchKey(option) === matchKey
+              return (
+                <Pressable
+                  key={`${label}-${option}`}
+                  onPressIn={() => { selectionActiveRef.current = true }}
+                  onPress={() => choose(option)}
+                  style={({ pressed }) => [styles.optionRow, active && styles.optionRowActive, pressed && styles.pressed]}
+                >
+                  <Ionicons name={active ? 'checkmark-circle' : 'search-outline'} size={17} color={active ? '#155EEF' : '#667085'} />
+                  <Text style={[styles.optionText, active && styles.optionTextActive]} numberOfLines={2}>{option}</Text>
+                </Pressable>
+              )
+            }) : null}
+
+            {!loading && filtered.length === 0 && !cleanedValue ? (
+              <View style={styles.emptyRow}>
+                <Ionicons name="information-circle-outline" size={17} color="#667085" />
+                <Text style={styles.emptyText}>Chưa có dữ liệu gợi ý cho trường này.</Text>
+              </View>
+            ) : null}
+
+            {!loading && cleanedValue && !exact ? (
+              <Pressable
+                onPressIn={() => { selectionActiveRef.current = true }}
+                onPress={() => choose(cleanedValue)}
+                style={({ pressed }) => [styles.createRow, pressed && styles.pressed]}
+              >
+                <Ionicons name="add-circle-outline" size={18} color="#155EEF" />
+                <View style={styles.createCopy}>
+                  <Text style={styles.createTitle}>Thêm mới “{cleanedValue}”</Text>
+                  <Text style={styles.createHint}>Không có trong dữ liệu hiện tại</Text>
+                </View>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
 
       <Text style={styles.helper}>
         {loading
@@ -174,9 +176,11 @@ export function SuggestField({
 }
 
 const styles = StyleSheet.create({
-  fieldBlock: { marginBottom: 15 },
+  fieldBlock: { marginBottom: 15, zIndex: 1 },
+  fieldBlockFocused: { zIndex: 1000, elevation: 20 },
   label: { marginBottom: 7, fontSize: 12, fontWeight: '700', color: '#475467' },
   required: { color: '#D92D20' },
+  inputAndMenuWrap: { position: 'relative', zIndex: 2 },
   inputShell: {
     minHeight: 50,
     flexDirection: 'row',
@@ -198,12 +202,22 @@ const styles = StyleSheet.create({
   input: { flex: 1, minHeight: 48, paddingVertical: 11, color: '#101828', fontSize: 14 },
   endButton: { paddingHorizontal: 12, paddingVertical: 14 },
   menu: {
-    marginTop: 6,
+    position: 'absolute',
+    top: 56,
+    left: 0,
+    right: 0,
+    maxHeight: 286,
     overflow: 'hidden',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#D0D5DD',
     backgroundColor: '#FFFFFF',
+    zIndex: 1001,
+    elevation: 24,
+    shadowColor: '#101828',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
   },
   menuRow: { minHeight: 44, paddingHorizontal: 12, flexDirection: 'row', gap: 8, alignItems: 'center' },
   loadingText: { fontSize: 12, color: '#667085' },
