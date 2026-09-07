@@ -1,5 +1,9 @@
 import App from '../../App'
 
-export function EquipmentRegistrationScreen({ onBack }: { onBack: () => void }) {
-  return <App onRegistrationExit={onBack} />
+/**
+ * Transitional boundary around the existing registration form.
+ * Registration internals remain in App.tsx until the dedicated extraction batch.
+ */
+export function EquipmentRegistrationScreen() {
+  return <App />
 }
