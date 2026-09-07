@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, FlatList, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -7,12 +7,29 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { EquipmentPhoto } from '../components/EquipmentPhoto'
 import { listEquipment, type EquipmentListItem } from '../services/equipmentService'
 
+type SortMode = 'name-asc' | 'name-desc' | 'location-asc' | 'location-desc'
+
+const SORT_OPTIONS: Array<{ value: SortMode; label: string }> = [
+  { value: 'name-asc', label: 'Tên (A đến Z)' },
+  { value: 'name-desc', label: 'Tên (Z đến A)' },
+  { value: 'location-asc', label: 'Vị trí (A đến Z)' },
+  { value: 'location-desc', label: 'Vị trí (Z đến A)' },
+]
+
 function statusColor(status: string) {
   const key = status.toUpperCase()
   if (key === 'RUNNING') return '#12B76A'
   if (key === 'MAINTENANCE') return '#F79009'
   if (key === 'DOWN' || key === 'STOPPED') return '#D92D20'
   return '#98A2B3'
+}
+
+function compareText(a: string, b: string) {
+  return a.localeCompare(b, 'vi', { sensitivity: 'base', numeric: true })
+}
+
+function locationText(item: EquipmentListItem) {
+  return [item.area, item.line].filter(Boolean).join(' · ')
 }
 
 export function EquipmentListScreen({
@@ -26,6 +43,8 @@ export function EquipmentListScreen({
 }) {
   const [items, setItems] = useState<EquipmentListItem[]>([])
   const [query, setQuery] = useState('')
+  const [sortMode, setSortMode] = useState<SortMode>('name-asc')
+  const [sortOpen, setSortOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
@@ -48,17 +67,29 @@ export function EquipmentListScreen({
 
   const filteredItems = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase('vi')
-    if (!needle) return items
-    return items.filter((item) => [
-      item.equipmentId,
-      item.equipmentName,
-      item.model,
-      item.manufacturer,
-      item.area,
-      item.line,
-      item.category,
-    ].some((value) => value.toLocaleLowerCase('vi').includes(needle)))
-  }, [items, query])
+    const nextItems = needle
+      ? items.filter((item) => [
+        item.equipmentId,
+        item.equipmentName,
+        item.model,
+        item.manufacturer,
+        item.area,
+        item.line,
+        item.category,
+      ].some((value) => value.toLocaleLowerCase('vi').includes(needle)))
+      : [...items]
+
+    nextItems.sort((a, b) => {
+      if (sortMode === 'name-asc') return compareText(a.equipmentName || a.equipmentId, b.equipmentName || b.equipmentId)
+      if (sortMode === 'name-desc') return compareText(b.equipmentName || b.equipmentId, a.equipmentName || a.equipmentId)
+      if (sortMode === 'location-asc') return compareText(locationText(a), locationText(b)) || compareText(a.equipmentName, b.equipmentName)
+      return compareText(locationText(b), locationText(a)) || compareText(a.equipmentName, b.equipmentName)
+    })
+
+    return nextItems
+  }, [items, query, sortMode])
+
+  const sortLabel = SORT_OPTIONS.find((option) => option.value === sortMode)?.label || 'Tên (A đến Z)'
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -83,8 +114,16 @@ export function EquipmentListScreen({
       </View>
 
       <View style={styles.summaryRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Sắp xếp theo ${sortLabel}`}
+          onPress={() => setSortOpen(true)}
+          style={({ pressed }) => [styles.sortButton, pressed && styles.sortButtonPressed]}
+        >
+          <Ionicons name="swap-vertical-outline" size={18} color="#101828" />
+          <Text style={styles.sortText}>{sortLabel}</Text>
+        </Pressable>
         <Text style={styles.summaryText}>{filteredItems.length} thiết bị</Text>
-        <Text style={styles.summaryHint}>Dữ liệu equipment_master</Text>
       </View>
 
       {loading ? (
@@ -141,6 +180,33 @@ export function EquipmentListScreen({
           )}
         />
       )}
+
+      <Modal visible={sortOpen} transparent animationType="fade" onRequestClose={() => setSortOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setSortOpen(false)}>
+          <Pressable style={styles.sortSheet} onPress={() => undefined}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Sắp xếp theo</Text>
+            {SORT_OPTIONS.map((option) => {
+              const selected = option.value === sortMode
+              return (
+                <Pressable
+                  key={option.value}
+                  accessibilityRole="button"
+                  accessibilityLabel={option.label}
+                  onPress={() => {
+                    setSortMode(option.value)
+                    setSortOpen(false)
+                  }}
+                  style={({ pressed }) => [styles.sortOption, pressed && styles.sortOptionPressed]}
+                >
+                  <Text style={[styles.sortOptionText, selected && styles.sortOptionTextSelected]}>{option.label}</Text>
+                  {selected ? <Ionicons name="checkmark" size={23} color="#155EEF" /> : null}
+                </Pressable>
+              )
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -152,9 +218,11 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '900', color: '#101828' },
   searchWrap: { minHeight: 46, margin: 12, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 13, borderWidth: 1, borderColor: '#E4E7EC', backgroundColor: '#FFFFFF' },
   searchInput: { flex: 1, minHeight: 44, fontSize: 14, color: '#101828' },
-  summaryRow: { paddingHorizontal: 15, paddingBottom: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  summaryText: { fontSize: 12.5, fontWeight: '800', color: '#344054' },
-  summaryHint: { fontSize: 10.5, color: '#98A2B3' },
+  summaryRow: { minHeight: 40, paddingHorizontal: 15, paddingBottom: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  sortButton: { flex: 1, minWidth: 0, minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sortButtonPressed: { opacity: 0.65 },
+  sortText: { flexShrink: 1, fontSize: 12.5, fontWeight: '800', color: '#101828' },
+  summaryText: { fontSize: 12.5, fontWeight: '700', color: '#667085' },
   list: { flex: 1 },
   listContent: { paddingHorizontal: 8, paddingBottom: 22, gap: 6 },
   listContentEmpty: { flexGrow: 1 },
@@ -172,4 +240,12 @@ const styles = StyleSheet.create({
   retryButton: { marginTop: 14, minHeight: 44, paddingHorizontal: 18, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
   retryText: { fontSize: 13, fontWeight: '900', color: '#FFFFFF' },
   empty: { flex: 1, paddingVertical: 52, alignItems: 'center', justifyContent: 'center' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16,24,40,0.42)' },
+  sortSheet: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 26, borderTopLeftRadius: 18, borderTopRightRadius: 18, backgroundColor: '#FFFFFF' },
+  sheetHandle: { alignSelf: 'center', width: 38, height: 4, marginBottom: 12, borderRadius: 2, backgroundColor: '#D0D5DD' },
+  sheetTitle: { paddingHorizontal: 2, paddingBottom: 6, fontSize: 16, fontWeight: '900', color: '#101828' },
+  sortOption: { minHeight: 54, paddingHorizontal: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EAECF0' },
+  sortOptionPressed: { backgroundColor: '#F9FAFB' },
+  sortOptionText: { fontSize: 14, color: '#344054' },
+  sortOptionTextSelected: { fontWeight: '800', color: '#101828' },
 })
