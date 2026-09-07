@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker'
 import { createEquipment, mobileSupabaseConfigured, uploadEquipmentPhoto } from './src/supabase'
 import { SuggestField } from './src/SuggestField'
 import { DateField } from './src/DateField'
+import { listEquipmentStatuses, type EquipmentStatusMaster } from './src/services/equipmentStatusService'
 import {
   canonicalizeEquipmentValue,
   EMPTY_EQUIPMENT_SUGGESTIONS,
@@ -31,7 +32,7 @@ import {
 } from './src/equipmentSuggestions'
 
 type EquipmentType = 'PRODUCTION' | 'MEASUREMENT'
-type EquipmentStatus = 'RUNNING' | 'STOPPED' | 'MAINTENANCE' | 'DOWN'
+type EquipmentStatus = string
 type YesNo = '' | 'YES' | 'NO'
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -96,13 +97,6 @@ const STEPS = [
   { title: 'Vị trí & quản lý', subtitle: 'Nơi sử dụng và người chịu trách nhiệm' },
   { title: 'Đánh giá thiết bị', subtitle: 'Criticality và trạng thái ban đầu' },
 ] as const
-
-const STATUS_OPTIONS: Array<{ value: EquipmentStatus; label: string }> = [
-  { value: 'RUNNING', label: 'Hoạt động' },
-  { value: 'STOPPED', label: 'Dừng' },
-  { value: 'MAINTENANCE', label: 'Bảo trì' },
-  { value: 'DOWN', label: 'Sự cố' },
-]
 
 const SUGGESTION_KEYS: EquipmentSuggestionKey[] = [
   'equipmentName',
@@ -312,6 +306,9 @@ export function RegistrationScreen({ onBack }: { onBack: () => void }) {
   const [saveError, setSaveError] = useState('')
   const [suggestions, setSuggestions] = useState<EquipmentSuggestionMap>(EMPTY_EQUIPMENT_SUGGESTIONS)
   const [suggestionsLoading, setSuggestionsLoading] = useState(true)
+  const [statusOptions, setStatusOptions] = useState<EquipmentStatusMaster[]>([])
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [statusError, setStatusError] = useState('')
   const [cameraPermission, requestCameraPermission] = useCameraPermissions()
   const cameraRef = useRef<CameraView | null>(null)
   const current = STEPS[step]
@@ -332,6 +329,29 @@ export function RegistrationScreen({ onBack }: { onBack: () => void }) {
     return () => { active = false }
   }, [])
 
+  useEffect(() => {
+    let active = true
+    setStatusLoading(true)
+    setStatusError('')
+    void listEquipmentStatuses()
+      .then((rows) => {
+        if (!active) return
+        setStatusOptions(rows)
+        setForm((currentForm) => {
+          if (rows.some((status) => status.statusCode === currentForm.status)) return currentForm
+          const fallback = rows.find((status) => status.statusCode === 'RUNNING')?.statusCode || rows[0]?.statusCode || ''
+          return { ...currentForm, status: fallback }
+        })
+      })
+      .catch((reason) => {
+        if (active) setStatusError(reason instanceof Error ? reason.message : 'Không tải được danh sách trạng thái thiết bị.')
+      })
+      .finally(() => {
+        if (active) setStatusLoading(false)
+      })
+    return () => { active = false }
+  }, [])
+
   const codePreview = form.equipmentType === 'PRODUCTION' ? 'CEV-PR-xxx' : 'CEV-ME-xxx'
   const typeLabel = form.equipmentType === 'PRODUCTION' ? 'Thiết bị sản xuất' : 'Thiết bị đo / kiểm'
 
@@ -344,14 +364,15 @@ export function RegistrationScreen({ onBack }: { onBack: () => void }) {
     if (!form.stopsProduction) items.push('Rủi ro dừng công đoạn')
     if (!form.hasBackup) items.push('Phương án dự phòng')
     if (!form.capacityImpact) items.push('Rủi ro sản lượng')
+    if (!statusOptions.some((status) => status.statusCode === form.status)) items.push('Trạng thái')
     return items
-  }, [form])
+  }, [form, statusOptions])
 
   const stepValid = step === 0
     ? Boolean(form.equipmentName.trim())
     : step === 1
       ? Boolean(form.managementResponsiblePrimary.trim())
-      : missing.length === 0
+      : missing.length === 0 && !statusLoading && !statusError
 
   function patch<K extends keyof EquipmentDraft>(key: K, value: EquipmentDraft[K]) {
     setForm((currentForm) => ({ ...currentForm, [key]: value }))
@@ -636,8 +657,21 @@ export function RegistrationScreen({ onBack }: { onBack: () => void }) {
                   <YesNoRow icon="trending-down-outline" title="Có ảnh hưởng sản lượng / giao hàng?" description="Hỏng thiết bị có nguy cơ ảnh hưởng capacity hoặc delivery." value={form.capacityImpact} onChange={(value) => patch('capacityImpact', value)} />
                 </SectionCard>
 
-                <SectionCard icon="pulse-outline" title="Trạng thái ban đầu" caption="Trạng thái thực tế tại thời điểm đăng ký">
-                  <SegmentedChoice value={form.status} options={STATUS_OPTIONS} onChange={(value) => patch('status', value)} />
+                <SectionCard icon="pulse-outline" title="Trạng thái ban đầu" caption="Chỉ chọn trạng thái đã cấu hình trong Cài đặt tài khoản → Trạng thái thiết bị">
+                  {statusLoading ? <ActivityIndicator size="small" color="#155EEF" /> : null}
+                  {!statusLoading && statusError ? (
+                    <View style={styles.saveError}>
+                      <Ionicons name="alert-circle" size={19} color="#B42318" />
+                      <Text style={styles.saveErrorText}>{statusError}</Text>
+                    </View>
+                  ) : null}
+                  {!statusLoading && !statusError ? (
+                    <SegmentedChoice
+                      value={form.status}
+                      options={statusOptions.map((status) => ({ value: status.statusCode, label: status.displayName }))}
+                      onChange={(value) => patch('status', value)}
+                    />
+                  ) : null}
                   <Field icon="create-outline" label="Ghi chú" value={form.note} onChangeText={(value) => patch('note', value)} placeholder="Thông tin cần lưu cho lần đăng ký đầu tiên" multiline />
                 </SectionCard>
 
