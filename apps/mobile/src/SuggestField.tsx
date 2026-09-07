@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -28,7 +28,7 @@ export function SuggestField({
   loading?: boolean
 }) {
   const [focused, setFocused] = useState(false)
-  const selectionActiveRef = useState({ current: false })[0]
+  const selectionActiveRef = useRef(false)
 
   const cleanedValue = cleanEquipmentText(value)
   const matchKey = equipmentMatchKey(cleanedValue)
@@ -41,8 +41,6 @@ export function SuggestField({
       : suggestions
     return source.slice(0, 6)
   }, [suggestions, value])
-
-  const showMenu = focused
 
   function choose(option: string) {
     selectionActiveRef.current = true
@@ -91,7 +89,7 @@ export function SuggestField({
         </Pressable>
       </View>
 
-      {showMenu ? (
+      {focused ? (
         <View style={styles.menu}>
           {loading ? (
             <View style={styles.menuRow}>
