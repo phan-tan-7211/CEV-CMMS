@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 
-import { SettingsScaffold } from './SettingsScaffold'
 import {
   createEquipmentStatus,
   deleteEquipmentStatusMaster,
   listEquipmentStatuses,
   updateEquipmentStatusMaster,
   type EquipmentStatusMaster,
-} from '../../services/equipmentStatusService'
+} from '../../features/equipment'
+import { SettingsScaffold } from './SettingsScaffold'
 
 const COLORS = ['#12B76A', '#D92D20', '#F79009', '#667085', '#155EEF', '#7F56D9', '#06AED4', '#EE46BC']
 
