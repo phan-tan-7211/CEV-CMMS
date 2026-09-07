@@ -7,12 +7,14 @@ type ExportSummary = {
   evidenceCount: number
 }
 
-function sumRecordValues(value: unknown) {
+function sumRecordValues(value: unknown): number {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return 0
-  return Object.values(value as Record<string, unknown>).reduce((total, item) => {
+  let total = 0
+  for (const item of Object.values(value as Record<string, unknown>)) {
     const parsed = Number(item)
-    return total + (Number.isFinite(parsed) ? parsed : 0)
-  }, 0)
+    if (Number.isFinite(parsed)) total += parsed
+  }
+  return total
 }
 
 export function AuditExportControl() {
