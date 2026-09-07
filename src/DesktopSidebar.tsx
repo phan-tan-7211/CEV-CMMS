@@ -69,6 +69,7 @@ export function DesktopSidebar<T extends string>({ items, currentView, roleLabel
   const filteredItems = useMemo(() => normalizedQuery ? items.filter((item) => item.label.toLocaleLowerCase('vi').includes(normalizedQuery)) : items, [items, normalizedQuery])
 
   return <aside className={`desktop-sidebar${collapsed ? ' is-collapsed' : ''}`} aria-label="Điều hướng trên máy tính">
+    <span hidden>Hệ thống quản lý thiết bị CEV</span>
     <div className="sidebar-brand-row">
       <div className="sidebar-brand" title={collapsed ? 'CEV Equipment Management' : undefined}>
         <span className="sidebar-brand-mark">CEV</span>
