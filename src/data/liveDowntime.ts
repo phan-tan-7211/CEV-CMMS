@@ -1,5 +1,5 @@
 import { isClientCacheFresh } from './clientDataCache'
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type DowntimeCauseCategory = 'MECHANICAL' | 'ELECTRICAL' | 'WAITING_MATERIAL' | 'UNPLANNED_MAINTENANCE' | 'SETUP_CHANGEOVER' | 'NO_OPERATOR' | 'MATERIAL_SHORTAGE' | 'PROCESS_ERROR' | 'OTHER'
 
@@ -99,18 +99,27 @@ async function fetchDowntimeMonthlyReport(month: string): Promise<DowntimeMonthl
     const availablePerEquipment = trackedDays * 24 * 60
 
     const [equipmentResult, downtimeResult] = await Promise.all([
-      supabase.from('equipment_master').select('equipment_id,equipment_name,current_area,equipment_type,active').eq('equipment_type', 'PRODUCTION').eq('active', true),
-      supabase.from('downtime_event').select('*').lt('started_at', windowEnd.toISOString()).or(`ended_at.is.null,ended_at.gte.${windowStart.toISOString()}`),
+      dataGateway.readRows('equipment_master', {
+        columns: 'equipment_id,equipment_name,current_area,equipment_type,active',
+        eq: [
+          { column: 'equipment_type', value: 'PRODUCTION' },
+          { column: 'active', value: true },
+        ],
+      }),
+      dataGateway.readRows('downtime_event', {
+        lt: [{ column: 'started_at', value: windowEnd.toISOString() }],
+        or: `ended_at.is.null,ended_at.gte.${windowStart.toISOString()}`,
+      }),
     ])
     if (equipmentResult.error) throw equipmentResult.error
     if (downtimeResult.error) throw downtimeResult.error
 
-    const equipmentRows = (equipmentResult.data || []) as Array<Record<string, unknown>>
+    const equipmentRows = equipmentResult.data
     const equipmentMap = new Map(equipmentRows.map((row) => [text(row.equipment_id), { name: text(row.equipment_name), area: text(row.current_area) }]))
     const events: DowntimeEvent[] = []
     const now = new Date()
 
-    for (const row of (downtimeResult.data || []) as Array<Record<string, unknown>>) {
+    for (const row of downtimeResult.data) {
       const source = (row.source_data as Record<string, unknown> | null) || {}
       const equipmentId = text(row.equipment_id)
       const meta = equipmentMap.get(equipmentId)
@@ -183,9 +192,9 @@ export async function loadDowntimeMonthlyReport(month: string, options: { force?
 }
 
 export async function upsertDowntimeEvent(input: DowntimeInput) {
-  const { data, error } = await supabase.rpc('rpc_upsert_downtime_event_bm06', { p_input: input })
+  const { data, error } = await dataGateway.rpc<{ downtimeId: string; equipmentId: string }>('rpc_upsert_downtime_event_bm06', { p_input: input })
   if (error) throw error
-  const result = data as { downtimeId: string; equipmentId: string }
+  const result = data || { downtimeId: '', equipmentId: input.equipmentId }
   const startMonth = monthFromDateTime(input.startedAt)
   const endMonth = input.endedAt ? monthFromDateTime(input.endedAt) : ''
   invalidateDowntimeReport(startMonth)
