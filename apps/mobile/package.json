@@ -22,6 +22,7 @@
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "8.4.4",
     "@supabase/supabase-js": "2.114.0",
     "expo": "~54.0.20",
     "expo-camera": "~17.0.10",
