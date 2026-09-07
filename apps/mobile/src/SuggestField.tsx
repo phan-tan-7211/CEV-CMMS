@@ -28,7 +28,9 @@ export function SuggestField({
   loading?: boolean
 }) {
   const [focused, setFocused] = useState(false)
+  const inputRef = useRef<TextInput | null>(null)
   const selectionActiveRef = useRef(false)
+  const focusStartedAtRef = useRef(0)
 
   const cleanedValue = cleanEquipmentText(value)
   const matchKey = equipmentMatchKey(cleanedValue)
@@ -46,6 +48,7 @@ export function SuggestField({
     selectionActiveRef.current = true
     onChangeText(option)
     setFocused(false)
+    inputRef.current?.blur()
     setTimeout(() => { selectionActiveRef.current = false }, 0)
   }
 
@@ -53,6 +56,11 @@ export function SuggestField({
     const canonical = canonicalizeEquipmentValue(value, suggestions)
     if (canonical !== value) onChangeText(canonical)
     setFocused(false)
+  }
+
+  function openAndFocus() {
+    setFocused(true)
+    requestAnimationFrame(() => inputRef.current?.focus())
   }
 
   return (
@@ -64,25 +72,45 @@ export function SuggestField({
       <View style={[styles.inputShell, focused && styles.inputShellFocused]}>
         {icon ? <Ionicons name={icon} size={18} color="#98A2B3" style={styles.inputIcon} /> : null}
         <TextInput
+          ref={inputRef}
           value={value}
           onChangeText={onChangeText}
-          onFocus={() => setFocused(true)}
-          onBlur={() => {
-            setTimeout(() => {
-              if (!selectionActiveRef.current) commitFreeText()
-            }, 120)
+          onFocus={() => {
+            focusStartedAtRef.current = Date.now()
+            setFocused(true)
           }}
+          onBlur={() => {
+            if (selectionActiveRef.current) return
+
+            // Android can emit a transient blur while the suggestion panel is being
+            // inserted and the KeyboardAvoidingView/ScrollView re-layouts. In that
+            // case immediately restore focus so the soft keyboard does not flash shut.
+            if (Date.now() - focusStartedAtRef.current < 700) {
+              setTimeout(() => {
+                if (!selectionActiveRef.current) {
+                  setFocused(true)
+                  inputRef.current?.focus()
+                }
+              }, 60)
+              return
+            }
+
+            commitFreeText()
+          }}
+          onSubmitEditing={commitFreeText}
           placeholder={placeholder}
           placeholderTextColor="#98A2B3"
           autoCorrect={false}
           autoCapitalize="sentences"
+          returnKeyType="done"
+          blurOnSubmit={false}
           style={styles.input}
         />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Mở gợi ý ${label}`}
           hitSlop={8}
-          onPress={() => setFocused((current) => !current)}
+          onPress={openAndFocus}
           style={styles.endButton}
         >
           <Ionicons name={focused ? 'chevron-up' : 'chevron-down'} size={17} color="#667085" />
