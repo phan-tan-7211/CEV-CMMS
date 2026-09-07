@@ -71,6 +71,7 @@ export function WorkOrderAssignmentPanel({ workOrderId }: { workOrderId: string 
       setAssignment(next)
       setSelectedPerson(next.assignedPersonCode)
       setMessage(next.assignedPersonCode ? `Đã giao ${workOrderId} cho ${next.assignedPersonName || next.assignedPersonCode}.` : `Đã bỏ người phụ trách của ${workOrderId}.`)
+      window.dispatchEvent(new CustomEvent('cev:maintenance-assignment-changed', { detail: { workOrderId } }))
     } catch (cause: unknown) {
       const raw = cause instanceof Error ? cause.message : 'Không thể cập nhật người phụ trách'
       setError(raw.replace('WORK_ORDER_ASSIGN_ROLE_DENIED', 'Bạn không có quyền giao việc.').replace('ACTIVE_ORG_PERSON_NOT_FOUND', 'Nhân sự đã chọn không còn hoạt động.').replace('WORK_ORDER_ALREADY_RELEASED', 'Lệnh đã bàn giao, không thể đổi người phụ trách.'))
