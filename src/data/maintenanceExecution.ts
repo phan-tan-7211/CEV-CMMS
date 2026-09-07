@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient'
 
 export type MaintenanceExecutionDetail = {
   workOrderId: string
+  status: string
   rootCause: string
   correctiveAction: string
   preventiveAction: string
@@ -27,7 +28,7 @@ export async function loadMaintenanceExecutionDetail(workOrderId: string): Promi
   if (!id) throw new Error('WORK_ORDER_ID_REQUIRED')
 
   const [woResult, downtimeResult] = await Promise.all([
-    supabase.from('maintenance_work_order').select('work_order_id,source_data').eq('work_order_id', id).maybeSingle(),
+    supabase.from('maintenance_work_order').select('work_order_id,status,source_data').eq('work_order_id', id).maybeSingle(),
     supabase.from('downtime_event').select('downtime_id,started_at,ended_at,source_data').eq('work_order_id', id).order('started_at', { ascending: false }).limit(1).maybeSingle(),
   ])
   if (woResult.error) throw woResult.error
@@ -40,6 +41,7 @@ export async function loadMaintenanceExecutionDetail(workOrderId: string): Promi
 
   return {
     workOrderId: text(woResult.data.work_order_id),
+    status: text(woResult.data.status),
     rootCause: text(woSource.rootCause),
     correctiveAction: text(woSource.correctiveAction),
     preventiveAction: text(woSource.preventiveAction),
