@@ -116,9 +116,10 @@ export function EquipmentListScreen({
             >
               <EquipmentPhoto
                 uri={item.imageUrl}
-                width={56}
-                height={56}
-                borderRadius={12}
+                width={76}
+                height={76}
+                borderRadius={10}
+                showBorder={false}
                 accessibilityLabel={`Ảnh thiết bị ${item.equipmentId}`}
               />
               <View style={styles.rowCopy}>
@@ -155,9 +156,9 @@ const styles = StyleSheet.create({
   summaryText: { fontSize: 12.5, fontWeight: '800', color: '#344054' },
   summaryHint: { fontSize: 10.5, color: '#98A2B3' },
   list: { flex: 1 },
-  listContent: { paddingHorizontal: 12, paddingBottom: 22, gap: 7 },
+  listContent: { paddingHorizontal: 8, paddingBottom: 22, gap: 6 },
   listContentEmpty: { flexGrow: 1 },
-  row: { minHeight: 82, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: '#DDE1E7', backgroundColor: '#FFFFFF' },
+  row: { minHeight: 84, paddingHorizontal: 4, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: '#EAECF0', backgroundColor: '#FFFFFF' },
   rowPressed: { backgroundColor: '#F9FAFB' },
   rowCopy: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
