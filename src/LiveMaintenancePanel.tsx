@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import './Maintenance.css'
 import { canCreateMaintenance, canTransitionMaintenance, useAppRole } from './auth/AppRoleContext'
@@ -46,9 +46,11 @@ function requestedAtValue(value: string) {
   return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed
 }
 
-export function LiveMaintenancePanel() {
+export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: { equipmentId?: string }) {
   const role = useAppRole()
   const canCreate = canCreateMaintenance(role)
+  const normalizedEquipmentContext = equipmentContextId.trim().toUpperCase()
+  const previousEquipmentContext = useRef('')
   const [initialSnapshot] = useState(getMaintenanceCacheSnapshot)
   const [equipment, setEquipment] = useState<MaintenanceEquipmentOption[]>(() => initialSnapshot?.equipment || [])
   const [workOrders, setWorkOrders] = useState<LiveMaintenanceWorkOrder[]>(() => initialSnapshot?.workOrders || [])
@@ -57,13 +59,13 @@ export function LiveMaintenancePanel() {
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const [query, setQuery] = useState('')
-  const [queueFilter, setQueueFilter] = useState<MaintenanceQueueFilter>('ACTION')
+  const [query, setQuery] = useState(normalizedEquipmentContext)
+  const [queueFilter, setQueueFilter] = useState<MaintenanceQueueFilter>(normalizedEquipmentContext ? 'ALL' : 'ACTION')
   const [statusFilter, setStatusFilter] = useState<'ALL' | MaintenanceWorkflowStatus>('ALL')
   const [selectedId, setSelectedId] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [createError, setCreateError] = useState('')
-  const [equipmentId, setEquipmentId] = useState(() => initialSnapshot?.equipment[0]?.equipmentId || '')
+  const [equipmentId, setEquipmentId] = useState(() => normalizedEquipmentContext || initialSnapshot?.equipment[0]?.equipmentId || '')
   const [reason, setReason] = useState('')
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM')
   const [method, setMethod] = useState('')
@@ -83,6 +85,22 @@ export function LiveMaintenancePanel() {
     const snapshot = getMaintenanceCacheSnapshot()
     if (snapshot) applyResult(snapshot)
   }, [applyResult])
+
+  useEffect(() => {
+    const previous = previousEquipmentContext.current
+    if (normalizedEquipmentContext) {
+      setQuery(normalizedEquipmentContext)
+      setEquipmentId(normalizedEquipmentContext)
+      setQueueFilter('ALL')
+      setStatusFilter('ALL')
+      setSelectedId('')
+    } else if (previous) {
+      setQuery((current) => current.trim().toUpperCase() === previous ? '' : current)
+      setQueueFilter('ACTION')
+      setStatusFilter('ALL')
+    }
+    previousEquipmentContext.current = normalizedEquipmentContext
+  }, [normalizedEquipmentContext])
 
   useEffect(() => {
     let active = true
@@ -136,6 +154,7 @@ export function LiveMaintenancePanel() {
 
   const openCreate = () => {
     setCreateError('')
+    if (normalizedEquipmentContext) setEquipmentId(normalizedEquipmentContext)
     setCreateOpen(true)
   }
 
@@ -171,7 +190,7 @@ export function LiveMaintenancePanel() {
       setPlannedEndAt('')
       setPriority('MEDIUM')
       setCreateOpen(false)
-      setQueueFilter('ACTION')
+      setQueueFilter(normalizedEquipmentContext ? 'ALL' : 'ACTION')
       setStatusFilter('ALL')
       setSelectedId(result.result.workOrderId)
     } catch (cause: unknown) {
@@ -200,7 +219,7 @@ export function LiveMaintenancePanel() {
 
     <section className="maintenance-surface" aria-labelledby="maintenance-title">
       <header className="maintenance-header">
-        <div><p className="eyebrow">Work Order · IATF workflow</p><h2 id="maintenance-title">Hàng đợi bảo trì</h2><p>Mặc định chỉ hiện các lệnh mà vai trò hiện tại có thể xử lý ngay. Mở lệnh để xem bước tiếp theo, người chịu trách nhiệm và hồ sơ liên quan.</p></div>
+        <div><p className="eyebrow">Work Order · IATF workflow</p><h2 id="maintenance-title">Hàng đợi bảo trì</h2><p>{normalizedEquipmentContext ? `Đang lọc toàn bộ lệnh công việc của ${normalizedEquipmentContext}. Tạo lệnh mới sẽ mặc định đúng thiết bị này.` : 'Mặc định chỉ hiện các lệnh mà vai trò hiện tại có thể xử lý ngay. Mở lệnh để xem bước tiếp theo, người chịu trách nhiệm và hồ sơ liên quan.'}</p></div>
         {canCreate ? <button className="maintenance-primary" type="button" onClick={openCreate}>+ Tạo lệnh công việc</button> : <span className="maintenance-readonly">Chỉ xem · {roleLabel[role] || role}</span>}
       </header>
 
@@ -270,7 +289,7 @@ export function LiveMaintenancePanel() {
 
     {createOpen && canCreate ? <div className="maintenance-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateOpen(false) }}>
       <aside className="maintenance-drawer create" role="dialog" aria-modal="true" aria-labelledby="create-wo-title">
-        <header><div><p className="eyebrow">Tiếp nhận công việc</p><h2 id="create-wo-title">Tạo yêu cầu bảo trì</h2><p>Ghi đủ hiện tượng, mức ưu tiên và thời gian dự kiến để người xử lý nhận việc ngay.</p></div><button type="button" aria-label="Đóng" onClick={() => setCreateOpen(false)}>×</button></header>
+        <header><div><p className="eyebrow">Tiếp nhận công việc</p><h2 id="create-wo-title">Tạo yêu cầu bảo trì</h2><p>{normalizedEquipmentContext ? `Lệnh mới đang gắn với ngữ cảnh ${normalizedEquipmentContext}.` : 'Ghi đủ hiện tượng, mức ưu tiên và thời gian dự kiến để người xử lý nhận việc ngay.'}</p></div><button type="button" aria-label="Đóng" onClick={() => setCreateOpen(false)}>×</button></header>
         <form className="maintenance-create-form" onSubmit={onCreate}>
           <label><span>Thiết bị *</span><select value={equipmentId} onChange={(event) => setEquipmentId(event.target.value)} required>{equipment.map((item) => <option key={item.equipmentId} value={item.equipmentId}>{item.equipmentId} · {item.equipmentName}</option>)}</select></label>
           <label><span>Mức ưu tiên *</span><select value={priority} onChange={(event) => setPriority(event.target.value as typeof priority)}><option value="LOW">Thấp</option><option value="MEDIUM">Trung bình</option><option value="HIGH">Cao</option><option value="CRITICAL">Khẩn cấp</option></select></label>
