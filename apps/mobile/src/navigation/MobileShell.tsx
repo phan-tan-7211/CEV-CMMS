@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, BackHandler, StyleSheet, View } from 'react-native'
 import type { Session } from '@supabase/supabase-js'
 
-import App from '../App'
-import { HomeScreen } from './HomeScreen'
-import { supabase } from './supabase'
+import { EquipmentRegistrationScreen } from '../screens/EquipmentRegistrationScreen'
+import { HomeScreen } from '../screens/HomeScreen'
+import { supabase } from '../supabase'
 
 type Route = 'home' | 'registration'
 
@@ -38,10 +38,10 @@ export function MobileShell() {
     )
   }
 
-  if (!session) return <App />
+  if (!session) return <EquipmentRegistrationScreen />
 
   if (route === 'registration') {
-    return <App />
+    return <EquipmentRegistrationScreen />
   }
 
   return (

@@ -1,7 +1,8 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useState } from 'react'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -33,6 +34,8 @@ function showComingSoon(label: string) {
 }
 
 export function HomeScreen({ onCreateEquipment, onSignOut }: HomeScreenProps) {
+  const [assignedOnly, setAssignedOnly] = useState(true)
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
@@ -67,7 +70,7 @@ export function HomeScreen({ onCreateEquipment, onSignOut }: HomeScreenProps) {
               key={action.label}
               accessibilityRole="button"
               accessibilityLabel={action.label}
-              onPress={() => action.label === 'Thiết bị' ? onCreateEquipment() : showComingSoon(action.label)}
+              onPress={() => showComingSoon(action.label)}
               style={({ pressed }) => [styles.quickAction, pressed && styles.quickActionPressed]}
             >
               <View style={[styles.quickIcon, action.primary && styles.quickIconPrimary]}>
@@ -85,6 +88,19 @@ export function HomeScreen({ onCreateEquipment, onSignOut }: HomeScreenProps) {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.assignedCard}>
+            <View style={styles.assignedCopy}>
+              <Text style={styles.assignedTitle}>Chỉ công việc giao cho tôi</Text>
+              <Text style={styles.assignedCaption}>Bộ lọc mặc định của dashboard</Text>
+            </View>
+            <Switch
+              value={assignedOnly}
+              onValueChange={setAssignedOnly}
+              trackColor={{ false: '#D0D5DD', true: '#84ADFF' }}
+              thumbColor={assignedOnly ? '#155EEF' : '#F2F4F7'}
+            />
+          </View>
+
           <View style={styles.sectionHeadingRow}>
             <Text style={styles.sectionTitle}>Bảng điều khiển Work Order</Text>
             <Pressable
@@ -116,7 +132,7 @@ export function HomeScreen({ onCreateEquipment, onSignOut }: HomeScreenProps) {
 
           <View style={styles.syncHint}>
             <Ionicons name="flash-outline" size={15} color="#475467" />
-            <Text style={styles.syncHintText}>Home ưu tiên phản hồi nhanh; dữ liệu Work Order thật sẽ được nối ở bước tiếp theo.</Text>
+            <Text style={styles.syncHintText}>Khung Home đã tách riêng như app CMMS native; số liệu thật sẽ nối vào service Work Order sau.</Text>
           </View>
         </ScrollView>
 
@@ -159,30 +175,30 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
   shell: { flex: 1, backgroundColor: '#F8F9FB' },
   header: {
-    minHeight: 66,
-    paddingHorizontal: 18,
+    minHeight: 64,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   brandMark: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#155EEF',
   },
-  brand: { fontSize: 20, lineHeight: 24, fontWeight: '900', color: '#101828', letterSpacing: -0.35 },
-  brandSub: { marginTop: 1, fontSize: 10.5, lineHeight: 14, fontWeight: '600', color: '#98A2B3' },
+  brand: { fontSize: 19, lineHeight: 23, fontWeight: '900', color: '#101828', letterSpacing: -0.35 },
+  brandSub: { marginTop: 1, fontSize: 10, lineHeight: 13, fontWeight: '600', color: '#98A2B3' },
   settingsButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   quickStrip: {
-    minHeight: 106,
-    paddingHorizontal: 8,
-    paddingTop: 8,
-    paddingBottom: 10,
+    minHeight: 98,
+    paddingHorizontal: 6,
+    paddingTop: 6,
+    paddingBottom: 8,
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#FFFFFF',
@@ -190,41 +206,56 @@ const styles = StyleSheet.create({
   quickAction: { flex: 1, minWidth: 0, alignItems: 'center' },
   quickActionPressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
   quickIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F2F4F7',
   },
   quickIconPrimary: { backgroundColor: '#155EEF' },
-  quickLabel: { marginTop: 6, paddingHorizontal: 2, textAlign: 'center', fontSize: 11.5, lineHeight: 14, fontWeight: '600', color: '#344054' },
-  separator: { height: 8, backgroundColor: '#F2F4F7' },
+  quickLabel: { marginTop: 5, paddingHorizontal: 2, textAlign: 'center', fontSize: 11, lineHeight: 13, fontWeight: '600', color: '#344054' },
+  separator: { height: 7, backgroundColor: '#F2F4F7' },
   content: { flex: 1 },
-  contentContainer: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 18 },
-  sectionHeadingRow: { minHeight: 34, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  sectionTitle: { flex: 1, fontSize: 20, lineHeight: 25, fontWeight: '900', color: '#1D2939', letterSpacing: -0.4 },
-  editText: { fontSize: 13, lineHeight: 18, fontWeight: '800', color: '#155EEF' },
-  dashboardList: { gap: 8 },
-  statusRow: {
-    minHeight: 62,
-    paddingRight: 13,
+  contentContainer: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 18 },
+  assignedCard: {
+    minHeight: 58,
+    marginBottom: 12,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#DDE1E7',
     backgroundColor: '#FFFFFF',
   },
+  assignedCopy: { flex: 1, paddingRight: 12 },
+  assignedTitle: { fontSize: 13.5, lineHeight: 18, fontWeight: '800', color: '#344054' },
+  assignedCaption: { marginTop: 1, fontSize: 10.5, lineHeight: 14, color: '#98A2B3' },
+  sectionHeadingRow: { minHeight: 32, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  sectionTitle: { flex: 1, fontSize: 19, lineHeight: 24, fontWeight: '900', color: '#1D2939', letterSpacing: -0.4 },
+  editText: { fontSize: 12.5, lineHeight: 17, fontWeight: '800', color: '#155EEF' },
+  dashboardList: { gap: 7 },
+  statusRow: {
+    minHeight: 58,
+    paddingRight: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 13,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#DDE1E7',
+    backgroundColor: '#FFFFFF',
+  },
   statusRowPressed: { backgroundColor: '#F9FAFB' },
-  statusAccent: { width: 4, height: 36, marginLeft: 12, marginRight: 12, borderRadius: 3 },
-  statusLabel: { flex: 1, fontSize: 16, lineHeight: 21, fontWeight: '800', color: '#20242A' },
-  statusCount: { minWidth: 28, marginHorizontal: 8, textAlign: 'right', fontSize: 17, lineHeight: 22, fontWeight: '500', color: '#667085' },
-  syncHint: { marginTop: 12, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
+  statusAccent: { width: 4, height: 34, marginLeft: 11, marginRight: 11, borderRadius: 3 },
+  statusLabel: { flex: 1, fontSize: 15.5, lineHeight: 20, fontWeight: '800', color: '#20242A' },
+  statusCount: { minWidth: 26, marginHorizontal: 7, textAlign: 'right', fontSize: 16.5, lineHeight: 21, fontWeight: '500', color: '#667085' },
+  syncHint: { marginTop: 11, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
   syncHintText: { flex: 1, fontSize: 10.5, lineHeight: 15, color: '#667085' },
   bottomNavWrap: { position: 'relative', backgroundColor: '#FFFFFF' },
   bottomNav: {
-    minHeight: 68,
+    minHeight: 66,
     paddingHorizontal: 4,
     flexDirection: 'row',
     alignItems: 'center',
@@ -232,18 +263,18 @@ const styles = StyleSheet.create({
     borderTopColor: '#DDE1E7',
     backgroundColor: '#FFFFFF',
   },
-  navItem: { flex: 1, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  navItem: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 3 },
   navCenterSpace: { flex: 1 },
   navLabel: { fontSize: 10.5, lineHeight: 13, fontWeight: '600', color: '#667085' },
   navLabelActive: { color: '#155EEF', fontWeight: '800' },
   fab: {
     position: 'absolute',
     left: '50%',
-    top: -21,
-    width: 58,
-    height: 58,
-    marginLeft: -29,
-    borderRadius: 29,
+    top: -20,
+    width: 56,
+    height: 56,
+    marginLeft: -28,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 5,
