@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, BackHandler, StyleSheet, View } from 'react-native'
 import type { Session } from '@supabase/supabase-js'
 
+import { EquipmentDetailScreen } from '../screens/EquipmentDetailScreen'
 import { EquipmentListScreen } from '../screens/EquipmentListScreen'
 import { EquipmentRegistrationScreen } from '../screens/EquipmentRegistrationScreen'
 import { HomeScreen } from '../screens/HomeScreen'
@@ -12,11 +13,12 @@ import { WorkOrdersScreen } from '../screens/WorkOrdersScreen'
 import { AccountSettingsScreen } from '../screens/settings/AccountSettingsScreen'
 import { supabase } from '../supabase'
 
-type Route = 'home' | 'registration' | 'equipment' | 'scan' | 'work-orders' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'scan' | 'work-orders' | 'more' | 'settings'
 
 export function MobileShell() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [route, setRoute] = useState<Route>('home')
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState('')
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -30,7 +32,11 @@ export function MobileShell() {
   useEffect(() => {
     if (route === 'home') return undefined
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      setRoute('home')
+      if (route === 'equipment-detail') {
+        setRoute('equipment')
+      } else {
+        setRoute('home')
+      }
       return true
     })
     return () => subscription.remove()
@@ -46,8 +52,22 @@ export function MobileShell() {
 
   if (!session) return <LoginScreen />
 
-  if (route === 'registration') return <EquipmentRegistrationScreen />
-  if (route === 'equipment') return <EquipmentListScreen onBack={() => setRoute('home')} onCreateEquipment={() => setRoute('registration')} />
+  if (route === 'registration') return <EquipmentRegistrationScreen onBack={() => setRoute('home')} />
+  if (route === 'equipment') {
+    return (
+      <EquipmentListScreen
+        onBack={() => setRoute('home')}
+        onCreateEquipment={() => setRoute('registration')}
+        onOpenEquipment={(equipmentId) => {
+          setSelectedEquipmentId(equipmentId)
+          setRoute('equipment-detail')
+        }}
+      />
+    )
+  }
+  if (route === 'equipment-detail' && selectedEquipmentId) {
+    return <EquipmentDetailScreen equipmentId={selectedEquipmentId} onBack={() => setRoute('equipment')} />
+  }
   if (route === 'scan') return <ScanAssetScreen onBack={() => setRoute('home')} />
   if (route === 'work-orders') return <WorkOrdersScreen onBack={() => setRoute('home')} />
   if (route === 'more') return <MoreScreen onBack={() => setRoute('home')} />
