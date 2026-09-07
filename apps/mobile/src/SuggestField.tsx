@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { AutocompleteDropdown } from 'react-native-autocomplete-dropdown'
+import {
+  AutocompleteDropdown,
+  type IAutocompleteDropdownRef,
+} from 'react-native-autocomplete-dropdown'
 
 import { canonicalizeEquipmentValue, cleanEquipmentText } from './equipmentSuggestions'
 
 type IconName = keyof typeof Ionicons.glyphMap
-
-type DropdownController = {
-  open?: () => void
-  close?: () => void
-  setInputText?: (text: string) => void
-}
 
 export function SuggestField({
   label,
@@ -34,19 +31,18 @@ export function SuggestField({
   icon?: IconName
   loading?: boolean
 }) {
-  const controllerRef = useRef<DropdownController | null>(null)
+  const controllerRef = useRef<IAutocompleteDropdownRef | null>(null)
   const lastInternalTextRef = useRef(value)
 
   const dataSet = useMemo(
-    () => suggestions.slice(0, 200).map((title, index) => ({ id: `${index}:${title}`, title })),
+    () => suggestions.slice(0, 500).map((title, index) => ({ id: `${index}:${title}`, title })),
     [suggestions],
   )
 
   useEffect(() => {
-    if (value !== lastInternalTextRef.current) {
-      lastInternalTextRef.current = value
-      controllerRef.current?.setInputText?.(value)
-    }
+    if (value === lastInternalTextRef.current) return
+    lastInternalTextRef.current = value
+    controllerRef.current?.setInputText(value)
   }, [value])
 
   function handleTextChange(text: string) {
@@ -54,13 +50,12 @@ export function SuggestField({
     onChangeText(text)
   }
 
-  function handleBlur() {
+  function commitCanonicalValue() {
     const canonical = canonicalizeEquipmentValue(value, suggestions)
-    if (canonical !== value) {
-      lastInternalTextRef.current = canonical
-      onChangeText(canonical)
-      controllerRef.current?.setInputText?.(canonical)
-    }
+    if (canonical === value) return
+    lastInternalTextRef.current = canonical
+    onChangeText(canonical)
+    controllerRef.current?.setInputText(canonical)
   }
 
   return (
@@ -71,9 +66,10 @@ export function SuggestField({
       </Text>
 
       <AutocompleteDropdown
-        controller={(controller) => { controllerRef.current = controller as DropdownController }}
+        controller={controllerRef}
         dataSet={dataSet}
         loading={loading}
+        enableLoadingIndicator
         clearOnFocus={false}
         closeOnBlur={false}
         closeOnSubmit={false}
@@ -83,16 +79,19 @@ export function SuggestField({
         ignoreAccents
         trimSearchText
         matchFrom="any"
+        debounce={0}
         suggestionsListMaxHeight={260}
-        initialValue={null}
         onChangeText={handleTextChange}
-        onBlur={handleBlur}
+        onBlur={commitCanonicalValue}
+        onSubmit={commitCanonicalValue}
         onSelectItem={(item) => {
           if (!item?.title) return
           lastInternalTextRef.current = item.title
           onChangeText(item.title)
         }}
-        emptyResultText={value.trim() ? `Không có “${cleanEquipmentText(value)}” · có thể giữ nguyên để thêm mới` : 'Chưa có dữ liệu gợi ý'}
+        emptyResultText={value.trim()
+          ? `Không có “${cleanEquipmentText(value)}” · giữ nguyên để thêm mới`
+          : 'Chưa có dữ liệu gợi ý'}
         textInputProps={{
           placeholder,
           placeholderTextColor: '#98A2B3',
@@ -107,13 +106,21 @@ export function SuggestField({
         containerStyle={styles.dropdownContainer}
         rightButtonsContainerStyle={styles.rightButtons}
         ChevronIconComponent={<Ionicons name="chevron-down" size={17} color="#667085" />}
+        LeftComponent={icon ? (
+          <View style={styles.leftIcon}>
+            <Ionicons name={icon} size={18} color="#98A2B3" />
+          </View>
+        ) : undefined}
         renderItem={(item) => (
           <View style={styles.optionRow}>
             <Ionicons name="search-outline" size={17} color="#667085" />
             <Text style={styles.optionText} numberOfLines={2}>{item.title}</Text>
           </View>
         )}
-        LeftIconComponent={icon ? <Ionicons name={icon} size={18} color="#98A2B3" /> : undefined}
+        flatListProps={{
+          keyboardShouldPersistTaps: 'always',
+          nestedScrollEnabled: true,
+        }}
       />
 
       <Text style={styles.helper}>
@@ -137,11 +144,12 @@ const styles = StyleSheet.create({
     borderColor: '#EAECF0',
     backgroundColor: '#F8FAFC',
   },
+  leftIcon: { width: 40, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
   textInput: {
     minHeight: 48,
     color: '#101828',
     fontSize: 14,
-    paddingLeft: 4,
+    paddingLeft: 0,
   },
   rightButtons: { right: 4, height: 46, alignSelf: 'center' },
   suggestionsContainer: {
