@@ -1,4 +1,3 @@
-import Constants from 'expo-constants'
 import { StyleSheet, Text, View } from 'react-native'
 
 import { SettingsScaffold } from './SettingsScaffold'
@@ -8,7 +7,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 export function AboutSettingsScreen({ onBack }: { onBack: () => void }) {
-  const version = Constants.expoConfig?.version || '0.1.0'
   return (
     <SettingsScaffold title="Thông tin ứng dụng" onBack={onBack}>
       <View style={styles.hero}>
@@ -19,7 +17,7 @@ export function AboutSettingsScreen({ onBack }: { onBack: () => void }) {
       <View style={styles.group}>
         <InfoRow label="Công ty" value="Core Electronics Vietnam" />
         <InfoRow label="Ứng dụng" value="CEV CMMS" />
-        <InfoRow label="Phiên bản" value={version} />
+        <InfoRow label="Phiên bản" value="0.1.0" />
         <InfoRow label="Nền tảng" value="Expo / React Native" />
       </View>
     </SettingsScaffold>
