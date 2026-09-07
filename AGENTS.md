@@ -94,6 +94,25 @@ This rule applies to every equipment image surface: Equipment Profile, Equipment
 - Equipment List thumbnails must use one consistent frame size within the list so source-image dimensions cannot change row height or break layout.
 - A UI change involving equipment images is not complete until tested with: small source image, very large source image, portrait image, landscape image, and square image.
 
+## Mandatory parallel Web / Mobile coordination
+
+This repository may be edited directly through GitHub by separate ChatGPT sessions. Before any edit, read `docs/PARALLEL_DEVELOPMENT_WORKFLOW.md` and follow its branch ownership rules.
+
+Required lane model:
+
+- `main` = production/release only.
+- `feat/cmms-workflow-next` = combined integration branch for operator local testing.
+- `feat/cmms-workflow-next-web` = Web development lane.
+- `feat/cmms-workflow-next-mobile` = Expo/React Native development lane.
+
+Every development session must identify whether it is **Web** or **Mobile** before editing. If the user did not make that clear, ask `Web hay Mobile?` before writing files.
+
+Web normally writes Web files and must not modify `apps/mobile/**`. Mobile normally writes `apps/mobile/**` and must not modify Web presentation files. Shared files such as `AGENTS.md`, `.github/workflows/**`, root package/lockfiles, `supabase/**`, shared contracts, generated types and cross-platform business rules require explicit single-lane ownership for that batch.
+
+Before the first write of a batch, fetch the latest integration HEAD and the current remote version of every file to be changed. Do not overwrite unexpected remote movement. Do not force-push to resolve coordination problems.
+
+Each lane batch must reach a safe checkpoint, push all changes to its own lane branch, and wait for the GitHub `Quality Gate` to finish successfully before merging that batch into `feat/cmms-workflow-next`. The operator normally pulls only the integration branch to test combined behavior.
+
 Work on feature branches / pull requests, not directly on main.
 Before merge: local tests, architecture tests when applicable, build, lint, Chromium/Pixel 7/WebKit automated smoke,
 Supabase diagnostics when database behavior changed, and final DB/Storage reconciliation where relevant must pass.
