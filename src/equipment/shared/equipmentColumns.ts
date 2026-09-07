@@ -19,7 +19,9 @@ export type ColumnDef = { key: ColumnKey; label: string; defaultVisible?: boolea
 export type ColumnFilters = Partial<Record<ColumnKey, string[]>>
 export type InlineChanges = Record<string, EquipmentRowPatch>
 
-export const COLUMN_STORAGE_KEY = 'cev-equipment-visible-columns-v5'
+// v6 resets the old "show all 35 columns" preference after the desktop layout containment pass.
+// Users can still re-enable every field from the column picker.
+export const COLUMN_STORAGE_KEY = 'cev-equipment-visible-columns-v6'
 export const COLUMNS: ColumnDef[] = [
   { key:'equipmentId',label:'Mã thiết bị',defaultVisible:true,group:'Nhận diện' },
   { key:'equipmentName',label:'Tên thiết bị',defaultVisible:true,group:'Nhận diện' },
@@ -27,20 +29,20 @@ export const COLUMNS: ColumnDef[] = [
   { key:'equipmentCategory',label:'Nhóm thiết bị',group:'Nhận diện' },
   { key:'managingDepartment',label:'Bộ phận quản lý',defaultVisible:true,group:'Quản lý' },
   { key:'managementResponsiblePrimary',label:'Người QL chính',defaultVisible:true,group:'Quản lý' },
-  { key:'managementResponsibleSecondary',label:'Người QL phụ',defaultVisible:true,group:'Quản lý' },
-  { key:'usingDepartment',label:'Bộ phận sử dụng',group:'Quản lý' },
+  { key:'managementResponsibleSecondary',label:'Người QL phụ',group:'Quản lý' },
+  { key:'usingDepartment',label:'Bộ phận sử dụng',defaultVisible:true,group:'Quản lý' },
   { key:'currentArea',label:'Khu vực',defaultVisible:true,group:'Quản lý' },
-  { key:'currentLine',label:'Dây chuyền',defaultVisible:true,group:'Quản lý' },
+  { key:'currentLine',label:'Dây chuyền',group:'Quản lý' },
   { key:'status',label:'Trạng thái',defaultVisible:true,group:'Quản lý' },
   { key:'defaultLabelSize',label:'Khổ tem mặc định',group:'Quản lý' },
-  { key:'manufacturer',label:'Hãng / nhà sản xuất',group:'Nhận diện' },
+  { key:'manufacturer',label:'Hãng / nhà sản xuất',defaultVisible:true,group:'Nhận diện' },
   { key:'distributor',label:'Nhà phân phối',group:'Nhận diện' },
-  { key:'model',label:'Mẫu máy',group:'Nhận diện' },
+  { key:'model',label:'Mẫu máy',defaultVisible:true,group:'Nhận diện' },
   { key:'serialNumber',label:'Số sê-ri',group:'Nhận diện' },
   { key:'technicalSpecification',label:'Thông số kỹ thuật',group:'Kỹ thuật' },
   { key:'description',label:'Mô tả / chức năng',group:'Kỹ thuật' },
   { key:'accuracy',label:'Độ chính xác',group:'Kỹ thuật' },
-  { key:'criticality',label:'Cấp độ A/B/C/D',group:'Kỹ thuật' },
+  { key:'criticality',label:'Cấp độ A/B/C/D',defaultVisible:true,group:'Kỹ thuật' },
   { key:'controlsProductQuality',label:'Kiểm soát chất lượng',group:'Kỹ thuật' },
   { key:'specialCharacteristicImpact',label:'Ảnh hưởng đặc tính đặc biệt',group:'Kỹ thuật' },
   { key:'stopsProduction',label:'Mất máy gây dừng SX',group:'Kỹ thuật' },
