@@ -1,13 +1,16 @@
 import { registerRootComponent } from 'expo'
 import { AutocompleteDropdownContextProvider } from 'react-native-autocomplete-dropdown'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { MobileShell } from './src/navigation/MobileShell'
 
 function RootApp() {
   return (
-    <AutocompleteDropdownContextProvider>
-      <MobileShell />
-    </AutocompleteDropdownContextProvider>
+    <SafeAreaProvider>
+      <AutocompleteDropdownContextProvider>
+        <MobileShell />
+      </AutocompleteDropdownContextProvider>
+    </SafeAreaProvider>
   )
 }
 
