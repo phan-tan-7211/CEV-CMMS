@@ -65,6 +65,14 @@ async function openMore(page: Page) {
   return sheet
 }
 
+async function expectNoPageHorizontalOverflow(page: Page) {
+  await expect.poll(async () => page.evaluate(() => {
+    const root = document.documentElement
+    const body = document.body
+    return Math.max(root.scrollWidth, body.scrollWidth) - window.innerWidth
+  })).toBeLessThanOrEqual(1)
+}
+
 test('current navigation surfaces open without browser crash', async ({ page }) => {
   await openApp(page)
   const labels = mobile(page)
@@ -137,4 +145,23 @@ test('A4 and account controls match the current shell', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'In / Xuất PDF A4' })).toBeVisible()
   await expect(page.locator('.sidebar-account')).toContainText('Quản trị hệ thống')
   await expect(page.locator('.sidebar-account').getByRole('button', { name: 'Đăng xuất', exact: true })).toBeVisible()
+})
+
+test('key routes do not create page-level horizontal overflow at target responsive widths', async ({ page }) => {
+  const widths = [375, 440, 768, 1024, 1440]
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 })
+    await openApp(page)
+    await expectNoPageHorizontalOverflow(page)
+
+    const labels = width <= 900
+      ? ['Quét QR', 'Thiết bị', 'Bảo trì']
+      : ['Thiết bị', 'Kiểm tra ngày', 'Bảo trì', 'Jig, gá & dụng cụ', 'Hiệu chuẩn', 'Hồ sơ A4', 'Nhật ký & cấu hình']
+
+    for (const label of labels) {
+      await openView(page, label)
+      await expect(page.locator('main')).toBeVisible()
+      await expectNoPageHorizontalOverflow(page)
+    }
+  }
 })
