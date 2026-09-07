@@ -1,3 +1,4 @@
+import { getEquipmentPhotoUrl, getEquipmentPhotoUrls } from './equipmentImageService'
 import { supabase } from '../supabase'
 
 export type EquipmentListItem = {
@@ -10,6 +11,7 @@ export type EquipmentListItem = {
   line: string
   category: string
   updatedAt: string
+  imageUrl: string
 }
 
 export type EquipmentDetail = EquipmentListItem & {
@@ -41,7 +43,7 @@ function readSourceText(source: Record<string, unknown> | null, ...keys: string[
   return ''
 }
 
-function mapRow(row: EquipmentMasterRow): EquipmentDetail {
+function mapRow(row: EquipmentMasterRow, imageUrl = ''): EquipmentDetail {
   const source = row.source_data || {}
   return {
     equipmentId: String(row.equipment_id || ''),
@@ -53,6 +55,7 @@ function mapRow(row: EquipmentMasterRow): EquipmentDetail {
     line: readSourceText(source, 'currentLine', 'line'),
     category: readSourceText(source, 'equipmentCategory', 'category'),
     updatedAt: String(row.updated_at || ''),
+    imageUrl,
     serialNumber: readSourceText(source, 'serialNumber', 'serial_number'),
     origin: readSourceText(source, 'origin'),
     managingDepartment: readSourceText(source, 'managingDepartment', 'department'),
@@ -72,7 +75,10 @@ export async function listEquipment(limit = 500): Promise<EquipmentListItem[]> {
     .limit(limit)
 
   if (error) throw new Error(error.message || 'Không tải được danh sách thiết bị.')
-  return ((data || []) as EquipmentMasterRow[]).map(mapRow)
+
+  const rows = (data || []) as EquipmentMasterRow[]
+  const imageUrls = await getEquipmentPhotoUrls(rows.map((row) => String(row.equipment_id || '')))
+  return rows.map((row) => mapRow(row, imageUrls[String(row.equipment_id || '')] || ''))
 }
 
 export async function getEquipmentDetail(equipmentId: string): Promise<EquipmentDetail> {
@@ -83,5 +89,6 @@ export async function getEquipmentDetail(equipmentId: string): Promise<Equipment
     .single()
 
   if (error) throw new Error(error.message || 'Không tải được chi tiết thiết bị.')
-  return mapRow(data as EquipmentMasterRow)
+  const imageUrl = await getEquipmentPhotoUrl(equipmentId)
+  return mapRow(data as EquipmentMasterRow, imageUrl)
 }
