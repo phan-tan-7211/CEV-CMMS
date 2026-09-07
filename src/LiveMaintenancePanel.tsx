@@ -219,7 +219,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
   const equipmentName = useMemo(() => new Map(equipment.map((item) => [item.equipmentId, item.equipmentName])), [equipment])
   const queueCounts = useMemo(() => Object.fromEntries(MAINTENANCE_QUEUE_FILTERS.map((filter) => [filter.id, workOrders.filter((item) => workOrderQueueMatches(item.status, filter.id, role)).length])) as Record<MaintenanceQueueFilter, number>, [workOrders, role])
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const filteredWorkOrders = useMemo(() => workOrders
+  const filteredWorkOrders = workOrders
     .filter((item) => {
       if (!workOrderQueueMatches(item.status, queueFilter, role)) return false
       if (!assignmentMatches(item, assignmentFilter, currentPerson)) return false
@@ -231,7 +231,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
     .toSorted((left, right) => dueRank(left) - dueRank(right)
       || (PRIORITY_RANK[left.priority] ?? 9) - (PRIORITY_RANK[right.priority] ?? 9)
       || STATUS_RANK[left.status] - STATUS_RANK[right.status]
-      || requestedAtValue(left.requestedAt) - requestedAtValue(right.requestedAt)), [workOrders, queueFilter, assignmentFilter, currentPerson, statusFilter, normalizedQuery, equipmentName, role])
+      || requestedAtValue(left.requestedAt) - requestedAtValue(right.requestedAt))
   const selected = selectedId ? workOrders.find((item) => item.workOrderId === selectedId) || null : null
   const selectedHandover = selected ? handoverByWorkOrder.get(selected.workOrderId) || null : null
   const selectedAction = selected ? getWorkOrderActionState(selected.status, role) : null
