@@ -7,12 +7,14 @@ export function EquipmentPhoto({
   width,
   height,
   borderRadius = 12,
+  showBorder = true,
   accessibilityLabel,
 }: {
   uri: string
   width: number
   height: number
   borderRadius?: number
+  showBorder?: boolean
   accessibilityLabel: string
 }) {
   const [failed, setFailed] = useState(false)
@@ -26,7 +28,7 @@ export function EquipmentPhoto({
   const hasImage = Boolean(uri) && !failed
 
   return (
-    <View style={[styles.frame, { width, height, borderRadius }]}>
+    <View style={[styles.frame, !showBorder && styles.frameBorderless, { width, height, borderRadius }]}>
       {!hasImage ? (
         <View style={styles.placeholder}>
           <Ionicons name="cube-outline" size={Math.min(24, width * 0.38)} color="#7F9CF5" />
@@ -57,6 +59,7 @@ const styles = StyleSheet.create({
     borderColor: '#E4E7EC',
     backgroundColor: '#F8FAFC',
   },
+  frameBorderless: { borderWidth: 0 },
   image: {
     width: '100%',
     height: '100%',
