@@ -10,8 +10,9 @@ import { NotificationSettingsScreen } from './NotificationSettingsScreen'
 import { LanguageSettingsScreen } from './LanguageSettingsScreen'
 import { SecuritySettingsScreen } from './SecuritySettingsScreen'
 import { AboutSettingsScreen } from './AboutSettingsScreen'
+import { EquipmentStatusSettingsScreen } from './EquipmentStatusSettingsScreen'
 
-type SettingsRoute = 'root' | 'profile' | 'notifications' | 'language' | 'security' | 'about'
+type SettingsRoute = 'root' | 'profile' | 'notifications' | 'language' | 'security' | 'about' | 'equipment-status'
 
 function displayName(session: Session) {
   const metadata = session.user.user_metadata || {}
@@ -57,6 +58,7 @@ export function AccountSettingsScreen({ session, onBack, onSignOut }: { session:
   if (route === 'language') return <LanguageSettingsScreen onBack={() => setRoute('root')} />
   if (route === 'security') return <SecuritySettingsScreen onBack={() => setRoute('root')} />
   if (route === 'about') return <AboutSettingsScreen onBack={() => setRoute('root')} />
+  if (route === 'equipment-status') return <EquipmentStatusSettingsScreen onBack={() => setRoute('root')} />
 
   const name = displayName(session)
   const department = String(session.user.user_metadata?.department || session.user.user_metadata?.department_name || 'Chưa được gán')
@@ -81,6 +83,7 @@ export function AccountSettingsScreen({ session, onBack, onSignOut }: { session:
         <SettingsRow icon="person-outline" label="Hồ sơ cá nhân" value="Avatar, tên hiển thị, số điện thoại" onPress={() => setRoute('profile')} />
         <SettingsRow icon="notifications-outline" label="Thông báo" value="Chọn từng loại cảnh báo" onPress={() => setRoute('notifications')} />
         <SettingsRow icon="language-outline" label="Ngôn ngữ" value="Tiếng Việt" onPress={() => setRoute('language')} />
+        <SettingsRow icon="pulse-outline" label="Trạng thái thiết bị" value="Tên, màu và trạng thái tùy chỉnh" onPress={() => setRoute('equipment-status')} />
         <SettingsRow icon="shield-checkmark-outline" label="Bảo mật" value="Đổi mật khẩu" onPress={() => setRoute('security')} />
       </View>
 
@@ -100,12 +103,7 @@ export function AccountSettingsScreen({ session, onBack, onSignOut }: { session:
             <Text style={styles.signingOutText}>Đang đăng xuất...</Text>
           </View>
         ) : (
-          <SettingsRow
-            icon="log-out-outline"
-            label="Đăng xuất"
-            destructive
-            onPress={confirmSignOut}
-          />
+          <SettingsRow icon="log-out-outline" label="Đăng xuất" destructive onPress={confirmSignOut} />
         )}
       </View>
       {signOutError ? <Text style={styles.error}>{signOutError}</Text> : null}

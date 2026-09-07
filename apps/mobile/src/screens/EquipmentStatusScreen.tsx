@@ -1,14 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import {
-  EQUIPMENT_STATUS_OPTIONS,
-  updateEquipmentStatus,
-  type EquipmentStatus,
-} from '../services/equipmentService'
+import { updateEquipmentStatus } from '../services/equipmentService'
+import { listEquipmentStatuses, type EquipmentStatusMaster } from '../services/equipmentStatusService'
 
 export function EquipmentStatusScreen({
   equipmentId,
@@ -19,22 +16,33 @@ export function EquipmentStatusScreen({
   equipmentId: string
   currentStatus: string
   onBack: () => void
-  onSaved: (status: EquipmentStatus) => void
+  onSaved: (status: string) => void
 }) {
-  const [savingStatus, setSavingStatus] = useState<EquipmentStatus | null>(null)
+  const [statuses, setStatuses] = useState<EquipmentStatusMaster[]>([])
+  const [loading, setLoading] = useState(true)
+  const [savingStatus, setSavingStatus] = useState<string | null>(null)
   const [error, setError] = useState('')
 
-  async function selectStatus(status: EquipmentStatus) {
+  useEffect(() => {
+    let active = true
+    void listEquipmentStatuses()
+      .then((rows) => { if (active) setStatuses(rows) })
+      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : 'Không tải được trạng thái thiết bị.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  async function selectStatus(statusCode: string) {
     if (savingStatus) return
-    if (status === currentStatus.toUpperCase()) {
+    if (statusCode === currentStatus.toUpperCase()) {
       onBack()
       return
     }
 
-    setSavingStatus(status)
+    setSavingStatus(statusCode)
     setError('')
     try {
-      const result = await updateEquipmentStatus(equipmentId, status)
+      const result = await updateEquipmentStatus(equipmentId, statusCode)
       onSaved(result.status)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Không cập nhật được trạng thái thiết bị.')
@@ -47,13 +55,7 @@ export function EquipmentStatusScreen({
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Quay lại chi tiết thiết bị"
-          onPress={onBack}
-          hitSlop={8}
-          style={styles.iconButton}
-        >
+        <Pressable accessibilityRole="button" accessibilityLabel="Quay lại chi tiết thiết bị" onPress={onBack} hitSlop={8} style={styles.iconButton}>
           <Ionicons name="chevron-back" size={26} color="#101828" />
         </Pressable>
         <Text style={styles.headerTitle}>Trạng thái thiết bị</Text>
@@ -61,28 +63,25 @@ export function EquipmentStatusScreen({
       </View>
 
       <View style={styles.content}>
-        {EQUIPMENT_STATUS_OPTIONS.map((option) => {
-          const selected = option.value === currentStatus.toUpperCase()
-          const saving = savingStatus === option.value
+        {loading ? <View style={styles.loading}><ActivityIndicator size="large" color="#155EEF" /></View> : null}
+        {!loading ? statuses.map((option) => {
+          const selected = option.statusCode === currentStatus.toUpperCase()
+          const saving = savingStatus === option.statusCode
           return (
             <Pressable
-              key={option.value}
+              key={option.statusCode}
               accessibilityRole="button"
-              accessibilityLabel={`Chọn trạng thái ${option.label}`}
+              accessibilityLabel={`Chọn trạng thái ${option.displayName}`}
               disabled={Boolean(savingStatus)}
-              onPress={() => { void selectStatus(option.value) }}
+              onPress={() => { void selectStatus(option.statusCode) }}
               style={({ pressed }) => [styles.row, pressed && !savingStatus && styles.rowPressed]}
             >
               <View style={[styles.dot, { backgroundColor: option.color }]} />
-              <Text style={styles.label}>{option.label}</Text>
-              {saving ? (
-                <ActivityIndicator size="small" color="#155EEF" />
-              ) : selected ? (
-                <Ionicons name="checkmark" size={30} color="#155EEF" />
-              ) : null}
+              <Text style={styles.label}>{option.displayName}</Text>
+              {saving ? <ActivityIndicator size="small" color="#155EEF" /> : selected ? <Ionicons name="checkmark" size={30} color="#155EEF" /> : null}
             </Pressable>
           )
-        })}
+        }) : null}
 
         {error ? (
           <View style={styles.errorBox}>
@@ -97,37 +96,15 @@ export function EquipmentStatusScreen({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
-  header: {
-    minHeight: 62,
-    paddingHorizontal: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#EAECF0',
-    backgroundColor: '#FFFFFF',
-  },
+  header: { minHeight: 62, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0', backgroundColor: '#FFFFFF' },
   iconButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 20, lineHeight: 25, fontWeight: '900', color: '#101828' },
   content: { paddingHorizontal: 16, paddingTop: 8 },
-  row: {
-    minHeight: 86,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E4E7EC',
-  },
+  loading: { paddingVertical: 42, alignItems: 'center' },
+  row: { minHeight: 86, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E4E7EC' },
   rowPressed: { backgroundColor: '#F9FAFB' },
   dot: { width: 14, height: 14, borderRadius: 7, marginRight: 20 },
   label: { flex: 1, fontSize: 21, lineHeight: 27, fontWeight: '700', color: '#101828' },
-  errorBox: {
-    marginTop: 18,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    borderRadius: 12,
-    backgroundColor: '#FEF3F2',
-  },
+  errorBox: { marginTop: 18, padding: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, backgroundColor: '#FEF3F2' },
   errorText: { flex: 1, fontSize: 12.5, lineHeight: 18, color: '#B42318' },
 })
