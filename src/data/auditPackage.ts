@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 import { fetchSourceRows } from './sourceRows'
 import { createStoredZip, sha256Hex, type ZipEntry } from '../utils/zipStore'
 
@@ -18,32 +18,38 @@ export const EVIDENCE_BUCKETS = [
 
 type EvidenceFile = { bucket: string; path: string; id: string | null; createdAt: string | null; updatedAt: string | null; size: number | null; mimeType: string | null }
 
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
+}
+
 async function listBucketRecursive(bucket: string, prefix = '', depth = 0): Promise<EvidenceFile[]> {
   if (depth > 10) throw new Error(`${bucket}: storage tree exceeds safe depth`)
   const output: EvidenceFile[] = []
   const pageSize = 1000
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase.storage.from(bucket).list(prefix, { limit: pageSize, offset, sortBy: { column: 'name', order: 'asc' } })
-    if (error) throw new Error(`${bucket}/${prefix}: ${error.message}`)
-    const items = data || []
-    for (const item of items) {
+    const { data, error } = await dataGateway.listFiles(bucket, prefix, {
+      limit: pageSize,
+      offset,
+      sortBy: { column: 'name', order: 'asc' },
+    })
+    if (error) throw new Error(`${bucket}/${prefix}: ${errorMessage(error)}`)
+    for (const item of data) {
       const path = prefix ? `${prefix}/${item.name}` : item.name
       if (item.id) {
-        const metadata = (item.metadata || {}) as Record<string, unknown>
         output.push({
           bucket,
           path,
           id: item.id,
-          createdAt: item.created_at || null,
-          updatedAt: item.updated_at || null,
-          size: typeof metadata.size === 'number' ? metadata.size : null,
-          mimeType: typeof metadata.mimetype === 'string' ? metadata.mimetype : null,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          size: item.size,
+          mimeType: item.mimeType,
         })
       } else {
         output.push(...await listBucketRecursive(bucket, path, depth + 1))
       }
     }
-    if (items.length < pageSize) break
+    if (data.length < pageSize) break
   }
   return output
 }
@@ -59,12 +65,14 @@ export type AuditPackageResult = {
 }
 
 export async function buildAuditPackage(): Promise<AuditPackageResult> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+  const { data: user, error: sessionError } = await dataGateway.getSessionUser()
   if (sessionError) throw sessionError
-  const session = sessionData.session
-  if (!session) throw new Error('AUTH_REQUIRED')
+  if (!user) throw new Error('AUTH_REQUIRED')
 
-  const { data: roleRow, error: roleError } = await supabase.from('app_user_role').select('role').eq('user_id', session.user.id).maybeSingle()
+  const { data: roleRow, error: roleError } = await dataGateway.readOne('app_user_role', {
+    columns: 'role',
+    eq: [{ column: 'user_id', value: user.id }],
+  })
   if (roleError) throw roleError
   if (roleRow?.role !== 'ADMIN') throw new Error('AUDIT_EXPORT_ADMIN_ONLY')
 
@@ -92,7 +100,7 @@ export async function buildAuditPackage(): Promise<AuditPackageResult> {
     exportedAt: exportedAt.toISOString(),
     completedAt: new Date().toISOString(),
     consistency: 'sequential-read-not-transactional',
-    exportedBy: session.user.email || session.user.id,
+    exportedBy: user.email || user.id,
     backend: 'Supabase PostgreSQL + Auth/RLS + Storage',
     tableCounts,
     bucketCounts,
@@ -127,4 +135,3 @@ export function downloadBlob(blob: Blob, filename: string) {
   anchor.click()
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
-
