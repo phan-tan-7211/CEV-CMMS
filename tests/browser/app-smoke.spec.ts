@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const USER_ID = '00000000-0000-4000-8000-000000000001'
+const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url')
 const payload = Buffer.from(JSON.stringify({ sub: USER_ID, aud: 'authenticated', exp: 4102444800, email: 'smoke@example.com', role: 'authenticated' })).toString('base64url')
-const token = `eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.${payload}.`
+const token = `${header}.${payload}.`
 
 const EQUIPMENT = [{
   equipment_id: 'CEV-PR-001', equipment_type: 'PRODUCTION', control_number: 'SMOKE', qr_code: 'CEV-PR-001',
@@ -95,7 +96,7 @@ test('maintenance opens work orders first and can switch record tabs', async ({ 
   await expect(intake.getByLabel(/^Lý do \/ hiện tượng/)).toBeVisible()
   await expect(intake.getByLabel(/^Xử lý dự kiến \/ ghi chú tiếp nhận/)).toBeVisible()
   await expect(intake.getByLabel(/^Bắt đầu dự kiến/)).toBeVisible()
-  await expect(intake.getByLabel(/^Kết thúc dự kiến/)).toBeVisible()
+  await expect(intake.getByLabel(/^Hạn xử lý dự kiến/)).toBeVisible()
   await intake.getByRole('button', { name: 'Hủy', exact: true }).click()
   await expect(intake).toHaveCount(0)
 
