@@ -92,10 +92,10 @@ export async function createEquipment(input: EquipmentCreateInput): Promise<Equi
 const PHOTO_BUCKET = 'equipment-photos'
 const EQUIPMENT_PHOTO_NAME = 'photo.webp'
 const PHOTO_MAX_INPUT_BYTES = 25 * 1024 * 1024
-const PHOTO_MAX_EDGE = 1920
-const PHOTO_TARGET_BYTES = 1.5 * 1024 * 1024
+const PHOTO_MAX_EDGE = 1280
+const PHOTO_TARGET_BYTES = 700 * 1024
 const PHOTO_INITIAL_QUALITY = 0.82
-const PHOTO_MIN_QUALITY = 0.66
+const PHOTO_MIN_QUALITY = 0.70
 
 async function optimizeEquipmentPhoto(photoUri: string) {
   const sourceResponse = await fetch(photoUri)
