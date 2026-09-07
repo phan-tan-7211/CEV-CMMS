@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './MaintenanceSpareFlow.css'
 import { WorkOrderAssignmentPanel } from './maintenance/WorkOrderAssignmentPanel'
+import { WorkOrderExecutionPanel } from './maintenance/WorkOrderExecutionPanel'
 import { loadSpareParts, loadWorkOrderSpareUsage, recordSpareUsage, saveSparePart, type LiveSparePart, type SpareUsage } from './data/liveSpareParts'
 
 type Props = {
@@ -96,6 +97,7 @@ export function MaintenanceSpareFlow({ equipmentId, workOrderId }: Props) {
 
   return <>
     <WorkOrderAssignmentPanel workOrderId={workOrderId} />
+    <WorkOrderExecutionPanel workOrderId={workOrderId} />
     <section className="maintenance-spare-flow" aria-labelledby={`maintenance-spare-${workOrderId}`}>
       <header><div><span>Linh kiện đã thay</span><h3 id={`maintenance-spare-${workOrderId}`}>Ghi ngay trong sửa chữa</h3><p>Chọn phụ tùng đã có; nếu chưa có thì tạo mới tại đây. Một lần lưu tự ghi lịch sử sử dụng, liên kết máy và trừ tồn.</p></div><strong>{usage.length}</strong></header>
 
