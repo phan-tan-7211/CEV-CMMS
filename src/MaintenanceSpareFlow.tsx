@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './MaintenanceSpareFlow.css'
+import './maintenance/MaintenanceDrawerLayoutFix.css'
 import { WorkOrderAssignmentPanel } from './maintenance/WorkOrderAssignmentPanel'
 import { WorkOrderExecutionPanel } from './maintenance/WorkOrderExecutionPanel'
 import { loadSpareParts, loadWorkOrderSpareUsage, recordSpareUsage, saveSparePart, type LiveSparePart, type SpareUsage } from './data/liveSpareParts'
