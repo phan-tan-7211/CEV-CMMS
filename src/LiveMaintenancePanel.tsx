@@ -264,6 +264,15 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
   const selectedClassification = selected ? classificationFor(selected) : null
   const selectedEvents = useMemo(() => selected ? workflowEventsFor(selected, transitions, selectedHandover) : [], [selected, transitions, selectedHandover])
 
+  const applyQueueShortcut = (nextQueue: MaintenanceQueueFilter) => {
+    setQueueFilter(nextQueue)
+    setAssignmentFilter('ALL')
+    setStatusFilter('ALL')
+    setKindFilter('ALL')
+    setQuery(normalizedEquipmentContext)
+    requestAnimationFrame(() => document.getElementById('maintenance-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
   const openCreate = () => {
     setCreateError('')
     if (normalizedEquipmentContext) setEquipmentId(normalizedEquipmentContext)
@@ -310,10 +319,10 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
 
   return <div className="maintenance-page">
     <section className="maintenance-summary" aria-label="Tổng quan bảo trì">
-      <article className={overdueCount ? 'attention' : ''}><span>Cần tôi xử lý</span><strong>{actionCount}</strong><small>{criticalActionCount} khẩn cấp · {overdueCount} quá hạn</small></article>
-      <article><span>Đang sửa chữa</span><strong>{inProgressCount}</strong><small>Đang thực hiện công việc</small></article>
-      <article><span>Chờ xác nhận</span><strong>{verifyCount}</strong><small>Xác nhận / bàn giao</small></article>
-      <article><span>Đã bàn giao</span><strong>{releasedCount}</strong><small>Quy trình hoàn tất</small></article>
+      <button type="button" className={`maintenance-summary-card${queueFilter === 'ACTION' ? ' active' : ''}${overdueCount ? ' attention' : ''}`} aria-pressed={queueFilter === 'ACTION'} onClick={() => applyQueueShortcut('ACTION')}><span>Cần tôi xử lý</span><strong>{actionCount}</strong><small>{criticalActionCount} khẩn cấp · {overdueCount} quá hạn</small></button>
+      <button type="button" className={`maintenance-summary-card${queueFilter === 'WORKING' ? ' active' : ''}`} aria-pressed={queueFilter === 'WORKING'} onClick={() => applyQueueShortcut('WORKING')}><span>Đang sửa chữa</span><strong>{inProgressCount}</strong><small>Đang thực hiện công việc</small></button>
+      <button type="button" className={`maintenance-summary-card${queueFilter === 'VERIFY' ? ' active' : ''}`} aria-pressed={queueFilter === 'VERIFY'} onClick={() => applyQueueShortcut('VERIFY')}><span>Chờ xác nhận</span><strong>{verifyCount}</strong><small>Xác nhận / bàn giao</small></button>
+      <button type="button" className={`maintenance-summary-card${queueFilter === 'DONE' ? ' active' : ''}`} aria-pressed={queueFilter === 'DONE'} onClick={() => applyQueueShortcut('DONE')}><span>Đã bàn giao</span><strong>{releasedCount}</strong><small>Quy trình hoàn tất</small></button>
     </section>
 
     <section className="maintenance-surface" aria-labelledby="maintenance-title">

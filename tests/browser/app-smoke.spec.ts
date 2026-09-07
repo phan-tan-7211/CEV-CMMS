@@ -86,7 +86,7 @@ test('maintenance opens work orders first and can switch record tabs', async ({ 
   await expect(workOrdersTab).toHaveAttribute('aria-current', 'page')
   const workOrdersPanel = page.locator('#maintenance-tab-work-orders')
   await expect(workOrdersPanel).toBeVisible()
-  await expect(workOrdersPanel.getByRole('button', { name: /^Cần tôi xử lý/ })).toBeVisible()
+  await expect(workOrdersPanel.locator('.maintenance-queue-tabs').getByRole('button', { name: /^Cần tôi xử lý/ })).toBeVisible()
 
   await workOrdersPanel.getByRole('button', { name: '+ Tạo lệnh công việc', exact: true }).click()
   const intake = page.getByRole('dialog', { name: 'Tạo yêu cầu bảo trì' })
