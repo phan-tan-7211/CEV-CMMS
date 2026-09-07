@@ -12,7 +12,7 @@ type HomeScreenProps = {
   onOpenWorkOrders: () => void
   onOpenEquipment: () => void
   onOpenMore: () => void
-  onSignOut: () => void
+  onOpenSettings: () => void
 }
 
 const QUICK_ACTIONS: Array<{ label: string; icon: IconName; primary?: boolean }> = [
@@ -43,7 +43,7 @@ export function HomeScreen({
   onOpenWorkOrders,
   onOpenEquipment,
   onOpenMore,
-  onSignOut,
+  onOpenSettings,
 }: HomeScreenProps) {
   const [assignedOnly, setAssignedOnly] = useState(true)
 
@@ -72,10 +72,7 @@ export function HomeScreen({
             accessibilityRole="button"
             accessibilityLabel="Cài đặt tài khoản"
             hitSlop={8}
-            onPress={() => Alert.alert('Tài khoản', 'Bạn muốn đăng xuất khỏi CEV CMMS?', [
-              { text: 'Hủy', style: 'cancel' },
-              { text: 'Đăng xuất', style: 'destructive', onPress: onSignOut },
-            ])}
+            onPress={onOpenSettings}
             style={({ pressed }) => [styles.settingsButton, pressed && styles.pressed]}
           >
             <Ionicons name="settings-outline" size={24} color="#344054" />

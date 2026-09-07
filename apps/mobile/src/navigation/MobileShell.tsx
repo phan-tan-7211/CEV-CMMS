@@ -9,9 +9,10 @@ import { LoginScreen } from '../screens/LoginScreen'
 import { MoreScreen } from '../screens/MoreScreen'
 import { ScanAssetScreen } from '../screens/ScanAssetScreen'
 import { WorkOrdersScreen } from '../screens/WorkOrdersScreen'
+import { AccountSettingsScreen } from '../screens/settings/AccountSettingsScreen'
 import { supabase } from '../supabase'
 
-type Route = 'home' | 'registration' | 'equipment' | 'scan' | 'work-orders' | 'more'
+type Route = 'home' | 'registration' | 'equipment' | 'scan' | 'work-orders' | 'more' | 'settings'
 
 export function MobileShell() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -50,6 +51,7 @@ export function MobileShell() {
   if (route === 'scan') return <ScanAssetScreen onBack={() => setRoute('home')} />
   if (route === 'work-orders') return <WorkOrdersScreen onBack={() => setRoute('home')} />
   if (route === 'more') return <MoreScreen onBack={() => setRoute('home')} />
+  if (route === 'settings') return <AccountSettingsScreen session={session} onBack={() => setRoute('home')} onSignOut={() => { void supabase.auth.signOut() }} />
 
   return (
     <HomeScreen
@@ -58,7 +60,7 @@ export function MobileShell() {
       onOpenWorkOrders={() => setRoute('work-orders')}
       onOpenEquipment={() => setRoute('equipment')}
       onOpenMore={() => setRoute('more')}
-      onSignOut={() => { void supabase.auth.signOut() }}
+      onOpenSettings={() => setRoute('settings')}
     />
   )
 }
