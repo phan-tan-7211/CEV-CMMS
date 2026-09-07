@@ -45,7 +45,7 @@ class SupabaseDataGateway implements DataGateway {
     if (typeof options.limit === 'number') query = query.limit(options.limit)
 
     const { data, error } = await query
-    return { data: (data || []) as DataRow[], error }
+    return { data: ((data || []) as unknown) as DataRow[], error }
   }
 
   async rpc<T = unknown>(functionName: string, params: Record<string, unknown> = {}): Promise<DataGatewayResult<T | null>> {
