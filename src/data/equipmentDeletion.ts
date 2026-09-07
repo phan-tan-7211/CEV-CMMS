@@ -1,5 +1,5 @@
+import { dataGateway } from './dataGateway'
 import { removeEquipmentFromCache } from './supabaseEquipment'
-import { supabase } from './supabaseClient'
 
 const PHOTO_BUCKET = 'equipment-photos'
 
@@ -16,10 +16,7 @@ export type EquipmentDeleteCheck = {
   blockers: DeleteBlocker[]
 }
 
-function requireSupabase() {
-  if (!supabase) throw new Error('SUPABASE_NOT_CONFIGURED')
-  return supabase
-}
+function errorMessage(error: unknown) { return error instanceof Error ? error.message : String(error) }
 
 function normalizeCheck(value: unknown): EquipmentDeleteCheck {
   const row = (value || {}) as Record<string, unknown>
@@ -40,38 +37,35 @@ function normalizeCheck(value: unknown): EquipmentDeleteCheck {
 }
 
 export async function checkEquipmentDeletion(equipmentId: string) {
-  const client = requireSupabase()
   const id = equipmentId.trim().toUpperCase()
   if (!id) throw new Error('EQUIPMENT_ID_REQUIRED')
-  const { data, error } = await client.rpc('rpc_check_equipment_delete', { p_equipment_id: id })
-  if (error) throw new Error(`EQUIPMENT_DELETE_CHECK_FAILED: ${error.message}`)
+  const { data, error } = await dataGateway.rpc('rpc_check_equipment_delete', { p_equipment_id: id })
+  if (error) throw new Error(`EQUIPMENT_DELETE_CHECK_FAILED: ${errorMessage(error)}`)
   return normalizeCheck(data)
 }
 
 async function removeEquipmentPhotos(equipmentId: string) {
-  const client = requireSupabase()
   const id = equipmentId.trim().toUpperCase()
-  const { data, error } = await client.storage.from(PHOTO_BUCKET).list(id, { limit: 100 })
-  if (error) throw new Error(`EQUIPMENT_PHOTO_DELETE_LIST_FAILED: ${error.message}`)
-  const paths = (data || []).map((file) => `${id}/${file.name}`)
+  const { data, error } = await dataGateway.listFiles(PHOTO_BUCKET, id, 100)
+  if (error) throw new Error(`EQUIPMENT_PHOTO_DELETE_LIST_FAILED: ${errorMessage(error)}`)
+  const paths = data.map((file) => `${id}/${file.name}`)
   if (!paths.length) return 0
-  const { error: removeError } = await client.storage.from(PHOTO_BUCKET).remove(paths)
-  if (removeError) throw new Error(`EQUIPMENT_PHOTO_DELETE_FAILED: ${removeError.message}`)
+  const { error: removeError } = await dataGateway.remove(PHOTO_BUCKET, paths)
+  if (removeError) throw new Error(`EQUIPMENT_PHOTO_DELETE_FAILED: ${errorMessage(removeError)}`)
   return paths.length
 }
 
 export async function deleteUnusedEquipment(equipmentId: string) {
-  const client = requireSupabase()
   const id = equipmentId.trim().toUpperCase()
   if (!id) throw new Error('EQUIPMENT_ID_REQUIRED')
 
   // DB function re-checks dependencies immediately before deletion.
-  const { data, error } = await client.rpc('rpc_delete_unused_equipment', { p_equipment_id: id })
-  if (error) throw new Error(`EQUIPMENT_DELETE_FAILED: ${error.message}`)
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_delete_unused_equipment', { p_equipment_id: id })
+  if (error) throw new Error(`EQUIPMENT_DELETE_FAILED: ${errorMessage(error)}`)
 
   // Storage is outside the DB transaction, so clean the whole equipment folder after the guarded DB delete.
   const removedPhotos = await removeEquipmentPhotos(id)
   removeEquipmentFromCache(id)
-  const deleted = data && typeof data === 'object' ? data : {}
+  const deleted = data || {}
   return { ...deleted, removedPhotos }
 }
