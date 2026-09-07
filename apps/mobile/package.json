@@ -13,7 +13,8 @@
     "android:device": "expo run:android --device",
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
-    "typecheck": "tsc --noEmit",
+    "check:architecture": "node scripts/check-architecture.mjs",
+    "typecheck": "npm run check:architecture && tsc --noEmit",
     "doctor": "expo-doctor",
     "eas:init": "npx eas-cli@latest init",
     "build:android:dev": "npx eas-cli@latest build --platform android --profile development"
