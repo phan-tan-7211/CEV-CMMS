@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -13,6 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
+import { CameraView, useCameraPermissions } from 'expo-camera'
+import * as ImagePicker from 'expo-image-picker'
 
 type EquipmentType = 'PRODUCTION' | 'MEASUREMENT'
 type EquipmentStatus = 'RUNNING' | 'STOPPED' | 'MAINTENANCE' | 'DOWN'
@@ -254,7 +258,10 @@ function StepProgress({ step }: { step: number }) {
 function RegistrationScreen() {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<EquipmentDraft>(INITIAL)
-  const [photoSelected, setPhotoSelected] = useState(false)
+  const [photoUri, setPhotoUri] = useState<string | null>(null)
+  const [cameraOpen, setCameraOpen] = useState(false)
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions()
+  const cameraRef = useRef<CameraView | null>(null)
   const current = STEPS[step]
 
   const codePreview = form.equipmentType === 'PRODUCTION' ? 'CEV-PR-xxx' : 'CEV-ME-xxx'
@@ -280,6 +287,44 @@ function RegistrationScreen() {
 
   function patch<K extends keyof EquipmentDraft>(key: K, value: EquipmentDraft[K]) {
     setForm((currentForm) => ({ ...currentForm, [key]: value }))
+  }
+
+  async function openCamera() {
+    const permission = cameraPermission?.granted ? cameraPermission : await requestCameraPermission()
+    if (!permission.granted) {
+      Alert.alert('Cần quyền camera', 'Hãy cấp quyền camera để chụp ảnh thiết bị.')
+      return
+    }
+    setCameraOpen(true)
+  }
+
+  async function capturePhoto() {
+    try {
+      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.85 })
+      if (photo?.uri) {
+        setPhotoUri(photo.uri)
+        setCameraOpen(false)
+      }
+    } catch {
+      Alert.alert('Không chụp được ảnh', 'Vui lòng thử lại.')
+    }
+  }
+
+  async function selectFromLibrary() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) {
+      Alert.alert('Cần quyền thư viện', 'Hãy cấp quyền truy cập ảnh để chọn ảnh thiết bị.')
+      return
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: false,
+      quality: 0.85,
+    })
+
+    if (!result.canceled && result.assets[0]?.uri) {
+      setPhotoUri(result.assets[0].uri)
+    }
   }
 
   function submitUi() {
@@ -365,19 +410,34 @@ function RegistrationScreen() {
                 </SectionCard>
 
                 <SectionCard icon="camera-outline" title="Ảnh thiết bị" caption="Một ảnh rõ máy hoặc nameplate giúp nhận diện nhanh ngoài hiện trường">
-                  <View style={[styles.photoStage, photoSelected && styles.photoStageSelected]}>
-                    <View style={[styles.photoOrb, photoSelected && styles.photoOrbSelected]}>
-                      <Ionicons name={photoSelected ? 'checkmark' : 'camera-outline'} size={26} color={photoSelected ? '#067647' : '#155EEF'} />
-                    </View>
-                    <Text style={styles.photoTitle}>{photoSelected ? 'Đã chọn ảnh thiết bị' : 'Thêm ảnh nhận diện'}</Text>
-                    <Text style={styles.photoDescription}>{photoSelected ? 'Ảnh sẽ được tải lên khi nối backend.' : 'Chụp toàn cảnh, bảng tên máy hoặc vị trí lắp đặt.'}</Text>
+                  <View style={[styles.photoStage, photoUri && styles.photoStageSelected]}>
+                    {photoUri ? (
+                      <Image source={{ uri: photoUri }} style={styles.photoPreview} resizeMode="contain" />
+                    ) : (
+                      <>
+                        <View style={styles.photoOrb}>
+                          <Ionicons name="camera-outline" size={26} color="#155EEF" />
+                        </View>
+                        <Text style={styles.photoTitle}>Thêm ảnh nhận diện</Text>
+                        <Text style={styles.photoDescription}>Chụp toàn cảnh, bảng tên máy hoặc vị trí lắp đặt.</Text>
+                      </>
+                    )}
                   </View>
+                  {photoUri ? (
+                    <View style={styles.photoSelectedRow}>
+                      <Ionicons name="checkmark-circle" size={18} color="#067647" />
+                      <Text style={styles.photoSelectedText}>Đã chọn ảnh · luôn hiển thị toàn bộ ảnh</Text>
+                      <Pressable accessibilityRole="button" accessibilityLabel="Xóa ảnh" hitSlop={10} onPress={() => setPhotoUri(null)}>
+                        <Ionicons name="trash-outline" size={19} color="#B42318" />
+                      </Pressable>
+                    </View>
+                  ) : null}
                   <View style={styles.photoActions}>
-                    <Pressable style={({ pressed }) => [styles.photoButtonPrimary, pressed && styles.pressed]} onPress={() => setPhotoSelected(true)}>
+                    <Pressable style={({ pressed }) => [styles.photoButtonPrimary, pressed && styles.pressed]} onPress={openCamera}>
                       <Ionicons name="camera" size={18} color="#FFFFFF" />
                       <Text style={styles.photoButtonPrimaryText}>Chụp ảnh</Text>
                     </Pressable>
-                    <Pressable style={({ pressed }) => [styles.photoButton, pressed && styles.pressed]} onPress={() => setPhotoSelected(true)}>
+                    <Pressable style={({ pressed }) => [styles.photoButton, pressed && styles.pressed]} onPress={selectFromLibrary}>
                       <Ionicons name="images-outline" size={18} color="#344054" />
                       <Text style={styles.photoButtonText}>Thư viện</Text>
                     </Pressable>
@@ -485,6 +545,34 @@ function RegistrationScreen() {
             </Pressable>
           </View>
         </KeyboardAvoidingView>
+
+        <Modal visible={cameraOpen} animationType="slide" onRequestClose={() => setCameraOpen(false)}>
+          <SafeAreaView style={styles.cameraModal} edges={['top', 'bottom']}>
+            <View style={styles.cameraHeader}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Đóng camera"
+                style={({ pressed }) => [styles.cameraClose, pressed && styles.pressed]}
+                onPress={() => setCameraOpen(false)}
+              >
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </Pressable>
+              <Text style={styles.cameraTitle}>Chụp ảnh thiết bị</Text>
+              <View style={styles.cameraHeaderSpacer} />
+            </View>
+            <CameraView ref={cameraRef} style={styles.cameraView} facing="back" />
+            <View style={styles.cameraFooter}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Chụp ảnh"
+                style={({ pressed }) => [styles.captureOuter, pressed && styles.capturePressed]}
+                onPress={capturePhoto}
+              >
+                <View style={styles.captureInner} />
+              </Pressable>
+            </View>
+          </SafeAreaView>
+        </Modal>
       </View>
     </SafeAreaView>
   )
@@ -571,7 +659,10 @@ const styles = StyleSheet.create({
   segmentTextActive: { color: '#155EEF' },
   pressed: { opacity: 0.74 },
   photoStage: { minHeight: 142, borderRadius: 18, borderWidth: 1, borderColor: '#DDE5F0', backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', padding: 18 },
-  photoStageSelected: { borderColor: '#ABEFC6', backgroundColor: '#F6FEF9' },
+  photoStageSelected: { borderColor: '#ABEFC6', backgroundColor: '#101828', padding: 8 },
+  photoPreview: { width: '100%', height: 220 },
+  photoSelectedRow: { minHeight: 42, marginTop: 8, paddingHorizontal: 10, borderRadius: 12, flexDirection: 'row', gap: 7, alignItems: 'center', backgroundColor: '#ECFDF3' },
+  photoSelectedText: { flex: 1, fontSize: 11.5, fontWeight: '700', color: '#067647' },
   photoOrb: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF4FF' },
   photoOrbSelected: { backgroundColor: '#ECFDF3' },
   photoTitle: { marginTop: 11, fontSize: 14, fontWeight: '800', color: '#1D2939' },
@@ -621,4 +712,14 @@ const styles = StyleSheet.create({
   primaryActionDisabled: { backgroundColor: '#B2CCFF', shadowOpacity: 0, elevation: 0 },
   primaryActionPressed: { backgroundColor: '#004EEB', transform: [{ scale: 0.99 }] },
   primaryActionText: { fontSize: 14, fontWeight: '900', color: '#FFFFFF' },
+  cameraModal: { flex: 1, backgroundColor: '#000000' },
+  cameraHeader: { minHeight: 60, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#101828' },
+  cameraClose: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1D2939' },
+  cameraTitle: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
+  cameraHeaderSpacer: { width: 44 },
+  cameraView: { flex: 1 },
+  cameraFooter: { minHeight: 118, alignItems: 'center', justifyContent: 'center', backgroundColor: '#101828' },
+  captureOuter: { width: 76, height: 76, borderRadius: 38, borderWidth: 4, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  captureInner: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#FFFFFF' },
+  capturePressed: { transform: [{ scale: 0.94 }] },
 })
