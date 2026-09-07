@@ -7,7 +7,7 @@ This plan adapts the useful principles from `alan2207/bulletproof-react` to the 
 - Keep route screens thin and focused on presentation/orchestration.
 - Group business capability by feature, not by file type alone.
 - Give each feature a small public API (`src/features/<feature>/index.ts`).
-- Prevent screens from reaching directly into Supabase or feature implementation files.
+- Prevent screens/navigation from reaching directly into Supabase or feature implementation files.
 - Keep shared UI generic and feature UI inside its feature boundary.
 - Make architecture violations fail early in the mobile quality gate.
 - Migrate incrementally so current Equipment, QR, Work Order and Settings flows keep working during refactors.
@@ -25,8 +25,8 @@ index.tsx
 Forbidden direction:
 
 ```text
-screen -> Supabase directly
-screen -> another feature's private file
+screen/navigation -> Supabase directly
+screen/navigation -> another feature's private file
 shared component -> feature business service
 feature A private implementation -> feature B private implementation
 ```
@@ -38,8 +38,6 @@ src/
   features/
     auth/
       api/
-      model/
-      ui/
       index.ts
     equipment/
       api/
@@ -62,6 +60,7 @@ src/
       ui/
       index.ts
     settings/
+      api/
       ui/
       index.ts
   navigation/
@@ -93,52 +92,63 @@ Status: complete.
 
 ### Phase 3 - shared infrastructure
 
-Status: in progress; Equipment is the reference implementation.
+Status: complete for the current Equipment reference implementation.
 
-Completed in the first Phase 3 batch:
+Completed:
 
-- Added `src/lib/cache/persistentSnapshot.ts` as the shared versioned AsyncStorage snapshot primitive.
-- Added `src/lib/supabase/client.ts` as the shared client boundary while keeping legacy client initialization stable during migration.
-- Added an Equipment repository with memory cache, persistent list/detail snapshots, request de-duplication, stale-while-revalidate and subscriptions.
-- Equipment List now renders memory/persistent data first and revalidates Supabase in the background instead of blanking a known list with a spinner.
-- Equipment Detail now reuses its previous snapshot on revisit and revalidates in the background.
+- `src/lib/cache/persistentSnapshot.ts` is the shared versioned AsyncStorage snapshot primitive.
+- `src/lib/supabase/client.ts` now owns the real Supabase client initialization; `src/supabase.ts` is compatibility-only.
+- Equipment has memory cache, persistent list/detail snapshots, request de-duplication, stale-while-revalidate and subscriptions.
+- Equipment List renders memory/persistent data first and revalidates Supabase in the background.
+- Equipment Detail reuses its previous snapshot on revisit and revalidates in the background.
 - Status changes patch list/detail cache after the authorized RPC succeeds instead of forcing a full Equipment reload.
 - Equipment registration performs targeted cache reconciliation for the newly created equipment.
-- Equipment Status Master now has a bounded snapshot-first cache and background revalidation.
+- Equipment Status Master has snapshot-first cache and background revalidation.
+- Equipment create/photo mutations live inside the Equipment feature rather than the legacy Supabase module.
+- Equipment photo URL cache is invalidated immediately after a successful replacement/upload so a stale signed URL is not reused.
 
-Remaining Phase 3 work:
-
-- Finish moving legacy Supabase initialization/domain helpers apart so all raw client imports resolve from `src/lib/supabase` without compatibility indirection.
-- Add the same repository/cache conventions to upcoming Work Orders, Requests and Notifications rather than creating screen-local fetch patterns.
-- Add focused invalidation for equipment photo replacement/delete when those mutations are exposed from active UI.
+The repository/cache convention established here is mandatory for upcoming data-driven features.
 
 ### Phase 4 - feature-by-feature migration
 
-- Auth
+Status: started.
+
+Completed first slice:
+
+- Auth now has `src/features/auth/index.ts`; navigation consumes auth only through the public API.
+- Profile/Security account writes now live behind `src/features/settings/index.ts` instead of route screens calling Supabase directly.
+- The architecture checker now includes navigation and no longer needs direct-Supabase screen allowlists.
+
+Next slices:
+
 - Work Orders
 - Requests
 - Notifications
-- Settings
+- remaining Settings data/preferences
 
 Each feature receives a public API and route screens may import only from that API or generic shared components.
 
 ### Phase 5 - stronger architecture checks
 
-After legacy imports are migrated, remove remaining non-Equipment allowlists from the architecture checker and fail CI on any direct data-client import from route/entry UI.
+Status: in progress as migrations land.
+
+- Active route/entry/navigation UI is already blocked from direct Supabase imports.
+- Active Equipment/Auth/Settings UI is blocked from feature-private implementation imports.
+- Remove compatibility shims once no legacy callers remain.
 
 ## Rules for new code from now on
 
 1. New business modules belong under `src/features/<feature>`.
-2. Screens import a feature through `src/features/<feature>/index.ts` only.
-3. Do not add new direct Supabase calls inside screens/components.
+2. Screens/navigation import a feature through `src/features/<feature>/index.ts` only.
+3. Do not add new direct Supabase calls inside screens/components/navigation.
 4. Do not put feature-specific components in `src/components`.
 5. Keep business writes behind authorized RPC/RLS boundaries.
 6. Preserve CEV performance rules, image `contain` contract, and native physical-device verification gates.
 7. Prefer small migration batches that keep behavior unchanged and pass the exact GitHub Quality Gate before merge.
 8. New data-driven features must define memory cache, persistent snapshot, staleness, background revalidation, mutation patch and invalidation behavior before being considered complete.
 
-## Legacy exceptions still to remove
+## Legacy compatibility still present
 
-- `ProfileSettingsScreen.tsx` and `SecuritySettingsScreen.tsx` still contain direct Supabase imports and are explicitly baselined until the Settings/Auth feature migration.
-- Compatibility re-exports remain at the old Equipment service/component paths only as migration shims; active Equipment route/entry UI is guarded against using them.
-- The legacy `src/supabase.ts` still owns client initialization plus older Equipment mutation/image helpers; Phase 3 will split those responsibilities without changing auth/session behavior.
+- `src/supabase.ts` is now only a compatibility re-export surface. New code must not import it.
+- `src/services/authService.ts` is a compatibility shim. New code must import `features/auth`.
+- Old Equipment service/component paths remain as migration shims for non-route legacy callers; active Equipment UI is guarded against using them.
