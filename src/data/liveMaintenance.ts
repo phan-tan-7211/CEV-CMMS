@@ -7,6 +7,8 @@ export type LiveMaintenanceWorkOrder = {
   workOrderId: string
   equipmentId: string
   sourceType: string
+  planClassification: string
+  hasDowntime: boolean
   requestedAt: string
   requestedBy: string
   reason: string
@@ -51,7 +53,7 @@ export type MaintenancePlanInput = {
 }
 
 const CACHE_KEY = 'cev:data:maintenance'
-const CACHE_VERSION = 3
+const CACHE_VERSION = 4
 const CACHE_FRESH_MS = 30_000
 const restored = readClientCache<LiveMaintenanceSnapshot>(CACHE_KEY, CACHE_VERSION)
 let maintenanceCache: LiveMaintenanceSnapshot | null = restored?.data || null
@@ -133,6 +135,8 @@ function insertCreatedWorkOrder(input: {
     workOrderId: input.workOrderId,
     equipmentId: input.equipmentId,
     sourceType: input.sourceType,
+    planClassification: '',
+    hasDowntime: false,
     requestedAt: new Date().toISOString(),
     requestedBy: '',
     reason: input.reason,
@@ -156,15 +160,16 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
   if (maintenanceRefreshPromise) return maintenanceRefreshPromise
 
   maintenanceRefreshPromise = (async () => {
-    const [equipmentResult, planResult, planItemResult, woResult, handoverResult, transitionResult] = await Promise.all([
+    const [equipmentResult, planResult, planItemResult, woResult, handoverResult, transitionResult, downtimeResult] = await Promise.all([
       supabase.from('equipment_master').select('equipment_id,equipment_name,equipment_type,status,active').eq('active', true),
       supabase.from('maintenance_plan').select('*').order('created_at', { ascending: false }),
       supabase.from('maintenance_plan_item').select('*'),
       supabase.from('maintenance_work_order').select('*').order('created_at', { ascending: false }),
       supabase.from('equipment_handover').select('*').order('created_at', { ascending: false }),
       supabase.from('audit_log').select('audit_id,entity_id,action,actor_email,detail,created_at').eq('entity_type', 'Maintenance_Work_Order').order('created_at', { ascending: false }).limit(1000),
+      supabase.from('downtime_event').select('work_order_id'),
     ])
-    for (const result of [equipmentResult, planResult, planItemResult, woResult, handoverResult, transitionResult]) if (result.error) throw result.error
+    for (const result of [equipmentResult, planResult, planItemResult, woResult, handoverResult, transitionResult, downtimeResult]) if (result.error) throw result.error
 
     const equipment: MaintenanceEquipmentOption[] = ((equipmentResult.data || []) as Array<Record<string, unknown>>)
       .filter((row) => text(row.equipment_id) && text(row.equipment_type) === 'PRODUCTION' && text(row.status) !== 'DISPOSED')
@@ -199,12 +204,16 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
       }
     })
 
+    const downtimeWorkOrders = new Set(((downtimeResult.data || []) as Array<Record<string, unknown>>).map((row) => text(row.work_order_id)).filter(Boolean))
     const workOrders: LiveMaintenanceWorkOrder[] = ((woResult.data || []) as Array<Record<string, unknown>>).map((row) => {
       const source = (row.source_data as Record<string, unknown> | null) || {}
+      const workOrderId = text(row.work_order_id)
       return {
-        workOrderId: text(row.work_order_id),
+        workOrderId,
         equipmentId: text(row.equipment_id),
         sourceType: text(row.source_type),
+        planClassification: text(source.planClassification),
+        hasDowntime: downtimeWorkOrders.has(workOrderId),
         requestedAt: text(row.created_at),
         requestedBy: text(row.created_by),
         reason: text(row.reason),
