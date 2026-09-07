@@ -677,27 +677,27 @@ function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
 }
 
 function LoginScreen() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const emailValue = useRef('')
+  const passwordValue = useRef('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
   async function signIn() {
+    const email = emailValue.current.trim()
+    const password = passwordValue.current
+
     if (!mobileSupabaseConfigured) {
       setError('Chưa cấu hình Supabase cho mobile.')
       return
     }
-    if (!email.trim() || !password) {
+    if (!email || !password) {
       setError('Nhập email và mật khẩu.')
       return
     }
 
     setSubmitting(true)
     setError('')
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    })
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
     if (authError) setError(authError.message)
     setSubmitting(false)
   }
@@ -713,34 +713,50 @@ function LoginScreen() {
           <Text style={styles.loginSubtitle}>Đăng nhập bằng tài khoản hệ thống hiện có.</Text>
         </View>
         <View style={styles.loginCard}>
-          <Field
-            icon="mail-outline"
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="name@company.com"
-            required
-            autoComplete="off"
-            keyboardType="email-address"
-            returnKeyType="done"
-            blurOnSubmit
-          />
-          <Field
-            icon="lock-closed-outline"
-            label="Mật khẩu"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Mật khẩu"
-            required
-            secureTextEntry
-            autoComplete="off"
-            returnKeyType="done"
-            blurOnSubmit
-          />
+          <View style={styles.loginFieldBlock}>
+            <Text style={styles.label}>Email<RequiredMark /></Text>
+            <View style={styles.loginInputShell}>
+              <Ionicons name="mail-outline" size={18} color="#98A2B3" style={styles.inputIcon} />
+              <TextInput
+                defaultValue=""
+                onChangeText={(value) => { emailValue.current = value }}
+                placeholder="name@company.com"
+                placeholderTextColor="#98A2B3"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="off"
+                textContentType="none"
+                keyboardType="email-address"
+                returnKeyType="done"
+                style={styles.loginInput}
+              />
+            </View>
+          </View>
+
+          <View style={styles.loginFieldBlock}>
+            <Text style={styles.label}>Mật khẩu<RequiredMark /></Text>
+            <View style={styles.loginInputShell}>
+              <Ionicons name="lock-closed-outline" size={18} color="#98A2B3" style={styles.inputIcon} />
+              <TextInput
+                defaultValue=""
+                onChangeText={(value) => { passwordValue.current = value }}
+                placeholder="Mật khẩu"
+                placeholderTextColor="#98A2B3"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="off"
+                textContentType="none"
+                returnKeyType="done"
+                style={styles.loginInput}
+              />
+            </View>
+          </View>
+
           {error ? <Text style={styles.loginError}>{error}</Text> : null}
           <Pressable
             disabled={submitting}
-            onPress={signIn}
+            onPress={() => { void signIn() }}
             style={({ pressed }) => [styles.loginButton, submitting && styles.primaryActionDisabled, pressed && !submitting && styles.primaryActionPressed]}
           >
             {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="log-in-outline" size={19} color="#FFFFFF" />}
@@ -916,6 +932,9 @@ const styles = StyleSheet.create({
   loginTitle: { marginTop: 5, fontSize: 29, fontWeight: '900', color: '#101828' },
   loginSubtitle: { marginTop: 6, textAlign: 'center', fontSize: 13, color: '#667085' },
   loginCard: { width: '100%', maxWidth: 460, alignSelf: 'center', padding: 18, borderRadius: 22, borderWidth: 1, borderColor: '#EAECF0', backgroundColor: '#FFFFFF' },
+  loginFieldBlock: { marginBottom: 15 },
+  loginInputShell: { minHeight: 50, flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: '#EAECF0', backgroundColor: '#F8FAFC' },
+  loginInput: { flex: 1, minHeight: 48, paddingRight: 14, paddingVertical: 11, color: '#101828', fontSize: 14 },
   loginError: { marginBottom: 12, fontSize: 12, lineHeight: 17, fontWeight: '700', color: '#B42318' },
   loginButton: { minHeight: 52, borderRadius: 15, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
   loginButtonText: { fontSize: 14, fontWeight: '900', color: '#FFFFFF' },
