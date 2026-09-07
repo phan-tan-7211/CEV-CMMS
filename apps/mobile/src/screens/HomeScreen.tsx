@@ -13,6 +13,7 @@ type HomeScreenProps = {
   onOpenScan: () => void
   onOpenWorkOrders: () => void
   onOpenEquipment: () => void
+  onOpenRequests: () => void
   onOpenMore: () => void
   onOpenSettings: () => void
   isAdmin?: boolean
@@ -45,6 +46,7 @@ export function HomeScreen({
   onOpenScan,
   onOpenWorkOrders,
   onOpenEquipment,
+  onOpenRequests,
   onOpenMore,
   onOpenSettings,
   isAdmin = false,
@@ -167,9 +169,9 @@ export function HomeScreen({
               <Text style={styles.navLabel}>Công việc</Text>
             </Pressable>
             <View style={styles.navCenterSpace} />
-            <Pressable onPress={onOpenEquipment} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Thiết bị">
-              <Ionicons name="cube-outline" size={23} color="#667085" />
-              <Text style={styles.navLabel}>Thiết bị</Text>
+            <Pressable onPress={onOpenRequests} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Yêu cầu">
+              <Ionicons name="briefcase-outline" size={23} color="#667085" />
+              <Text style={styles.navLabel}>Yêu cầu</Text>
             </Pressable>
             <Pressable onPress={onOpenMore} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Thêm">
               <Ionicons name="menu-outline" size={25} color="#667085" />
