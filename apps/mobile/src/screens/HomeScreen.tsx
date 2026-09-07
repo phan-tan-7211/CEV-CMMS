@@ -8,6 +8,10 @@ type IconName = keyof typeof Ionicons.glyphMap
 
 type HomeScreenProps = {
   onCreateEquipment: () => void
+  onOpenScan: () => void
+  onOpenWorkOrders: () => void
+  onOpenEquipment: () => void
+  onOpenMore: () => void
   onSignOut: () => void
 }
 
@@ -33,8 +37,22 @@ function showComingSoon(label: string) {
   Alert.alert(label, 'Module này sẽ được nối dữ liệu và workflow ở batch tiếp theo.')
 }
 
-export function HomeScreen({ onCreateEquipment, onSignOut }: HomeScreenProps) {
+export function HomeScreen({
+  onCreateEquipment,
+  onOpenScan,
+  onOpenWorkOrders,
+  onOpenEquipment,
+  onOpenMore,
+  onSignOut,
+}: HomeScreenProps) {
   const [assignedOnly, setAssignedOnly] = useState(true)
+
+  function handleQuickAction(label: string) {
+    if (label === 'Quét') return onOpenScan()
+    if (label === 'Công việc') return onOpenWorkOrders()
+    if (label === 'Thiết bị') return onOpenEquipment()
+    showComingSoon(label)
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -70,7 +88,7 @@ export function HomeScreen({ onCreateEquipment, onSignOut }: HomeScreenProps) {
               key={action.label}
               accessibilityRole="button"
               accessibilityLabel={action.label}
-              onPress={() => showComingSoon(action.label)}
+              onPress={() => handleQuickAction(action.label)}
               style={({ pressed }) => [styles.quickAction, pressed && styles.quickActionPressed]}
             >
               <View style={[styles.quickIcon, action.primary && styles.quickIconPrimary]}>
@@ -119,7 +137,7 @@ export function HomeScreen({ onCreateEquipment, onSignOut }: HomeScreenProps) {
                 key={row.label}
                 accessibilityRole="button"
                 accessibilityLabel={`${row.label}: ${row.count}`}
-                onPress={() => showComingSoon(row.label)}
+                onPress={onOpenWorkOrders}
                 style={({ pressed }) => [styles.statusRow, pressed && styles.statusRowPressed]}
               >
                 <View style={[styles.statusAccent, { backgroundColor: row.accent }]} />
@@ -132,7 +150,7 @@ export function HomeScreen({ onCreateEquipment, onSignOut }: HomeScreenProps) {
 
           <View style={styles.syncHint}>
             <Ionicons name="flash-outline" size={15} color="#475467" />
-            <Text style={styles.syncHintText}>Khung Home đã tách riêng như app CMMS native; số liệu thật sẽ nối vào service Work Order sau.</Text>
+            <Text style={styles.syncHintText}>Home đã tách khỏi App.tsx; các module native giờ có screen route riêng để nối service/cache dần.</Text>
           </View>
         </ScrollView>
 
@@ -142,16 +160,16 @@ export function HomeScreen({ onCreateEquipment, onSignOut }: HomeScreenProps) {
               <Ionicons name="home" size={23} color="#155EEF" />
               <Text style={[styles.navLabel, styles.navLabelActive]}>Trang chủ</Text>
             </Pressable>
-            <Pressable onPress={() => showComingSoon('Công việc')} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Công việc">
+            <Pressable onPress={onOpenWorkOrders} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Công việc">
               <Ionicons name="clipboard-outline" size={23} color="#667085" />
               <Text style={styles.navLabel}>Công việc</Text>
             </Pressable>
             <View style={styles.navCenterSpace} />
-            <Pressable onPress={() => showComingSoon('Thiết bị')} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Thiết bị">
+            <Pressable onPress={onOpenEquipment} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Thiết bị">
               <Ionicons name="cube-outline" size={23} color="#667085" />
               <Text style={styles.navLabel}>Thiết bị</Text>
             </Pressable>
-            <Pressable onPress={() => showComingSoon('Thêm')} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Thêm">
+            <Pressable onPress={onOpenMore} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Thêm">
               <Ionicons name="menu-outline" size={25} color="#667085" />
               <Text style={styles.navLabel}>Thêm</Text>
             </Pressable>
