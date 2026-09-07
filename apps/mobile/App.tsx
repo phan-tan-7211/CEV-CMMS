@@ -14,12 +14,11 @@ import {
   View,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as ImagePicker from 'expo-image-picker'
-import type { Session } from '@supabase/supabase-js'
-import { createEquipment, mobileSupabaseConfigured, supabase, uploadEquipmentPhoto } from './src/supabase'
+import { createEquipment, mobileSupabaseConfigured, uploadEquipmentPhoto } from './src/supabase'
 import { SuggestField } from './src/SuggestField'
 import { DateField } from './src/DateField'
 import {
@@ -303,7 +302,7 @@ function StepProgress({ step }: { step: number }) {
   )
 }
 
-function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
+export function RegistrationScreen({ onBack }: { onBack: () => void }) {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<EquipmentDraft>(INITIAL)
   const [photoUri, setPhotoUri] = useState<string | null>(null)
@@ -481,7 +480,7 @@ function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Quay lại"
-              onPress={() => step > 0 ? setStep(step - 1) : Alert.alert('Tài khoản', 'Bạn muốn đăng xuất khỏi CEV CMMS?', [{ text: 'Hủy', style: 'cancel' }, { text: 'Đăng xuất', style: 'destructive', onPress: onSignOut }])}
+              onPress={() => step > 0 ? setStep(step - 1) : onBack()}
               style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             >
               <Ionicons name="chevron-back" size={22} color="#101828" />
@@ -733,174 +732,46 @@ function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
   )
 }
 
-function LoginScreen() {
-  const emailValue = useRef('')
-  const passwordValue = useRef('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
-
-  async function signIn() {
-    const email = emailValue.current.trim()
-    const password = passwordValue.current
-
-    if (!mobileSupabaseConfigured) {
-      setError('Chưa cấu hình Supabase cho mobile.')
-      return
-    }
-    if (!email || !password) {
-      setError('Nhập email và mật khẩu.')
-      return
-    }
-
-    setSubmitting(true)
-    setError('')
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-    if (authError) setError(authError.message)
-    setSubmitting(false)
-  }
-
-  return (
-    <SafeAreaView style={styles.loginSafeArea} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
-      <KeyboardAvoidingView style={styles.loginKeyboard} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <ScrollView
-          style={styles.loginScroll}
-          contentContainerStyle={styles.loginScrollContent}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.loginBrand}>
-          <View style={styles.loginLogo}><Ionicons name="construct" size={28} color="#FFFFFF" /></View>
-          <Text style={styles.loginEyebrow}>CORE ELECTRONICS VIETNAM</Text>
-          <Text style={styles.loginTitle}>CEV CMMS</Text>
-          <Text style={styles.loginSubtitle}>Đăng nhập bằng tài khoản hệ thống hiện có.</Text>
-        </View>
-        <View style={styles.loginCard}>
-          <View style={styles.loginFieldBlock}>
-            <Text style={styles.label}>Email<RequiredMark /></Text>
-            <View style={styles.loginInputShell}>
-              <Ionicons name="mail-outline" size={18} color="#98A2B3" style={styles.inputIcon} />
-              <TextInput
-                defaultValue=""
-                onChangeText={(value) => { emailValue.current = value }}
-                placeholder="name@company.com"
-                placeholderTextColor="#98A2B3"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="off"
-                textContentType="none"
-                keyboardType="email-address"
-                returnKeyType="done"
-                style={styles.loginInput}
-              />
-            </View>
-          </View>
-
-          <View style={styles.loginFieldBlock}>
-            <Text style={styles.label}>Mật khẩu<RequiredMark /></Text>
-            <View style={styles.loginInputShell}>
-              <Ionicons name="lock-closed-outline" size={18} color="#98A2B3" style={styles.inputIcon} />
-              <TextInput
-                defaultValue=""
-                onChangeText={(value) => { passwordValue.current = value }}
-                placeholder="Mật khẩu"
-                placeholderTextColor="#98A2B3"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="off"
-                textContentType="none"
-                returnKeyType="done"
-                style={styles.loginInput}
-              />
-            </View>
-          </View>
-
-          {error ? <Text style={styles.loginError}>{error}</Text> : null}
-          <Pressable
-            disabled={submitting}
-            onPress={() => { void signIn() }}
-            style={({ pressed }) => [styles.loginButton, submitting && styles.primaryActionDisabled, pressed && !submitting && styles.primaryActionPressed]}
-          >
-            {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="log-in-outline" size={19} color="#FFFFFF" />}
-            <Text style={styles.loginButtonText}>{submitting ? 'Đang đăng nhập...' : 'Đăng nhập'}</Text>
-          </Pressable>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  )
-}
-
-function MobileApp() {
-  const [session, setSession] = useState<Session | null | undefined>(undefined)
-
-  useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession))
-    return () => data.subscription.unsubscribe()
-  }, [])
-
-  if (session === undefined) {
-    return <View style={styles.loadingScreen}><ActivityIndicator size="large" color="#155EEF" /></View>
-  }
-
-  if (!session) return <LoginScreen />
-  return <RegistrationScreen onSignOut={() => { void supabase.auth.signOut() }} />
-}
-
-export default function App() {
-  return (
-    <SafeAreaProvider>
-      <MobileApp />
-    </SafeAreaProvider>
-  )
-}
+export default RegistrationScreen
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  safeArea: { flex: 1, backgroundColor: '#F3F5F7' },
+  safeArea: { flex: 1, backgroundColor: '#F8F9FB' },
   shell: {
     flex: 1,
     width: '100%',
-    maxWidth: 560,
-    alignSelf: 'center',
-    backgroundColor: '#F7F8FA',
-    borderLeftWidth: Platform.OS === 'web' ? StyleSheet.hairlineWidth : 0,
-    borderRightWidth: Platform.OS === 'web' ? StyleSheet.hairlineWidth : 0,
-    borderColor: '#EAECF0',
+    backgroundColor: '#F8F9FB',
   },
   topBar: {
-    minHeight: 70,
-    paddingHorizontal: 16,
+    minHeight: 58,
+    paddingHorizontal: 8,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#EAECF0',
   },
   iconButton: {
-    width: 42,
-    height: 42,
-    marginRight: 8,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    marginRight: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F2F4F7',
   },
   topTitleWrap: { flex: 1 },
-  topTitle: { fontSize: 18, fontWeight: '800', color: '#101828', letterSpacing: -0.25 },
-  topSubtitle: { marginTop: 2, fontSize: 11.5, fontWeight: '500', color: '#667085' },
-  stepBadge: { minWidth: 50, height: 30, paddingHorizontal: 10, borderRadius: 15, backgroundColor: '#F2F4F7', alignItems: 'center', justifyContent: 'center' },
+  topTitle: { fontSize: 18, fontWeight: '900', color: '#101828', letterSpacing: -0.25 },
+  topSubtitle: { marginTop: 1, fontSize: 11.5, fontWeight: '500', color: '#667085' },
+  stepBadge: { minWidth: 50, height: 30, marginRight: 8, paddingHorizontal: 10, borderRadius: 15, backgroundColor: '#F2F4F7', alignItems: 'center', justifyContent: 'center' },
   stepBadgeText: { fontSize: 11.5, fontWeight: '800', color: '#344054' },
-  progressWrap: { flexDirection: 'row', gap: 5, paddingHorizontal: 18, paddingBottom: 12, backgroundColor: '#FFFFFF' },
+  progressWrap: { flexDirection: 'row', gap: 5, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, backgroundColor: '#FFFFFF' },
   progressItem: { flex: 1 },
   progressBar: { height: 3, borderRadius: 3, backgroundColor: '#E4E7EC' },
   progressBarActive: { backgroundColor: '#155EEF' },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 22, paddingBottom: 32 },
-  screenIntro: { marginBottom: 18 },
-  screenTitle: { fontSize: 24, lineHeight: 30, fontWeight: '800', color: '#101828', letterSpacing: -0.45 },
-  screenSubtitle: { marginTop: 5, fontSize: 13, lineHeight: 19, color: '#667085' },
-  assetHero: { padding: 18, marginBottom: 14, borderRadius: 22, backgroundColor: '#101828' },
+  scrollContent: { paddingHorizontal: 12, paddingTop: 18, paddingBottom: 32 },
+  screenIntro: { marginBottom: 14 },
+  screenTitle: { fontSize: 24, lineHeight: 30, fontWeight: '900', color: '#101828', letterSpacing: -0.45 },
+  screenSubtitle: { marginTop: 4, fontSize: 13, lineHeight: 19, color: '#667085' },
+  assetHero: { padding: 18, marginBottom: 14, borderRadius: 18, backgroundColor: '#101828' },
   assetHeroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
   assetHeroIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1D2939' },
   assetHeroChip: { minWidth: 40, height: 28, paddingHorizontal: 10, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#344054' },
@@ -908,7 +779,7 @@ const styles = StyleSheet.create({
   assetHeroLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 1.25, color: '#98A2B3' },
   assetHeroCode: { marginTop: 5, fontSize: 26, lineHeight: 31, fontWeight: '900', letterSpacing: 0.2, color: '#FFFFFF' },
   assetHeroMeta: { marginTop: 7, fontSize: 12, color: '#D0D5DD' },
-  sectionCard: { marginBottom: 14, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#EAECF0', backgroundColor: '#FFFFFF' },
+  sectionCard: { marginBottom: 14, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#EAECF0', backgroundColor: '#FFFFFF' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 17 },
   cardIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF4FF' },
   cardHeaderCopy: { flex: 1, marginLeft: 11 },
@@ -918,7 +789,6 @@ const styles = StyleSheet.create({
   required: { color: '#D92D20' },
   fieldBlock: { marginBottom: 15 },
   inputShell: { minHeight: 50, flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: '#EAECF0', backgroundColor: '#F8FAFC' },
-  inputShellFocused: { borderColor: '#84ADFF', backgroundColor: '#FFFFFF', shadowColor: '#155EEF', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   inputShellMultiline: { alignItems: 'flex-start' },
   inputIcon: { marginLeft: 14, marginRight: 9, marginTop: 1 },
   input: { flex: 1, minHeight: 48, paddingRight: 14, paddingVertical: 11, color: '#101828', fontSize: 14 },
@@ -936,7 +806,6 @@ const styles = StyleSheet.create({
   photoSelectedRow: { minHeight: 42, marginTop: 8, paddingHorizontal: 10, borderRadius: 12, flexDirection: 'row', gap: 7, alignItems: 'center', backgroundColor: '#ECFDF3' },
   photoSelectedText: { flex: 1, fontSize: 11.5, fontWeight: '700', color: '#067647' },
   photoOrb: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF4FF' },
-  photoOrbSelected: { backgroundColor: '#ECFDF3' },
   photoTitle: { marginTop: 11, fontSize: 14, fontWeight: '800', color: '#1D2939' },
   photoDescription: { marginTop: 5, maxWidth: 300, textAlign: 'center', fontSize: 11, lineHeight: 16, color: '#667085' },
   photoActions: { flexDirection: 'row', gap: 9, marginTop: 10 },
@@ -988,23 +857,6 @@ const styles = StyleSheet.create({
   primaryActionDisabled: { backgroundColor: '#B2CCFF', shadowOpacity: 0, elevation: 0 },
   primaryActionPressed: { backgroundColor: '#004EEB', transform: [{ scale: 0.99 }] },
   primaryActionText: { fontSize: 14, fontWeight: '900', color: '#FFFFFF' },
-  loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F8FA' },
-  loginSafeArea: { flex: 1, backgroundColor: '#F3F5F7' },
-  loginKeyboard: { flex: 1 },
-  loginScroll: { flex: 1 },
-  loginScrollContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 22, paddingTop: 28, paddingBottom: 36 },
-  loginBrand: { alignItems: 'center', marginBottom: 24 },
-  loginLogo: { width: 58, height: 58, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#101828' },
-  loginEyebrow: { marginTop: 17, fontSize: 9.5, fontWeight: '900', letterSpacing: 1.2, color: '#667085' },
-  loginTitle: { marginTop: 5, fontSize: 29, fontWeight: '900', color: '#101828' },
-  loginSubtitle: { marginTop: 6, textAlign: 'center', fontSize: 13, color: '#667085' },
-  loginCard: { width: '100%', maxWidth: 460, alignSelf: 'center', padding: 18, borderRadius: 22, borderWidth: 1, borderColor: '#EAECF0', backgroundColor: '#FFFFFF' },
-  loginFieldBlock: { marginBottom: 15 },
-  loginInputShell: { minHeight: 50, flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: '#EAECF0', backgroundColor: '#F8FAFC' },
-  loginInput: { flex: 1, minHeight: 48, paddingRight: 14, paddingVertical: 11, color: '#101828', fontSize: 14 },
-  loginError: { marginBottom: 12, fontSize: 12, lineHeight: 17, fontWeight: '700', color: '#B42318' },
-  loginButton: { minHeight: 52, borderRadius: 15, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
-  loginButtonText: { fontSize: 14, fontWeight: '900', color: '#FFFFFF' },
   cameraModal: { flex: 1, backgroundColor: '#000000' },
   cameraHeader: { minHeight: 60, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#101828' },
   cameraClose: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1D2939' },
