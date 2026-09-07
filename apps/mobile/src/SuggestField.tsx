@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import {
   AutocompleteDropdown,
+  type AutocompleteDropdownItem,
   type IAutocompleteDropdownRef,
 } from 'react-native-autocomplete-dropdown'
 
-import { canonicalizeEquipmentValue, cleanEquipmentText } from './equipmentSuggestions'
+import {
+  canonicalizeEquipmentValue,
+  cleanEquipmentText,
+  equipmentMatchKey,
+} from './equipmentSuggestions'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -33,30 +38,59 @@ export function SuggestField({
 }) {
   const controllerRef = useRef<IAutocompleteDropdownRef | null>(null)
   const lastInternalTextRef = useRef(value)
+  const onChangeTextRef = useRef(onChangeText)
 
-  const dataSet = useMemo(
-    () => suggestions.slice(0, 500).map((title, index) => ({ id: `${index}:${title}`, title })),
+  useEffect(() => {
+    onChangeTextRef.current = onChangeText
+  }, [onChangeText])
+
+  const allItems = useMemo<AutocompleteDropdownItem[]>(
+    () => suggestions.map((title, index) => ({ id: `${index}:${title}`, title })),
     [suggestions],
   )
+
+  const [visibleItems, setVisibleItems] = useState<AutocompleteDropdownItem[]>(allItems.slice(0, 200))
+
+  const filterItems = useCallback((text: string) => {
+    const query = equipmentMatchKey(text)
+    if (!query) {
+      setVisibleItems(allItems.slice(0, 200))
+      return
+    }
+
+    setVisibleItems(
+      allItems
+        .filter((item) => equipmentMatchKey(item.title || '').includes(query))
+        .slice(0, 200),
+    )
+  }, [allItems])
+
+  useEffect(() => {
+    filterItems(lastInternalTextRef.current)
+  }, [filterItems])
 
   useEffect(() => {
     if (value === lastInternalTextRef.current) return
     lastInternalTextRef.current = value
     controllerRef.current?.setInputText(value)
-  }, [value])
+    filterItems(value)
+  }, [filterItems, value])
 
-  function handleTextChange(text: string) {
+  const handleTextChange = useCallback((text: string) => {
     lastInternalTextRef.current = text
-    onChangeText(text)
-  }
+    filterItems(text)
+    onChangeTextRef.current(text)
+  }, [filterItems])
 
-  function commitCanonicalValue() {
-    const canonical = canonicalizeEquipmentValue(value, suggestions)
-    if (canonical === value) return
+  const commitCanonicalValue = useCallback(() => {
+    const currentValue = lastInternalTextRef.current
+    const canonical = canonicalizeEquipmentValue(currentValue, suggestions)
+    if (canonical === currentValue) return
     lastInternalTextRef.current = canonical
-    onChangeText(canonical)
+    onChangeTextRef.current(canonical)
     controllerRef.current?.setInputText(canonical)
-  }
+    filterItems(canonical)
+  }, [filterItems, suggestions])
 
   return (
     <View style={styles.fieldBlock}>
@@ -67,31 +101,28 @@ export function SuggestField({
 
       <AutocompleteDropdown
         controller={controllerRef}
-        dataSet={dataSet}
+        dataSet={visibleItems}
         loading={loading}
         enableLoadingIndicator
         clearOnFocus={false}
         closeOnBlur={false}
         closeOnSubmit={false}
         showClear={false}
-        showChevron
-        useFilter
-        ignoreAccents
-        trimSearchText
-        matchFrom="any"
+        showChevron={false}
+        useFilter={false}
         debounce={0}
         suggestionsListMaxHeight={260}
         onChangeText={handleTextChange}
+        onFocus={() => filterItems(lastInternalTextRef.current)}
         onBlur={commitCanonicalValue}
         onSubmit={commitCanonicalValue}
         onSelectItem={(item) => {
           if (!item?.title) return
           lastInternalTextRef.current = item.title
-          onChangeText(item.title)
+          onChangeTextRef.current(item.title)
+          filterItems(item.title)
         }}
-        emptyResultText={value.trim()
-          ? `Không có “${cleanEquipmentText(value)}” · giữ nguyên để thêm mới`
-          : 'Chưa có dữ liệu gợi ý'}
+        emptyResultText="Không có kết quả · giữ nguyên nội dung đang nhập để thêm mới"
         textInputProps={{
           placeholder,
           placeholderTextColor: '#98A2B3',
@@ -105,7 +136,6 @@ export function SuggestField({
         suggestionsListTextStyle={styles.suggestionText}
         containerStyle={styles.dropdownContainer}
         rightButtonsContainerStyle={styles.rightButtons}
-        ChevronIconComponent={<Ionicons name="chevron-down" size={17} color="#667085" />}
         LeftComponent={icon ? (
           <View style={styles.leftIcon}>
             <Ionicons name={icon} size={18} color="#98A2B3" />
