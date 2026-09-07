@@ -1,12 +1,12 @@
 import { registerRootComponent } from 'expo'
 import { AutocompleteDropdownContextProvider } from 'react-native-autocomplete-dropdown'
 
-import App from './App'
+import { MobileShell } from './src/MobileShell'
 
 function RootApp() {
   return (
     <AutocompleteDropdownContextProvider>
-      <App />
+      <MobileShell />
     </AutocompleteDropdownContextProvider>
   )
 }
