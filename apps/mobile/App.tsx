@@ -18,18 +18,20 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as ImagePicker from 'expo-image-picker'
-import { createEquipment, mobileSupabaseConfigured, uploadEquipmentPhoto } from './src/supabase'
-import { SuggestField } from './src/SuggestField'
 import { DateField } from './src/DateField'
-import { listEquipmentStatuses, type EquipmentStatusMaster } from './src/services/equipmentStatusService'
 import {
+  SuggestField,
   canonicalizeEquipmentValue,
   EMPTY_EQUIPMENT_SUGGESTIONS,
+  equipmentRegistrationConfigured,
+  listEquipmentStatuses,
   loadEquipmentSuggestions,
   rememberEquipmentSuggestion,
+  submitEquipmentRegistration,
+  type EquipmentStatusMaster,
   type EquipmentSuggestionKey,
   type EquipmentSuggestionMap,
-} from './src/equipmentSuggestions'
+} from './src/features/equipment'
 
 type EquipmentType = 'PRODUCTION' | 'MEASUREMENT'
 type EquipmentStatus = string
@@ -432,7 +434,7 @@ export function RegistrationScreen({ onBack }: { onBack: () => void }) {
 
   async function submitUi() {
     if (saving) return
-    if (!mobileSupabaseConfigured) {
+    if (!equipmentRegistrationConfigured) {
       setSaveError('Chưa cấu hình EXPO_PUBLIC_SUPABASE_URL và EXPO_PUBLIC_SUPABASE_ANON_KEY.')
       return
     }
@@ -442,7 +444,7 @@ export function RegistrationScreen({ onBack }: { onBack: () => void }) {
     setSaveMessage('')
 
     try {
-      const result = await createEquipment({
+      const result = await submitEquipmentRegistration({
         equipmentType: form.equipmentType,
         equipmentName: canonical('equipmentName', form.equipmentName),
         equipmentCategory: canonical('equipmentCategory', form.equipmentCategory),
@@ -469,16 +471,11 @@ export function RegistrationScreen({ onBack }: { onBack: () => void }) {
         stopsProduction: form.stopsProduction === 'YES',
         hasBackup: form.hasBackup === 'YES',
         capacityImpact: form.capacityImpact === 'YES',
-      })
+      }, photoUri)
 
-      if (photoUri) {
-        try {
-          await uploadEquipmentPhoto(result.equipmentId, photoUri)
-        } catch (photoError) {
-          const detail = photoError instanceof Error ? photoError.message : 'Không tải được ảnh.'
-          setSaveError(`Thiết bị ${result.equipmentId} đã được tạo nhưng ảnh chưa tải lên: ${detail}`)
-          return
-        }
+      if (result.photoError) {
+        setSaveError(`Thiết bị ${result.equipmentId} đã được tạo nhưng ảnh chưa tải lên: ${result.photoError}`)
+        return
       }
 
       rememberSubmittedSuggestions()
