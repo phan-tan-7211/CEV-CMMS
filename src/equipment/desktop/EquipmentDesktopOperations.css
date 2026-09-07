@@ -1,0 +1,18 @@
+@media screen and (min-width:901px){
+  .equipment-operations-strip{flex:0 0 auto;display:flex;align-items:center;gap:6px;min-height:38px;padding:5px 10px;border-bottom:1px solid var(--color-border);background:hsl(var(--slate-50));overflow-x:auto;scrollbar-width:none}
+  .equipment-operations-strip::-webkit-scrollbar{display:none}
+  .equipment-operations-label{margin-right:2px;font-size:10px;font-weight:800;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+  .equipment-status-filter{display:inline-flex;align-items:center;gap:6px;min-height:27px;padding:0 8px;border:1px solid var(--color-border);border-radius:999px;background:var(--color-surface);color:var(--color-text);font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;transition:border-color .15s ease,background .15s ease,box-shadow .15s ease}
+  .equipment-status-filter:hover{border-color:hsl(var(--slate-400));box-shadow:0 1px 2px rgba(15,23,42,.05)}
+  .equipment-status-filter.active{border-color:hsl(var(--blue-400));background:hsl(var(--blue-50));color:hsl(var(--blue-800));box-shadow:0 0 0 1px hsl(var(--blue-100)) inset}
+  .equipment-status-filter-dot{width:7px;height:7px;border-radius:999px;background:hsl(var(--slate-400));box-shadow:0 0 0 2px hsl(var(--slate-200))}
+  .equipment-status-filter.status-running .equipment-status-filter-dot{background:#16a34a;box-shadow:0 0 0 2px #dcfce7}
+  .equipment-status-filter.status-down .equipment-status-filter-dot{background:#dc2626;box-shadow:0 0 0 2px #fee2e2}
+  .equipment-status-filter.status-maintenance .equipment-status-filter-dot{background:#d97706;box-shadow:0 0 0 2px #fef3c7}
+  .equipment-status-filter.status-stopped .equipment-status-filter-dot{background:#64748b;box-shadow:0 0 0 2px #e2e8f0}
+  .equipment-status-filter.status-disposed .equipment-status-filter-dot{background:#475569;box-shadow:0 0 0 2px #e2e8f0}
+  .equipment-status-filter strong{display:grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:hsl(var(--slate-100));font-size:9px;font-weight:900;color:inherit;box-sizing:border-box}
+  .equipment-status-filter.active strong{background:hsl(var(--blue-100))}
+  .equipment-status-clear{min-height:27px;padding:0 7px;border:0;background:transparent;color:var(--color-text-muted);font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap}
+  .equipment-status-clear:hover{color:var(--color-text);text-decoration:underline}
+}
