@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F4F7',
   },
   quickIconPrimary: { backgroundColor: '#155EEF' },
-  quickLabel: { marginTop: 6, paddingHorizontal: 2, textAlign: 'center', fontSize: 11.5, lineHeight: 14, fontWeight: '650', color: '#344054' },
+  quickLabel: { marginTop: 6, paddingHorizontal: 2, textAlign: 'center', fontSize: 11.5, lineHeight: 14, fontWeight: '600', color: '#344054' },
   separator: { height: 8, backgroundColor: '#F2F4F7' },
   content: { flex: 1 },
   contentContainer: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 18 },
