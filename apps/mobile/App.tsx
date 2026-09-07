@@ -132,19 +132,15 @@ function Field({
   onSubmitEditing?: () => void
   inputRef?: React.RefObject<TextInput | null>
 }) {
-  const [focused, setFocused] = useState(false)
-
   return (
     <View style={styles.fieldBlock}>
       <Text style={styles.label}>{label}{required ? <RequiredMark /> : null}</Text>
-      <View style={[styles.inputShell, focused && styles.inputShellFocused, multiline && styles.inputShellMultiline]}>
-        {icon ? <Ionicons name={icon} size={18} color={focused ? '#155EEF' : '#98A2B3'} style={styles.inputIcon} /> : null}
+      <View style={[styles.inputShell, multiline && styles.inputShellMultiline]}>
+        {icon ? <Ionicons name={icon} size={18} color="#98A2B3" style={styles.inputIcon} /> : null}
         <TextInput
           ref={inputRef}
           value={value}
           onChangeText={onChangeText}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           placeholder={placeholder}
           placeholderTextColor="#98A2B3"
           multiline={multiline}
