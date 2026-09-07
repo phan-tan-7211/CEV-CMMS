@@ -48,7 +48,7 @@ function mobile(page: Page) {
 
 async function openView(page: Page, label: string) {
   if (!mobile(page)) {
-    await page.locator('.sidebar nav').getByRole('button', { name: label, exact: true }).click()
+    await page.locator('.desktop-sidebar-nav').getByRole('button', { name: label, exact: true }).click()
   } else if (label === 'Quét QR' || label === 'Thiết bị') {
     await page.locator('.bottom-nav').getByRole('button', { name: label, exact: true }).click()
   } else if (label === 'Bảo trì') {
@@ -81,7 +81,7 @@ test('maintenance opens work orders first and can switch record tabs', async ({ 
   await openView(page, 'Bảo trì')
   const workspace = page.locator('.maintenance-workspace')
   await expect(workspace.getByRole('heading', { name: 'Bảo trì thiết bị' })).toBeVisible()
-  const workOrdersTab = workspace.getByRole('button', { name: /^Công việc/ })
+  const workOrdersTab = workspace.locator('button[aria-controls="maintenance-tab-work-orders"]')
   await expect(workOrdersTab).toHaveAttribute('aria-current', 'page')
   const workOrdersPanel = page.locator('#maintenance-tab-work-orders')
   await expect(workOrdersPanel).toBeVisible()
@@ -134,6 +134,6 @@ test('A4 and account controls match the current shell', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Hồ sơ / Tem quản lý' })).toBeVisible()
   await expect(page.locator('.a4-document')).toContainText('CEV-BM-TBSX-01')
   await expect(page.getByRole('button', { name: 'In / Xuất PDF A4' })).toBeVisible()
-  await expect(page.locator('.sidebar-user')).toContainText('Quản trị hệ thống')
-  await expect(page.locator('.sidebar-user').getByRole('button', { name: 'Đăng xuất', exact: true })).toBeVisible()
+  await expect(page.locator('.sidebar-account')).toContainText('Quản trị hệ thống')
+  await expect(page.locator('.sidebar-account').getByRole('button', { name: 'Đăng xuất', exact: true })).toBeVisible()
 })
