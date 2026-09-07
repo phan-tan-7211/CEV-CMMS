@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 import { isClientCacheFresh, readClientCache, writeClientCache } from './clientDataCache'
 import { getCalibrationDueStatus } from '../domain/calibration'
 
@@ -83,11 +83,14 @@ export async function loadLiveDashboard(asOfDate = new Date().toISOString().slic
   if (!options.force && dashboardCache && isClientCacheFresh(dashboardCacheSavedAt, DASHBOARD_CACHE_FRESH_MS)) return dashboardCache
 
   const [equipmentResult, calibrationResult, planResult, woResult, downtimeResult] = await Promise.all([
-    supabase.from('equipment_master').select('equipment_id,equipment_name,equipment_type,status,active').eq('active', true),
-    supabase.from('calibration_master').select('calibration_id,equipment_id,next_due_date,status'),
-    supabase.from('maintenance_plan').select('plan_id,equipment_id,source_data,active'),
-    supabase.from('maintenance_work_order').select('work_order_id,equipment_id,status,priority,reason,created_at,source_data'),
-    supabase.from('downtime_event').select('downtime_id,equipment_id,started_at,ended_at'),
+    dataGateway.readRows('equipment_master', {
+      columns: 'equipment_id,equipment_name,equipment_type,status,active',
+      eq: [{ column: 'active', value: true }],
+    }),
+    dataGateway.readRows('calibration_master', { columns: 'calibration_id,equipment_id,next_due_date,status' }),
+    dataGateway.readRows('maintenance_plan', { columns: 'plan_id,equipment_id,source_data,active' }),
+    dataGateway.readRows('maintenance_work_order', { columns: 'work_order_id,equipment_id,status,priority,reason,created_at,source_data' }),
+    dataGateway.readRows('downtime_event', { columns: 'downtime_id,equipment_id,started_at,ended_at' }),
   ])
   const failed = [equipmentResult, calibrationResult, planResult, woResult, downtimeResult].find((result) => result.error)
   if (failed?.error) {
@@ -95,11 +98,11 @@ export async function loadLiveDashboard(asOfDate = new Date().toISOString().slic
     throw failed.error
   }
 
-  const equipment = (equipmentResult.data || []) as Array<Record<string, unknown>>
-  const calibration = (calibrationResult.data || []) as Array<Record<string, unknown>>
-  const plans = (planResult.data || []) as Array<Record<string, unknown>>
-  const workOrders = (woResult.data || []) as Array<Record<string, unknown>>
-  const downtime = (downtimeResult.data || []) as Array<Record<string, unknown>>
+  const equipment = equipmentResult.data
+  const calibration = calibrationResult.data
+  const plans = planResult.data
+  const workOrders = woResult.data
+  const downtime = downtimeResult.data
   const openStatuses = new Set(['OPEN', 'WAITING_APPROVAL', 'APPROVED', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'])
   const equipmentNames = new Map(equipment.map((row) => [text(row.equipment_id), text(row.equipment_name)]))
   const now = Date.now()
