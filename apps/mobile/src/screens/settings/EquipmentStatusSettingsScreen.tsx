@@ -92,86 +92,89 @@ export function EquipmentStatusSettingsScreen({ onBack }: { onBack: () => void }
   }
 
   return (
-    <SettingsScaffold title="Trạng thái thiết bị" onBack={onBack}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.note}>Trạng thái đang được thiết bị sử dụng sẽ khóa sửa/xóa. Trạng thái chưa liên kết có thể đổi tên, đổi màu hoặc xóa.</Text>
+    <SettingsScaffold title="Trạng thái thiết bị" onBack={onBack} scroll={false}>
+      <View style={styles.screen}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.note}>Trạng thái đang được thiết bị sử dụng sẽ khóa sửa/xóa. Trạng thái chưa liên kết có thể đổi tên, đổi màu hoặc xóa.</Text>
 
-        {error ? (
-          <View style={styles.errorBox}>
-            <Ionicons name="alert-circle-outline" size={19} color="#B42318" />
-            <Text style={styles.error}>{error}</Text>
-          </View>
-        ) : null}
-
-        {loading ? (
-          <View style={styles.center}><ActivityIndicator size="large" color="#155EEF" /></View>
-        ) : (
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.tableHeaderText, styles.statusColumn]}>Trạng thái</Text>
-              <Text style={[styles.tableHeaderText, styles.usageColumn]}>Sử dụng</Text>
-              <Text style={[styles.tableHeaderText, styles.actionColumn]}>Thao tác</Text>
+          {error ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={19} color="#B42318" />
+              <Text style={styles.error}>{error}</Text>
             </View>
+          ) : null}
 
-            {items.map((item, index) => (
-              <View key={item.statusCode} style={[styles.row, index === items.length - 1 && styles.rowLast]}>
-                <View style={styles.statusCell}>
-                  <View style={[styles.dot, { backgroundColor: item.color }]} />
-                  <View style={styles.copy}>
-                    <Text style={styles.name}>{item.displayName}</Text>
-                    <Text style={styles.meta}>{item.statusCode}</Text>
+          {loading ? (
+            <View style={styles.center}><ActivityIndicator size="large" color="#155EEF" /></View>
+          ) : (
+            <View style={styles.table}>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableHeaderText, styles.statusColumn]}>Trạng thái</Text>
+                <Text style={[styles.tableHeaderText, styles.usageColumn]}>Sử dụng</Text>
+                <Text style={[styles.tableHeaderText, styles.actionColumn]}>Thao tác</Text>
+              </View>
+
+              {items.map((item, index) => (
+                <View key={item.statusCode} style={[styles.row, index === items.length - 1 && styles.rowLast]}>
+                  <View style={styles.statusCell}>
+                    <View style={[styles.dot, { backgroundColor: item.color }]} />
+                    <View style={styles.copy}>
+                      <Text style={styles.name}>{item.displayName}</Text>
+                      <Text style={styles.meta}>{item.statusCode}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.usageCell}>
+                    <Text style={styles.usageCount}>{item.usageCount}</Text>
+                    <Text style={styles.usageLabel}>thiết bị</Text>
+                  </View>
+
+                  <View style={styles.actionCell}>
+                    {item.locked ? (
+                      <View style={styles.lockedAction} accessibilityLabel={`${item.displayName} đang được sử dụng, không thể sửa hoặc xóa`}>
+                        <Ionicons name="lock-closed-outline" size={19} color="#98A2B3" />
+                      </View>
+                    ) : (
+                      <>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Sửa ${item.displayName}`}
+                          onPress={() => openEdit(item)}
+                          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+                        >
+                          <Ionicons name="create-outline" size={21} color="#475467" />
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Xóa ${item.displayName}`}
+                          onPress={() => requestDelete(item)}
+                          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+                        >
+                          <Ionicons name="trash-outline" size={21} color="#B42318" />
+                        </Pressable>
+                      </>
+                    )}
                   </View>
                 </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
 
-                <View style={styles.usageCell}>
-                  <Text style={styles.usageCount}>{item.usageCount}</Text>
-                  <Text style={styles.usageLabel}>thiết bị</Text>
-                </View>
-
-                <View style={styles.actionCell}>
-                  {item.locked ? (
-                    <View style={styles.lockedAction} accessibilityLabel={`${item.displayName} đang được sử dụng, không thể sửa hoặc xóa`}>
-                      <Ionicons name="lock-closed-outline" size={19} color="#98A2B3" />
-                    </View>
-                  ) : (
-                    <>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Sửa ${item.displayName}`}
-                        onPress={() => openEdit(item)}
-                        style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-                      >
-                        <Ionicons name="create-outline" size={21} color="#475467" />
-                      </Pressable>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Xóa ${item.displayName}`}
-                        onPress={() => requestDelete(item)}
-                        style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-                      >
-                        <Ionicons name="trash-outline" size={21} color="#B42318" />
-                      </Pressable>
-                    </>
-                  )}
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Thêm trạng thái mới"
-        onPress={openCreate}
-        style={({ pressed }) => [styles.fab, pressed && styles.pressed]}
-      >
-        <Ionicons name="add" size={34} color="#FFFFFF" />
-      </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Thêm trạng thái mới"
+          onPress={openCreate}
+          style={({ pressed }) => [styles.fab, pressed && styles.pressed]}
+        >
+          <Ionicons name="add" size={34} color="#FFFFFF" />
+        </Pressable>
+      </View>
 
       <Modal visible={editorOpen} transparent animationType="fade" onRequestClose={() => setEditorOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setEditorOpen(false)}>
@@ -219,6 +222,7 @@ export function EquipmentStatusSettingsScreen({ onBack }: { onBack: () => void }
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, position: 'relative', backgroundColor: '#F8F9FB' },
   scroll: { flex: 1, backgroundColor: '#F8F9FB' },
   content: { paddingBottom: 118 },
   note: { padding: 16, fontSize: 12.5, lineHeight: 18, color: '#667085', backgroundColor: '#F8F9FB' },
