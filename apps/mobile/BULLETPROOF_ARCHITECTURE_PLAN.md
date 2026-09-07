@@ -93,11 +93,24 @@ Status: complete.
 
 ### Phase 3 - shared infrastructure
 
-Status: next.
+Status: in progress; Equipment is the reference implementation.
 
-- Move the Supabase client and storage/cache primitives under `src/lib`.
-- Keep all data-driven features on the required flow: memory cache -> persistent snapshot -> Supabase revalidate.
-- Add bounded repository/cache ownership per entity.
+Completed in the first Phase 3 batch:
+
+- Added `src/lib/cache/persistentSnapshot.ts` as the shared versioned AsyncStorage snapshot primitive.
+- Added `src/lib/supabase/client.ts` as the shared client boundary while keeping legacy client initialization stable during migration.
+- Added an Equipment repository with memory cache, persistent list/detail snapshots, request de-duplication, stale-while-revalidate and subscriptions.
+- Equipment List now renders memory/persistent data first and revalidates Supabase in the background instead of blanking a known list with a spinner.
+- Equipment Detail now reuses its previous snapshot on revisit and revalidates in the background.
+- Status changes patch list/detail cache after the authorized RPC succeeds instead of forcing a full Equipment reload.
+- Equipment registration performs targeted cache reconciliation for the newly created equipment.
+- Equipment Status Master now has a bounded snapshot-first cache and background revalidation.
+
+Remaining Phase 3 work:
+
+- Finish moving legacy Supabase initialization/domain helpers apart so all raw client imports resolve from `src/lib/supabase` without compatibility indirection.
+- Add the same repository/cache conventions to upcoming Work Orders, Requests and Notifications rather than creating screen-local fetch patterns.
+- Add focused invalidation for equipment photo replacement/delete when those mutations are exposed from active UI.
 
 ### Phase 4 - feature-by-feature migration
 
@@ -122,8 +135,10 @@ After legacy imports are migrated, remove remaining non-Equipment allowlists fro
 5. Keep business writes behind authorized RPC/RLS boundaries.
 6. Preserve CEV performance rules, image `contain` contract, and native physical-device verification gates.
 7. Prefer small migration batches that keep behavior unchanged and pass the exact GitHub Quality Gate before merge.
+8. New data-driven features must define memory cache, persistent snapshot, staleness, background revalidation, mutation patch and invalidation behavior before being considered complete.
 
 ## Legacy exceptions still to remove
 
 - `ProfileSettingsScreen.tsx` and `SecuritySettingsScreen.tsx` still contain direct Supabase imports and are explicitly baselined until the Settings/Auth feature migration.
 - Compatibility re-exports remain at the old Equipment service/component paths only as migration shims; active Equipment route/entry UI is guarded against using them.
+- The legacy `src/supabase.ts` still owns client initialization plus older Equipment mutation/image helpers; Phase 3 will split those responsibilities without changing auth/session behavior.
