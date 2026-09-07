@@ -17,6 +17,10 @@ export type LiveMaintenanceWorkOrder = {
   method: string
   plannedStartAt: string
   plannedEndAt: string
+  assignedPersonCode: string
+  assignedPersonName: string
+  assignedBy: string
+  assignedAt: string
 }
 export type LiveMaintenanceTransition = {
   auditId: string
@@ -47,7 +51,7 @@ export type MaintenancePlanInput = {
 }
 
 const CACHE_KEY = 'cev:data:maintenance'
-const CACHE_VERSION = 2
+const CACHE_VERSION = 3
 const CACHE_FRESH_MS = 30_000
 const restored = readClientCache<LiveMaintenanceSnapshot>(CACHE_KEY, CACHE_VERSION)
 let maintenanceCache: LiveMaintenanceSnapshot | null = restored?.data || null
@@ -139,6 +143,10 @@ function insertCreatedWorkOrder(input: {
     method: input.method,
     plannedStartAt: input.plannedStartAt,
     plannedEndAt: input.plannedEndAt,
+    assignedPersonCode: '',
+    assignedPersonName: '',
+    assignedBy: '',
+    assignedAt: '',
   }
   maintenanceCache = { ...maintenanceCache, workOrders: [created, ...maintenanceCache.workOrders.filter((item) => item.workOrderId !== created.workOrderId)] }
   persistMaintenanceCache()
@@ -207,6 +215,10 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
         method: text(source.method),
         plannedStartAt: text(source.plannedStartAt),
         plannedEndAt: text(source.plannedEndAt),
+        assignedPersonCode: text(source.assignedPersonCode),
+        assignedPersonName: text(source.assignedPersonName),
+        assignedBy: text(source.assignedBy),
+        assignedAt: text(source.assignedAt),
       }
     })
 
