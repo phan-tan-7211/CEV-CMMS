@@ -11,6 +11,14 @@ const EMPTY: LiveDashboardSummary = {
   calibrationTotal: 0,
   calibrationOverdue: 0,
   workOrderOpen: 0,
+  workOrderWaitingApproval: 0,
+  workOrderInProgress: 0,
+  workOrderCompleted: 0,
+  workOrderVerified: 0,
+  workOrderOverdue: 0,
+  workOrderDueSoon: 0,
+  workOrderAssigned: 0,
+  workOrderUnassigned: 0,
   criticalOpen: 0,
   pmOverdue: 0,
   downtimeOpen: 0,
@@ -112,6 +120,16 @@ export function LiveDashboardPanel({ onNavigate }: Props) {
         <div><span>Đang hoạt động</span><b>{summary.runningCount}</b><small>Danh mục thiết bị</small></div>
         <div><span>Sự kiện dừng máy đang mở</span><b>{summary.downtimeOpen}</b><small>{summary.downtimeMinutes.toLocaleString('vi-VN')} phút ghi nhận</small></div>
         <div><span>Cần chú ý ngay</span><b>{urgentCount}</b><small>Máy dừng + lệnh khẩn cấp + sự kiện dừng máy đang mở</small></div>
+      </section>
+
+      <section className="dashboard-maintenance-snapshot" aria-labelledby="dashboard-maintenance-title">
+        <header><div><p className="eyebrow">Maintenance snapshot</p><h3 id="dashboard-maintenance-title">Tình hình Work Order</h3></div><button type="button" onClick={() => onNavigate?.('maintenance')}>Mở Bảo trì →</button></header>
+        <div className="dashboard-snapshot-grid">
+          <div><span>Đang mở</span><strong>{summary.workOrderOpen}</strong><small>{summary.workOrderWaitingApproval} chờ duyệt</small></div>
+          <div><span>Đang sửa chữa</span><strong>{summary.workOrderInProgress}</strong><small>{summary.workOrderCompleted + summary.workOrderVerified} chờ xác nhận / bàn giao</small></div>
+          <div className={summary.workOrderOverdue ? 'attention' : ''}><span>Quá hạn</span><strong>{summary.workOrderOverdue}</strong><small>{summary.workOrderDueSoon} sắp đến hạn trong 24h</small></div>
+          <div className={summary.workOrderUnassigned ? 'warning' : ''}><span>Phân công</span><strong>{summary.workOrderAssigned}</strong><small>{summary.workOrderUnassigned} chưa giao người phụ trách</small></div>
+        </div>
       </section>
 
       <section className="dashboard-action-panel" aria-labelledby="dashboard-actions-title">
