@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "CEV CMMS",
+    "slug": "cev-cmms",
+    "version": "0.1.0",
+    "scheme": "cevcmms",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Cho phép CEV CMMS sử dụng camera để chụp ảnh thiết bị và quét QR.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cho phép CEV CMMS truy cập thư viện ảnh để chọn ảnh thiết bị.",
+          "cameraPermission": "Cho phép CEV CMMS sử dụng camera để chụp ảnh thiết bị.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "android": {
+      "package": "com.cev.cmms",
+      "versionCode": 1,
+      "jsEngine": "hermes"
+    },
+    "ios": {
+      "bundleIdentifier": "com.cev.cmms",
+      "buildNumber": "1",
+      "jsEngine": "hermes"
+    }
+  }
+}

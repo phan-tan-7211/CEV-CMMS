@@ -4,7 +4,19 @@ import type { MaintenanceWorkflowAction, MaintenanceWorkflowStatus } from '../do
 
 export type MaintenanceEquipmentOption = { equipmentId: string; equipmentName: string }
 export type LiveMaintenanceWorkOrder = {
-  workOrderId: string; equipmentId: string; sourceType: string; requestedAt: string; requestedBy: string; reason: string; priority: string; status: MaintenanceWorkflowStatus; approvedBy: string; approvedAt: string
+  workOrderId: string
+  equipmentId: string
+  sourceType: string
+  requestedAt: string
+  requestedBy: string
+  reason: string
+  priority: string
+  status: MaintenanceWorkflowStatus
+  approvedBy: string
+  approvedAt: string
+  method: string
+  plannedStartAt: string
+  plannedEndAt: string
 }
 export type LiveMaintenancePlanItem = { itemId: string; itemName: string; standard: string; method: string; note: string; sequence: number }
 export type LiveMaintenancePlan = {
@@ -71,7 +83,17 @@ export function patchMaintenanceHandoverCache(handover: LiveHandover) {
   persistMaintenanceCache()
 }
 
-function insertCreatedWorkOrder(input: { workOrderId: string; equipmentId: string; sourceType: string; reason: string; priority: string; status: MaintenanceWorkflowStatus }) {
+function insertCreatedWorkOrder(input: {
+  workOrderId: string
+  equipmentId: string
+  sourceType: string
+  reason: string
+  priority: string
+  status: MaintenanceWorkflowStatus
+  method: string
+  plannedStartAt: string
+  plannedEndAt: string
+}) {
   if (!maintenanceCache) return
   const created: LiveMaintenanceWorkOrder = {
     workOrderId: input.workOrderId,
@@ -84,6 +106,9 @@ function insertCreatedWorkOrder(input: { workOrderId: string; equipmentId: strin
     status: input.status,
     approvedBy: '',
     approvedAt: '',
+    method: input.method,
+    plannedStartAt: input.plannedStartAt,
+    plannedEndAt: input.plannedEndAt,
   }
   maintenanceCache = { ...maintenanceCache, workOrders: [created, ...maintenanceCache.workOrders.filter((item) => item.workOrderId !== created.workOrderId)] }
   persistMaintenanceCache()
@@ -138,7 +163,19 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
     const workOrders: LiveMaintenanceWorkOrder[] = ((woResult.data || []) as Array<Record<string, unknown>>).map((row) => {
       const source = (row.source_data as Record<string, unknown> | null) || {}
       return {
-        workOrderId: text(row.work_order_id), equipmentId: text(row.equipment_id), sourceType: text(row.source_type), requestedAt: text(row.created_at), requestedBy: text(row.created_by), reason: text(row.reason), priority: text(row.priority), status: text(row.status) as MaintenanceWorkflowStatus, approvedBy: text(source.approvedBy), approvedAt: text(source.approvedAt),
+        workOrderId: text(row.work_order_id),
+        equipmentId: text(row.equipment_id),
+        sourceType: text(row.source_type),
+        requestedAt: text(row.created_at),
+        requestedBy: text(row.created_by),
+        reason: text(row.reason),
+        priority: text(row.priority),
+        status: text(row.status) as MaintenanceWorkflowStatus,
+        approvedBy: text(source.approvedBy),
+        approvedAt: text(source.approvedAt),
+        method: text(source.method),
+        plannedStartAt: text(source.plannedStartAt),
+        plannedEndAt: text(source.plannedEndAt),
       }
     })
 
@@ -187,7 +224,17 @@ export async function createManualWorkOrder(request: { operationId: string; inpu
   if (error) throw error
   const result = (data || {}) as Record<string, unknown>
   const normalized = { workOrderId: text(result.workOrderId), status: text(result.status) as MaintenanceWorkflowStatus }
-  insertCreatedWorkOrder({ workOrderId: normalized.workOrderId, equipmentId: request.input.equipmentId, sourceType: request.input.sourceType, reason: request.input.reason, priority: request.input.priority, status: normalized.status })
+  insertCreatedWorkOrder({
+    workOrderId: normalized.workOrderId,
+    equipmentId: request.input.equipmentId,
+    sourceType: request.input.sourceType,
+    reason: request.input.reason,
+    priority: request.input.priority,
+    status: normalized.status,
+    method: request.input.method || '',
+    plannedStartAt: request.input.plannedStartAt || '',
+    plannedEndAt: request.input.plannedEndAt || '',
+  })
   void loadLiveMaintenance({ force: true }).catch(() => undefined)
   return { result: normalized }
 }

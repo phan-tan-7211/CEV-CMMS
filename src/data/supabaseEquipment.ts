@@ -225,10 +225,10 @@ export async function updateSupabaseEquipment(input: EquipmentEditInput) {
 }
 
 const PHOTO_MAX_INPUT_BYTES = 25 * 1024 * 1024
-const PHOTO_MAX_EDGE = 1920
-const PHOTO_TARGET_BYTES = 1.5 * 1024 * 1024
+const PHOTO_MAX_EDGE = 1280
+const PHOTO_TARGET_BYTES = 700 * 1024
 const PHOTO_INITIAL_QUALITY = 0.82
-const PHOTO_MIN_QUALITY = 0.66
+const PHOTO_MIN_QUALITY = 0.70
 
 function canvasToBlob(canvas: HTMLCanvasElement, quality: number) { return new Promise<Blob>((resolve, reject) => { canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('IMAGE_COMPRESSION_FAILED')), 'image/webp', quality) }) }
 async function loadImage(file: File) { const objectUrl = URL.createObjectURL(file); try { const image = new Image(); image.decoding = 'async'; image.src = objectUrl; await image.decode(); return image } finally { URL.revokeObjectURL(objectUrl) } }
