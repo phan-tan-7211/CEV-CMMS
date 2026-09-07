@@ -2,7 +2,7 @@
   "name": "cev-cmms-mobile",
   "private": true,
   "version": "0.1.0",
-  "main": "expo/AppEntry",
+  "main": "index.tsx",
   "scripts": {
     "start": "expo start --dev-client",
     "start:go": "expo start",
