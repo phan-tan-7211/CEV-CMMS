@@ -3,6 +3,7 @@
 // this boundary instead of reaching into private feature files or Supabase.
 
 export { EquipmentPhoto } from './ui/EquipmentPhoto'
+export { SuggestField } from './ui/SuggestField'
 
 export {
   getEquipmentDetail,
