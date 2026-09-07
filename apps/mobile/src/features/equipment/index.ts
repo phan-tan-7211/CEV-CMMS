@@ -24,11 +24,14 @@ export {
 } from './api/equipmentRepository'
 
 export {
-  createEquipmentStatus,
-  deleteEquipmentStatusMaster,
-  listEquipmentStatuses,
+  createEquipmentStatusCached as createEquipmentStatus,
+  deleteEquipmentStatusMasterCached as deleteEquipmentStatusMaster,
+  listEquipmentStatusesCached as listEquipmentStatuses,
+  updateEquipmentStatusMasterCached as updateEquipmentStatusMaster,
+} from './api/equipmentStatusRepository'
+
+export {
   setEquipmentStatus,
-  updateEquipmentStatusMaster,
   type EquipmentStatusMaster,
 } from './api/equipmentStatusService'
 
