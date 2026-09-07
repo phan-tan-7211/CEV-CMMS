@@ -28,7 +28,7 @@ export function SuggestField({
   loading?: boolean
 }) {
   const [focused, setFocused] = useState(false)
-  const [selectionActive, setSelectionActive] = useState(false)
+  const selectionActiveRef = useState({ current: false })[0]
 
   const cleanedValue = cleanEquipmentText(value)
   const matchKey = equipmentMatchKey(cleanedValue)
@@ -42,13 +42,13 @@ export function SuggestField({
     return source.slice(0, 6)
   }, [suggestions, value])
 
-  const showMenu = focused && (loading || filtered.length > 0 || Boolean(cleanedValue && !exact))
+  const showMenu = focused
 
   function choose(option: string) {
-    setSelectionActive(true)
+    selectionActiveRef.current = true
     onChangeText(option)
     setFocused(false)
-    setTimeout(() => setSelectionActive(false), 0)
+    setTimeout(() => { selectionActiveRef.current = false }, 0)
   }
 
   function commitFreeText() {
@@ -70,7 +70,9 @@ export function SuggestField({
           onChangeText={onChangeText}
           onFocus={() => setFocused(true)}
           onBlur={() => {
-            if (!selectionActive) setTimeout(commitFreeText, 80)
+            setTimeout(() => {
+              if (!selectionActiveRef.current) commitFreeText()
+            }, 120)
           }}
           placeholder={placeholder}
           placeholderTextColor="#98A2B3"
@@ -78,7 +80,15 @@ export function SuggestField({
           autoCapitalize="sentences"
           style={styles.input}
         />
-        <Ionicons name={focused ? 'chevron-up' : 'chevron-down'} size={17} color="#98A2B3" style={styles.endIcon} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Mở gợi ý ${label}`}
+          hitSlop={8}
+          onPress={() => setFocused((current) => !current)}
+          style={styles.endButton}
+        >
+          <Ionicons name={focused ? 'chevron-up' : 'chevron-down'} size={17} color="#667085" />
+        </Pressable>
       </View>
 
       {showMenu ? (
@@ -95,7 +105,7 @@ export function SuggestField({
             return (
               <Pressable
                 key={`${label}-${option}`}
-                onPressIn={() => setSelectionActive(true)}
+                onPressIn={() => { selectionActiveRef.current = true }}
                 onPress={() => choose(option)}
                 style={({ pressed }) => [styles.optionRow, active && styles.optionRowActive, pressed && styles.pressed]}
               >
@@ -105,9 +115,16 @@ export function SuggestField({
             )
           }) : null}
 
+          {!loading && filtered.length === 0 && !cleanedValue ? (
+            <View style={styles.emptyRow}>
+              <Ionicons name="information-circle-outline" size={17} color="#667085" />
+              <Text style={styles.emptyText}>Chưa có dữ liệu gợi ý cho trường này.</Text>
+            </View>
+          ) : null}
+
           {!loading && cleanedValue && !exact ? (
             <Pressable
-              onPressIn={() => setSelectionActive(true)}
+              onPressIn={() => { selectionActiveRef.current = true }}
               onPress={() => choose(cleanedValue)}
               style={({ pressed }) => [styles.createRow, pressed && styles.pressed]}
             >
@@ -122,7 +139,9 @@ export function SuggestField({
       ) : null}
 
       <Text style={styles.helper}>
-        {helper || 'Chọn gợi ý để dùng dữ liệu chuẩn; nếu chưa có, vẫn có thể thêm mới.'}
+        {loading
+          ? 'Đang tải dữ liệu chuẩn...'
+          : `${suggestions.length} gợi ý chuẩn · ${helper || 'Chọn giá trị đã có; nếu chưa có vẫn có thể thêm mới.'}`}
       </Text>
     </View>
   )
@@ -151,7 +170,7 @@ const styles = StyleSheet.create({
   },
   inputIcon: { marginLeft: 14, marginRight: 9 },
   input: { flex: 1, minHeight: 48, paddingVertical: 11, color: '#101828', fontSize: 14 },
-  endIcon: { marginHorizontal: 12 },
+  endButton: { paddingHorizontal: 12, paddingVertical: 14 },
   menu: {
     marginTop: 6,
     overflow: 'hidden',
@@ -175,6 +194,8 @@ const styles = StyleSheet.create({
   optionRowActive: { backgroundColor: '#EEF4FF' },
   optionText: { flex: 1, fontSize: 13, lineHeight: 18, color: '#344054' },
   optionTextActive: { fontWeight: '800', color: '#155EEF' },
+  emptyRow: { minHeight: 46, paddingHorizontal: 12, flexDirection: 'row', gap: 8, alignItems: 'center' },
+  emptyText: { flex: 1, fontSize: 12, color: '#667085' },
   createRow: {
     minHeight: 50,
     paddingHorizontal: 12,
