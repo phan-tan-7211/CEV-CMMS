@@ -4,9 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { mobileSupabaseConfigured, supabase } from '../supabase'
-
-export function LoginScreen() {
+export function LoginScreen({ onSignIn }: { onSignIn: (email: string, password: string) => Promise<void> }) {
   const emailValue = useRef('')
   const passwordValue = useRef('')
   const [submitting, setSubmitting] = useState(false)
@@ -16,10 +14,6 @@ export function LoginScreen() {
     const email = emailValue.current.trim()
     const password = passwordValue.current
 
-    if (!mobileSupabaseConfigured) {
-      setError('Chưa cấu hình Supabase cho mobile.')
-      return
-    }
     if (!email || !password) {
       setError('Nhập email và mật khẩu.')
       return
@@ -27,9 +21,13 @@ export function LoginScreen() {
 
     setSubmitting(true)
     setError('')
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-    if (authError) setError(authError.message)
-    setSubmitting(false)
+    try {
+      await onSignIn(email, password)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Đăng nhập thất bại.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -58,6 +56,7 @@ export function LoginScreen() {
                 textContentType="none"
                 keyboardType="email-address"
                 returnKeyType="next"
+                editable={!submitting}
                 style={styles.input}
               />
             </View>
@@ -75,6 +74,7 @@ export function LoginScreen() {
                 autoComplete="off"
                 textContentType="none"
                 returnKeyType="done"
+                editable={!submitting}
                 onSubmitEditing={() => { void signIn() }}
                 style={styles.input}
               />
