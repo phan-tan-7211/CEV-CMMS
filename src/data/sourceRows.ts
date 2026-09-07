@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export const TABLE_IDS: Record<string, string> = {
   equipment_master: 'equipment_id', daily_inspection: 'inspection_id', daily_inspection_item: 'item_id',
@@ -16,6 +16,12 @@ function cacheKey(table: string, filter?: { column: string; value: unknown }) {
   return filter ? `${table}|${filter.column}|${String(filter.value ?? '')}` : `${table}|*`
 }
 
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object' && 'message' in error) return String((error as { message?: unknown }).message || error)
+  return String(error)
+}
+
 export function invalidateSourceRows(table: string, filter?: { column: string; value: unknown }) {
   if (filter) {
     sourceRowsInFlight.delete(cacheKey(table, filter))
@@ -26,7 +32,7 @@ export function invalidateSourceRows(table: string, filter?: { column: string; v
 
 // Keyset pagination respects the server row cap and uses the canonical table PK.
 // Only simultaneous reads are deduplicated. Completed results are not retained here so
-// every later read re-checks Supabase/RLS and inaccessible rows always fail closed.
+// every later read re-checks backend authorization and inaccessible rows always fail closed.
 export async function fetchSourceRows(table: string, filter?: { column: string; value: unknown }, options: { force?: boolean } = {}) {
   const id = TABLE_IDS[table]
   if (!id) throw new Error(`Unsupported source table: ${table}`)
@@ -41,12 +47,15 @@ export async function fetchSourceRows(table: string, filter?: { column: string; 
     const rows: Record<string, unknown>[] = []
     let after: string | undefined
     for (;;) {
-      let query = supabase.from(table).select('*').order(id).limit(500)
-      if (filter) query = query.eq(filter.column, filter.value)
-      if (after !== undefined) query = query.gt(id, after)
-      const { data, error } = await query
-      if (error) throw new Error(`${table}: ${error.message}`)
-      if (!data?.length) return rows
+      const { data, error } = await dataGateway.readRows(table, {
+        columns: '*',
+        eq: filter ? [{ column: filter.column, value: filter.value }] : undefined,
+        gt: after !== undefined ? [{ column: id, value: after }] : undefined,
+        order: { column: id },
+        limit: 500,
+      })
+      if (error) throw new Error(`${table}: ${errorMessage(error)}`)
+      if (!data.length) return rows
       const next = String(data[data.length - 1][id])
       if (next === after || data.some(row => row[id] == null)) throw new Error(`${table}: invalid pagination`)
       rows.push(...data)
