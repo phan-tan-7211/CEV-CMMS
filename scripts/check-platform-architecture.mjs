@@ -4,6 +4,7 @@ import { extname, join, relative, resolve } from 'node:path'
 const root = process.cwd()
 const srcRoot = resolve(root, 'src')
 const equipmentRoot = resolve(srcRoot, 'equipment')
+const dataRoot = resolve(srcRoot, 'data')
 const violations = []
 
 function walk(dir) {
@@ -33,6 +34,7 @@ function isTestSource(path) {
 const sourceFiles = walk(srcRoot).filter((path) => ['.ts', '.tsx', '.js', '.jsx', '.css'].includes(extname(path)))
 const productionSourceFiles = sourceFiles.filter((path) => !isTestSource(path))
 const equipmentFiles = productionSourceFiles.filter((path) => path.startsWith(equipmentRoot))
+const dataFiles = productionSourceFiles.filter((path) => path.startsWith(dataRoot))
 const retiredRootStyles = ['Equipment.css', 'EquipmentSheetView.css', 'EquipmentRegistration.css']
 
 for (const path of productionSourceFiles) {
@@ -68,6 +70,15 @@ for (const path of equipmentFiles) {
     if (extname(path) === '.css' && body.includes('@media')) {
       report(path, 'shared CSS must not contain viewport media queries')
     }
+  }
+}
+
+for (const path of dataFiles) {
+  const normalized = path.replaceAll('\\', '/')
+  if (normalized.endsWith('/dataGateway.ts') || normalized.endsWith('/supabaseClient.ts')) continue
+  const body = text(path)
+  if (body.includes('supabaseClient') || body.includes('@supabase/supabase-js')) {
+    report(path, 'data repository must use dataGateway instead of importing Supabase client directly')
   }
 }
 
