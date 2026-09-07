@@ -6,8 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import {
   EquipmentPhoto,
-  listEquipment,
+  getEquipmentListSnapshot,
   listEquipmentStatuses,
+  revalidateEquipmentList,
+  subscribeEquipmentList,
   type EquipmentListItem,
   type EquipmentStatusMaster,
 } from '../features/equipment'
@@ -41,23 +43,67 @@ export function EquipmentListScreen({ onBack, onCreateEquipment, onOpenEquipment
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
 
-  async function load(mode: 'initial' | 'refresh' = 'initial') {
-    if (mode === 'refresh') setRefreshing(true)
-    else setLoading(true)
+  useEffect(() => {
+    let active = true
+    let hasSnapshot = false
+    const unsubscribe = subscribeEquipmentList((nextItems) => {
+      if (!active) return
+      setItems(nextItems)
+      setLoading(false)
+      setError('')
+    })
+
+    void getEquipmentListSnapshot()
+      .then((snapshot) => {
+        if (!active || !snapshot) return
+        hasSnapshot = true
+        setItems(snapshot)
+        setLoading(false)
+      })
+      .finally(() => {
+        void revalidateEquipmentList()
+          .then((fresh) => {
+            if (!active) return
+            setItems(fresh)
+            setLoading(false)
+            setError('')
+          })
+          .catch((reason) => {
+            if (!active) return
+            if (!hasSnapshot) setError(reason instanceof Error ? reason.message : 'Không tải được danh sách thiết bị.')
+            setLoading(false)
+          })
+      })
+
+    void listEquipmentStatuses()
+      .then((nextStatuses) => { if (active) setStatuses(nextStatuses) })
+      .catch(() => {
+        // Equipment remains usable when the status master cannot revalidate.
+      })
+
+    return () => {
+      active = false
+      unsubscribe()
+    }
+  }, [])
+
+  async function refresh() {
+    setRefreshing(true)
     setError('')
     try {
-      const [nextItems, nextStatuses] = await Promise.all([listEquipment(), listEquipmentStatuses()])
+      const [nextItems, nextStatuses] = await Promise.all([
+        revalidateEquipmentList({ force: true }),
+        listEquipmentStatuses(),
+      ])
       setItems(nextItems)
       setStatuses(nextStatuses)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Không tải được danh sách thiết bị.')
+      if (items.length === 0) setError(reason instanceof Error ? reason.message : 'Không tải được danh sách thiết bị.')
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
   }
-
-  useEffect(() => { void load() }, [])
 
   useEffect(() => {
     if (statusFilter && !statuses.some((status) => status.statusCode === statusFilter)) setStatusFilter(null)
@@ -119,15 +165,15 @@ export function EquipmentListScreen({ onBack, onCreateEquipment, onOpenEquipment
         <Text style={styles.summaryText}>{filteredItems.length} kết quả</Text>
       </View>
 
-      {loading ? <View style={styles.center}><ActivityIndicator size="large" color="#155EEF" /></View> : error ? (
-        <View style={styles.center}><Text style={styles.errorText}>{error}</Text><Pressable onPress={() => { void load() }} style={styles.retryButton}><Text style={styles.retryText}>Thử lại</Text></Pressable></View>
+      {loading ? <View style={styles.center}><ActivityIndicator size="large" color="#155EEF" /></View> : error && items.length === 0 ? (
+        <View style={styles.center}><Text style={styles.errorText}>{error}</Text><Pressable onPress={() => { void refresh() }} style={styles.retryButton}><Text style={styles.retryText}>Thử lại</Text></Pressable></View>
       ) : (
         <FlatList
           data={filteredItems}
           keyExtractor={(item) => item.equipmentId}
           style={styles.list}
           contentContainerStyle={[styles.listContent, filteredItems.length === 0 && styles.listContentEmpty]}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void load('refresh') }} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void refresh() }} />}
           initialNumToRender={10}
           maxToRenderPerBatch={12}
           windowSize={7}
