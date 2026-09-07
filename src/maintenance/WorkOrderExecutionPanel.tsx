@@ -29,10 +29,10 @@ function dateTime(value: string) {
 }
 function operationId(workOrderId: string) { return `execution-${workOrderId}-${crypto.randomUUID()}` }
 
-export function WorkOrderExecutionPanel({ workOrderId, status }: { workOrderId: string; status: string }) {
+export function WorkOrderExecutionPanel({ workOrderId }: { workOrderId: string }) {
   const role = useAppRole()
-  const canEdit = status !== 'RELEASED' && ['MAINTENANCE','SUPERVISOR','QUALITY','MANAGER','ADMIN'].includes(role)
   const [detail, setDetail] = useState<MaintenanceExecutionDetail | null>(null)
+  const canEdit = detail?.status !== 'RELEASED' && ['MAINTENANCE','SUPERVISOR','QUALITY','MANAGER','ADMIN'].includes(role)
   const [rootCause, setRootCause] = useState('')
   const [correctiveAction, setCorrectiveAction] = useState('')
   const [preventiveAction, setPreventiveAction] = useState('')
