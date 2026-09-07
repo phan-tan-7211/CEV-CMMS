@@ -20,6 +20,15 @@ import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as ImagePicker from 'expo-image-picker'
 import type { Session } from '@supabase/supabase-js'
 import { createEquipment, mobileSupabaseConfigured, supabase, uploadEquipmentPhoto } from './src/supabase'
+import { SuggestField } from './src/SuggestField'
+import {
+  canonicalizeEquipmentValue,
+  EMPTY_EQUIPMENT_SUGGESTIONS,
+  loadEquipmentSuggestions,
+  rememberEquipmentSuggestion,
+  type EquipmentSuggestionKey,
+  type EquipmentSuggestionMap,
+} from './src/equipmentSuggestions'
 
 type EquipmentType = 'PRODUCTION' | 'MEASUREMENT'
 type EquipmentStatus = 'RUNNING' | 'STOPPED' | 'MAINTENANCE' | 'DOWN'
@@ -93,6 +102,20 @@ const STATUS_OPTIONS: Array<{ value: EquipmentStatus; label: string }> = [
   { value: 'STOPPED', label: 'Dừng' },
   { value: 'MAINTENANCE', label: 'Bảo trì' },
   { value: 'DOWN', label: 'Sự cố' },
+]
+
+const SUGGESTION_KEYS: EquipmentSuggestionKey[] = [
+  'equipmentName',
+  'equipmentCategory',
+  'model',
+  'manufacturer',
+  'distributor',
+  'managingDepartment',
+  'currentArea',
+  'currentLine',
+  'managementResponsiblePrimary',
+  'managementResponsibleSecondary',
+  'origin',
 ]
 
 function RequiredMark() {
@@ -287,9 +310,27 @@ function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
+  const [suggestions, setSuggestions] = useState<EquipmentSuggestionMap>(EMPTY_EQUIPMENT_SUGGESTIONS)
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true)
   const [cameraPermission, requestCameraPermission] = useCameraPermissions()
   const cameraRef = useRef<CameraView | null>(null)
   const current = STEPS[step]
+
+  useEffect(() => {
+    let active = true
+    setSuggestionsLoading(true)
+    void loadEquipmentSuggestions()
+      .then((next) => {
+        if (active) setSuggestions(next)
+      })
+      .catch(() => {
+        // Suggestions are a progressive enhancement. Registration must stay usable if the read fails.
+      })
+      .finally(() => {
+        if (active) setSuggestionsLoading(false)
+      })
+    return () => { active = false }
+  }, [])
 
   const codePreview = form.equipmentType === 'PRODUCTION' ? 'CEV-PR-xxx' : 'CEV-ME-xxx'
   const typeLabel = form.equipmentType === 'PRODUCTION' ? 'Thiết bị sản xuất' : 'Thiết bị đo / kiểm'
@@ -314,6 +355,20 @@ function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
 
   function patch<K extends keyof EquipmentDraft>(key: K, value: EquipmentDraft[K]) {
     setForm((currentForm) => ({ ...currentForm, [key]: value }))
+  }
+
+  function canonical(key: EquipmentSuggestionKey, value: string) {
+    return canonicalizeEquipmentValue(value, suggestions[key])
+  }
+
+  function rememberSubmittedSuggestions() {
+    setSuggestions((currentSuggestions) => {
+      let next = currentSuggestions
+      for (const key of SUGGESTION_KEYS) {
+        next = rememberEquipmentSuggestion(next, key, form[key])
+      }
+      return next
+    })
   }
 
   async function openCamera() {
@@ -368,21 +423,21 @@ function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
     try {
       const result = await createEquipment({
         equipmentType: form.equipmentType,
-        equipmentName: form.equipmentName.trim(),
-        equipmentCategory: form.equipmentCategory.trim(),
-        manufacturer: form.manufacturer.trim(),
-        distributor: form.distributor.trim(),
-        model: form.model.trim(),
+        equipmentName: canonical('equipmentName', form.equipmentName),
+        equipmentCategory: canonical('equipmentCategory', form.equipmentCategory),
+        manufacturer: canonical('manufacturer', form.manufacturer),
+        distributor: canonical('distributor', form.distributor),
+        model: canonical('model', form.model),
         serialNumber: form.serialNumber.trim(),
         department: '',
-        currentArea: form.currentArea.trim(),
-        currentLine: form.currentLine.trim(),
-        managingDepartment: form.managingDepartment.trim(),
-        managementResponsiblePrimary: form.managementResponsiblePrimary.trim(),
-        managementResponsibleSecondary: form.managementResponsibleSecondary.trim(),
+        currentArea: canonical('currentArea', form.currentArea),
+        currentLine: canonical('currentLine', form.currentLine),
+        managingDepartment: canonical('managingDepartment', form.managingDepartment),
+        managementResponsiblePrimary: canonical('managementResponsiblePrimary', form.managementResponsiblePrimary),
+        managementResponsibleSecondary: canonical('managementResponsibleSecondary', form.managementResponsibleSecondary),
         technicalSpecification: form.technicalSpecification.trim(),
         description: form.description.trim(),
-        origin: form.origin.trim(),
+        origin: canonical('origin', form.origin),
         inServiceDate: form.inServiceDate.trim(),
         warrantyUntil: form.warrantyUntil.trim(),
         warrantyContact: form.warrantyContact.trim(),
@@ -405,6 +460,7 @@ function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
         }
       }
 
+      rememberSubmittedSuggestions()
       const message = `${result.equipmentId} · Criticality ${result.criticality || '—'}`
       setSaveMessage(message)
       Alert.alert('Đã tạo thiết bị', message)
@@ -472,20 +528,22 @@ function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
                   />
                 </SectionCard>
 
-                <SectionCard icon="information-circle-outline" title="Thông tin nhận diện" caption="Các thông tin nhìn thấy trực tiếp trên máy hoặc nameplate">
-                  <Field
+                <SectionCard icon="information-circle-outline" title="Thông tin nhận diện" caption="Gõ để tìm dữ liệu đã có; nếu chưa có, chọn Thêm mới ngay trong trường">
+                  <SuggestField
                     icon="cube-outline"
                     label="Tên thiết bị"
                     required
                     value={form.equipmentName}
                     onChangeText={(value) => patch('equipmentName', value)}
-                    placeholder="Ví dụ: WPC Auto Soldering Machine"
-                    helper="Ưu tiên dùng tên chuẩn đã có trong Equipment Master."
+                    suggestions={suggestions.equipmentName}
+                    loading={suggestionsLoading}
+                    placeholder="Ví dụ: Máy hút bụi"
+                    helper="Ưu tiên chọn tên đã có để tránh tạo nhiều cách viết cho cùng một loại máy."
                   />
-                  <Field icon="grid-outline" label="Nhóm thiết bị" value={form.equipmentCategory} onChangeText={(value) => patch('equipmentCategory', value)} placeholder="Ví dụ: Auto line" />
-                  <Field icon="pricetag-outline" label="Model" value={form.model} onChangeText={(value) => patch('model', value)} placeholder="Model / part number" />
-                  <Field icon="business-outline" label="Hãng / nhà sản xuất" value={form.manufacturer} onChangeText={(value) => patch('manufacturer', value)} placeholder="Tên hãng" />
-                  <Field icon="storefront-outline" label="Nhà phân phối" value={form.distributor} onChangeText={(value) => patch('distributor', value)} placeholder="Nếu có" />
+                  <SuggestField icon="grid-outline" label="Nhóm thiết bị" value={form.equipmentCategory} onChangeText={(value) => patch('equipmentCategory', value)} suggestions={suggestions.equipmentCategory} loading={suggestionsLoading} placeholder="Ví dụ: Hệ thống hút bụi" />
+                  <SuggestField icon="pricetag-outline" label="Model" value={form.model} onChangeText={(value) => patch('model', value)} suggestions={suggestions.model} loading={suggestionsLoading} placeholder="Model / part number" />
+                  <SuggestField icon="business-outline" label="Hãng / nhà sản xuất" value={form.manufacturer} onChangeText={(value) => patch('manufacturer', value)} suggestions={suggestions.manufacturer} loading={suggestionsLoading} placeholder="Tên hãng" />
+                  <SuggestField icon="storefront-outline" label="Nhà phân phối" value={form.distributor} onChangeText={(value) => patch('distributor', value)} suggestions={suggestions.distributor} loading={suggestionsLoading} placeholder="Nếu có" />
                   <Field icon="barcode-outline" label="Số sê-ri" value={form.serialNumber} onChangeText={(value) => patch('serialNumber', value)} placeholder="Serial number" />
                 </SectionCard>
 
@@ -528,29 +586,31 @@ function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
 
             {step === 1 ? (
               <>
-                <SectionCard icon="location-outline" title="Vị trí sử dụng" caption="Dùng để tìm máy nhanh khi mở Work Order hoặc quét QR">
-                  <Field icon="people-outline" label="Bộ phận quản lý" value={form.managingDepartment} onChangeText={(value) => patch('managingDepartment', value)} placeholder="Ví dụ: BP - Kỹ thuật" />
-                  <Field icon="map-outline" label="Khu vực" value={form.currentArea} onChangeText={(value) => patch('currentArea', value)} placeholder="Area / zone" />
-                  <Field icon="git-branch-outline" label="Line / công đoạn" value={form.currentLine} onChangeText={(value) => patch('currentLine', value)} placeholder="Line / process" />
+                <SectionCard icon="location-outline" title="Vị trí sử dụng" caption="Chọn giá trị đã dùng trước; chỉ thêm mới khi thực sự là khu vực / line mới">
+                  <SuggestField icon="people-outline" label="Bộ phận quản lý" value={form.managingDepartment} onChangeText={(value) => patch('managingDepartment', value)} suggestions={suggestions.managingDepartment} loading={suggestionsLoading} placeholder="Ví dụ: BP - Kỹ thuật" />
+                  <SuggestField icon="map-outline" label="Khu vực" value={form.currentArea} onChangeText={(value) => patch('currentArea', value)} suggestions={suggestions.currentArea} loading={suggestionsLoading} placeholder="Area / zone" />
+                  <SuggestField icon="git-branch-outline" label="Line / công đoạn" value={form.currentLine} onChangeText={(value) => patch('currentLine', value)} suggestions={suggestions.currentLine} loading={suggestionsLoading} placeholder="Line / process" />
                 </SectionCard>
 
-                <SectionCard icon="person-circle-outline" title="Người chịu trách nhiệm" caption="Một máy có một người quản lý chính và tối đa một người phụ">
-                  <Field
+                <SectionCard icon="person-circle-outline" title="Người chịu trách nhiệm" caption="Gợi ý từ Equipment Master giúp tên người phụ trách nhất quán giữa các máy">
+                  <SuggestField
                     icon="person-outline"
                     label="Người quản lý chính"
                     required
                     value={form.managementResponsiblePrimary}
                     onChangeText={(value) => patch('managementResponsiblePrimary', value)}
+                    suggestions={suggestions.managementResponsiblePrimary}
+                    loading={suggestionsLoading}
                     placeholder="Người chịu trách nhiệm gần nhất"
-                    helper="Không dùng operator vận hành làm người quản lý thiết bị."
+                    helper="Không dùng operator vận hành làm người quản lý thiết bị. Chọn tên đã có nếu cùng một người."
                   />
-                  <Field icon="person-add-outline" label="Người quản lý phụ" value={form.managementResponsibleSecondary} onChangeText={(value) => patch('managementResponsibleSecondary', value)} placeholder="Không bắt buộc" />
+                  <SuggestField icon="person-add-outline" label="Người quản lý phụ" value={form.managementResponsibleSecondary} onChangeText={(value) => patch('managementResponsibleSecondary', value)} suggestions={suggestions.managementResponsibleSecondary} loading={suggestionsLoading} placeholder="Không bắt buộc" />
                 </SectionCard>
 
                 <SectionCard icon="document-text-outline" title="Thông tin kỹ thuật" caption="Có thể bổ sung dần sau khi thiết bị đã được tạo">
                   <Field icon="speedometer-outline" label="Thông số kỹ thuật" value={form.technicalSpecification} onChangeText={(value) => patch('technicalSpecification', value)} placeholder="Công suất, điện áp, phạm vi..." multiline />
                   <Field icon="reader-outline" label="Mô tả" value={form.description} onChangeText={(value) => patch('description', value)} placeholder="Mô tả ngắn về chức năng thiết bị" multiline />
-                  <Field icon="earth-outline" label="Xuất xứ" value={form.origin} onChangeText={(value) => patch('origin', value)} placeholder="Korea / Japan / Vietnam..." />
+                  <SuggestField icon="earth-outline" label="Xuất xứ" value={form.origin} onChangeText={(value) => patch('origin', value)} suggestions={suggestions.origin} loading={suggestionsLoading} placeholder="Hàn Quốc / Nhật Bản / Việt Nam..." />
                   <Field icon="calendar-outline" label="Ngày đưa vào dùng" value={form.inServiceDate} onChangeText={(value) => patch('inServiceDate', value)} placeholder="YYYY-MM-DD" />
                   <Field icon="shield-checkmark-outline" label="Hết bảo hành" value={form.warrantyUntil} onChangeText={(value) => patch('warrantyUntil', value)} placeholder="YYYY-MM-DD" />
                   <Field icon="call-outline" label="Liên hệ bảo hành" value={form.warrantyContact} onChangeText={(value) => patch('warrantyContact', value)} placeholder="Tên / điện thoại / email" />
