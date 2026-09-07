@@ -1,8 +1,8 @@
 // Public API for the Equipment feature.
-// Route screens should import Equipment domain capabilities from this module
-// instead of reaching into service implementation files directly.
+// Route screens and registration flow consume Equipment capabilities through
+// this boundary instead of reaching into private feature files or Supabase.
 
-export { EquipmentPhoto } from '../../components/EquipmentPhoto'
+export { EquipmentPhoto } from './ui/EquipmentPhoto'
 
 export {
   getEquipmentDetail,
@@ -10,7 +10,7 @@ export {
   updateEquipmentStatus,
   type EquipmentDetail,
   type EquipmentListItem,
-} from '../../services/equipmentService'
+} from './api/equipmentService'
 
 export {
   createEquipmentStatus,
@@ -19,4 +19,22 @@ export {
   setEquipmentStatus,
   updateEquipmentStatusMaster,
   type EquipmentStatusMaster,
-} from '../../services/equipmentStatusService'
+} from './api/equipmentStatusService'
+
+export {
+  equipmentRegistrationConfigured,
+  submitEquipmentRegistration,
+  type EquipmentRegistrationInput,
+  type EquipmentRegistrationResult,
+} from './api/equipmentRegistrationService'
+
+export {
+  canonicalizeEquipmentValue,
+  cleanEquipmentText,
+  EMPTY_EQUIPMENT_SUGGESTIONS,
+  equipmentMatchKey,
+  loadEquipmentSuggestions,
+  rememberEquipmentSuggestion,
+  type EquipmentSuggestionKey,
+  type EquipmentSuggestionMap,
+} from './model/equipmentSuggestions'
