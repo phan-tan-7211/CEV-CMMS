@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import './Maintenance.css'
 import { canCreateMaintenance, canTransitionMaintenance, useAppRole } from './auth/AppRoleContext'
 import { MaintenanceSpareFlow } from './MaintenanceSpareFlow'
-import { createManualWorkOrder, getMaintenanceCacheSnapshot, loadLiveMaintenance, transitionLiveMaintenance, type LiveHandover, type LiveMaintenanceWorkOrder, type MaintenanceEquipmentOption } from './data/liveMaintenance'
+import { createManualWorkOrder, getMaintenanceCacheSnapshot, loadLiveMaintenance, transitionLiveMaintenance, type LiveHandover, type LiveMaintenanceTransition, type LiveMaintenanceWorkOrder, type MaintenanceEquipmentOption } from './data/liveMaintenance'
 import type { MaintenanceWorkflowAction, MaintenanceWorkflowStatus } from './domain/workflow'
 import { getWorkOrderActionState, MAINTENANCE_QUEUE_FILTERS, workOrderQueueMatches, type MaintenanceQueueFilter } from './maintenance/workOrderQueue'
 
@@ -19,12 +19,14 @@ const priorityGuide: Record<string,string> = {
 }
 const sourceLabel: Record<string,string> = { MANUAL:'Tạo thủ công', DAILY_INSPECTION:'Từ kiểm tra', INSPECTION:'Từ kiểm tra', PM:'Từ kế hoạch bảo dưỡng', REQUEST:'Từ yêu cầu', QR_PROFILE:'Từ hồ sơ thiết bị' }
 const roleLabel: Record<string,string> = { MAINTENANCE:'Bảo trì', SUPERVISOR:'Giám sát', QUALITY:'Chất lượng', MANAGER:'Quản lý', ADMIN:'Quản trị hệ thống', UNKNOWN:'Chưa xác định' }
+const actionLabel: Record<string,string> = { CREATE:'Tiếp nhận yêu cầu', REQUEST_APPROVAL:'Gửi phê duyệt', APPROVE:'Phê duyệt', START:'Bắt đầu sửa chữa', COMPLETE:'Hoàn tất sửa chữa', VERIFY:'Xác nhận chạy thử', RELEASE:'Bàn giao thiết bị', HANDOVER:'BM-05 được chấp nhận' }
 const WORKFLOW_STAGES = ['Tiếp nhận', 'Phê duyệt', 'Sửa chữa', 'Xác nhận', 'Bàn giao'] as const
 const PRIORITY_RANK: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
 const STATUS_RANK: Record<MaintenanceWorkflowStatus, number> = { OPEN: 0, WAITING_APPROVAL: 1, APPROVED: 2, IN_PROGRESS: 3, COMPLETED: 4, VERIFIED: 5, RELEASED: 6 }
 const DAY_MS = 24 * 60 * 60 * 1000
 
 type DueState = 'OVERDUE' | 'DUE_SOON' | 'ON_TRACK' | 'NO_DUE' | 'DONE'
+type WorkflowEvent = { key: string; action: string; actor: string; at: string; beforeStatus?: string; afterStatus?: string }
 
 function operationId(prefix: string) { return `${prefix}-${crypto.randomUUID()}` }
 function dateTime(value: string) {
@@ -69,6 +71,18 @@ function dueLabel(item: LiveMaintenanceWorkOrder) {
   if (state === 'DONE') return { state, label: 'Đã bàn giao' }
   return { state, label: 'Chưa đặt hạn' }
 }
+function workflowEventsFor(item: LiveMaintenanceWorkOrder, transitions: LiveMaintenanceTransition[], handover: LiveHandover | null): WorkflowEvent[] {
+  const events: WorkflowEvent[] = [{ key: `create-${item.workOrderId}`, action: 'CREATE', actor: item.requestedBy, at: item.requestedAt }]
+  transitions.filter((event) => event.workOrderId === item.workOrderId).forEach((event) => events.push({ key: event.auditId, action: event.action, actor: event.actorEmail, at: event.createdAt, beforeStatus: event.beforeStatus, afterStatus: event.afterStatus }))
+  if (handover) events.push({ key: `handover-${handover.handoverId}`, action: 'HANDOVER', actor: '', at: handover.handoverAt })
+  return events.toSorted((left, right) => requestedAtValue(left.at) - requestedAtValue(right.at))
+}
+function openEquipmentProfile(equipmentId: string) {
+  const url = new URL(window.location.href)
+  url.searchParams.set('phase3', 'equipment')
+  url.searchParams.set('equipment', equipmentId)
+  window.location.assign(url.toString())
+}
 
 export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: { equipmentId?: string }) {
   const role = useAppRole()
@@ -79,6 +93,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
   const [equipment, setEquipment] = useState<MaintenanceEquipmentOption[]>(() => initialSnapshot?.equipment || [])
   const [workOrders, setWorkOrders] = useState<LiveMaintenanceWorkOrder[]>(() => initialSnapshot?.workOrders || [])
   const [handovers, setHandovers] = useState<LiveHandover[]>(() => initialSnapshot?.handovers || [])
+  const [transitions, setTransitions] = useState<LiveMaintenanceTransition[]>(() => initialSnapshot?.transitions || [])
   const [loading, setLoading] = useState(!initialSnapshot)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
@@ -100,6 +115,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
     setEquipment(result.equipment)
     setWorkOrders(result.workOrders)
     setHandovers(result.handovers)
+    setTransitions(result.transitions)
     setEquipmentId((current) => current || result.equipment[0]?.equipmentId || '')
     setError('')
   }, [])
@@ -178,6 +194,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
   const selectedNext = selectedAction?.next || null
   const selectedStage = selected ? workflowStage(selected.status) : -1
   const selectedDue = selected ? dueLabel(selected) : null
+  const selectedEvents = useMemo(() => selected ? workflowEventsFor(selected, transitions, selectedHandover) : [], [selected, transitions, selectedHandover])
 
   const openCreate = () => {
     setCreateError('')
@@ -261,7 +278,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
             </header>
             <div className="maintenance-order-body"><div className="maintenance-order-equipment"><span>Thiết bị</span><strong>{item.equipmentId}</strong><small>{equipmentName.get(item.equipmentId) || '—'}</small></div><div className="maintenance-order-reason"><span>Lý do / hiện tượng</span><p>{item.reason || '—'}</p></div></div>
             <div className="maintenance-order-meta"><span><b>Yêu cầu:</b> {dateTime(item.requestedAt)}</span><span><b>Người yêu cầu:</b> {item.requestedBy || '—'}</span>{item.plannedEndAt ? <span className={due.state === 'OVERDUE' ? 'maintenance-overdue-text' : ''}><b>Hạn xử lý:</b> {dateTime(item.plannedEndAt)}</span> : null}{handover ? <span className="maintenance-handover yes">BM-05 · Đã chấp nhận</span> : null}</div>
-            <footer><div className="maintenance-next-action"><span>Tiếp theo</span><strong>{itemAction.next?.label || 'Quy trình đã hoàn tất'}</strong>{itemAction.next ? <small>{itemAction.actionable ? 'Bạn có quyền xử lý bước này' : `Chờ ${itemAction.owner}`}</small> : null}</div><button className="maintenance-row-action" type="button" onClick={() => setSelectedId(item.workOrderId)}>Mở lệnh</button></footer>
+            <footer><div className="maintenance-next-action"><span>Tiếp theo</span><strong>{itemAction.next?.label || 'Quy trình đã hoàn tất'}</strong>{itemAction.next ? <small>{itemAction.actionable ? `Bạn xử lý · ${itemAction.owner}` : `Chờ ${itemAction.owner}`}</small> : null}</div><button className="maintenance-row-action" type="button" onClick={() => setSelectedId(item.workOrderId)}>Mở lệnh</button></footer>
           </article>
         })}
         {!filteredWorkOrders.length ? <div className="maintenance-state">Không có lệnh công việc phù hợp trong nhóm này.</div> : null}
@@ -270,13 +287,13 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
 
     {selected ? <div className="maintenance-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedId('') }}>
       <aside className="maintenance-drawer" role="dialog" aria-modal="true" aria-labelledby="wo-detail-title">
-        <header><div><p className="eyebrow">Chi tiết lệnh công việc</p><h2 id="wo-detail-title">{selected.workOrderId}</h2><p>{selected.equipmentId} · {equipmentName.get(selected.equipmentId) || '—'}</p></div><button type="button" aria-label="Đóng" onClick={() => setSelectedId('')}>×</button></header>
+        <header><div><p className="eyebrow">Chi tiết lệnh công việc</p><h2 id="wo-detail-title">{selected.workOrderId}</h2><p>{selected.equipmentId} · {equipmentName.get(selected.equipmentId) || '—'}</p><button className="maintenance-equipment-jump" type="button" onClick={() => openEquipmentProfile(selected.equipmentId)}>↗ Mở hồ sơ thiết bị</button></div><button type="button" aria-label="Đóng" onClick={() => setSelectedId('')}>×</button></header>
         {selectedDue ? <div className={`maintenance-due-banner due-${selectedDue.state.toLowerCase()}`}><span>Tiến độ thời gian</span><strong>{selectedDue.label}</strong><small>{selected.plannedEndAt ? `Hạn xử lý: ${dateTime(selected.plannedEndAt)}` : 'Lệnh chưa có thời hạn xử lý dự kiến.'}</small></div> : null}
         <div className="maintenance-detail-grid"><div><span>Trạng thái</span><strong>{statusLabel[selected.status] || selected.status}</strong></div><div><span>Ưu tiên</span><strong>{priorityLabel[selected.priority] || selected.priority || '—'}</strong></div><div><span>Nguồn</span><strong>{sourceLabel[selected.sourceType] || selected.sourceType || '—'}</strong></div><div><span>Người yêu cầu</span><strong>{selected.requestedBy || '—'}</strong></div><div><span>Thời gian yêu cầu</span><strong>{dateTime(selected.requestedAt)}</strong></div><div><span>BM-05</span><strong>{selectedHandover ? `${selectedHandover.handoverId} · Đã chấp nhận` : 'Chưa chấp nhận'}</strong></div><div><span>Bắt đầu dự kiến</span><strong>{dateTime(selected.plannedStartAt)}</strong></div><div><span>Kết thúc dự kiến</span><strong>{dateTime(selected.plannedEndAt)}</strong></div></div>
         <section className="maintenance-detail-section"><span>Lý do / hiện tượng</span><p>{selected.reason || '—'}</p></section>
         {selected.method ? <section className="maintenance-detail-section"><span>Xử lý dự kiến / ghi chú tiếp nhận</span><p>{selected.method}</p></section> : null}
-        {selected.approvedBy ? <section className="maintenance-detail-section"><span>Phê duyệt</span><p>{selected.approvedBy} · {dateTime(selected.approvedAt)}</p></section> : null}
-        {selectedAction ? <section className={`maintenance-action-callout ${selectedAction.actionable ? 'ready' : 'waiting'}`} aria-label="Việc cần làm tiếp"><span>Việc cần làm tiếp</span><strong>{selectedAction.next?.label || 'Quy trình đã hoàn tất'}</strong><small>{selectedAction.next ? selectedAction.actionable ? `Vai trò ${roleLabel[role] || role} có thể thực hiện ngay.` : `Đang chờ ${selectedAction.owner} thực hiện bước này.` : 'Lệnh công việc đã được bàn giao và đóng quy trình.'}</small></section> : null}
+        {selectedAction ? <section className={`maintenance-action-callout ${selectedAction.actionable ? 'ready' : 'waiting'}`} aria-label="Việc cần làm tiếp"><span>Việc cần làm tiếp</span><strong>{selectedAction.next?.label || 'Quy trình đã hoàn tất'}</strong><small>{selectedAction.next ? `${selectedAction.actionable ? 'Có thể thực hiện ngay' : 'Đang chờ xử lý'} · Phụ trách: ${selectedAction.owner}` : 'Lệnh công việc đã được bàn giao và đóng quy trình.'}</small></section> : null}
+        <section className="maintenance-history" aria-label="Lịch sử workflow"><header><div><span className="eyebrow">Audit trail</span><h3>Lịch sử xử lý</h3></div><small>{selectedEvents.length} mốc</small></header><div>{selectedEvents.map((event, index) => <article key={event.key}><span className="maintenance-history-index">{index + 1}</span><div><strong>{actionLabel[event.action] || event.action}</strong><small>{event.beforeStatus && event.afterStatus ? `${statusLabel[event.beforeStatus] || event.beforeStatus} → ${statusLabel[event.afterStatus] || event.afterStatus}` : event.action === 'HANDOVER' ? 'Biên bản bàn giao đã được chấp nhận' : 'Khởi tạo lệnh công việc'}</small></div><div className="maintenance-history-meta"><time>{dateTime(event.at)}</time><span>{event.actor || (event.action === 'HANDOVER' ? 'Theo BM-05' : 'Đang đồng bộ người thực hiện')}</span></div></article>)}</div></section>
         <MaintenanceSpareFlow equipmentId={selected.equipmentId} workOrderId={selected.workOrderId} />
         <div className="maintenance-workflow" aria-label="Tiến độ lệnh công việc">{WORKFLOW_STAGES.map((stage, index) => <div key={stage} className={`maintenance-workflow-step${index < selectedStage ? ' done' : ''}${index === selectedStage ? ' active' : ''}`}><span>{index < selectedStage ? '✓' : index + 1}</span><small>{stage}</small></div>)}</div>
         <footer>{selectedNext ? <>{selected.status === 'VERIFIED' && !selectedHandover ? <p className="maintenance-release-lock">Cần BM-05 được chấp nhận trước khi bàn giao.</p> : null}{selectedAction?.actionable ? <button className="maintenance-primary" type="button" disabled={busy === selected.workOrderId || (selected.status === 'VERIFIED' && !selectedHandover)} onClick={() => void advance(selected.workOrderId, selectedNext.action)}>{busy === selected.workOrderId ? 'Đang xử lý…' : selectedNext.label}</button> : <span className="maintenance-readonly">Chờ {selectedAction?.owner}: {selectedNext.label}</span>}</> : <span className="maintenance-complete">Quy trình đã hoàn tất</span>}</footer>
