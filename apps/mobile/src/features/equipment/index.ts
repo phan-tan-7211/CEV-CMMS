@@ -5,13 +5,23 @@
 export { EquipmentPhoto } from './ui/EquipmentPhoto'
 export { SuggestField } from './ui/SuggestField'
 
-export {
-  getEquipmentDetail,
-  listEquipment,
-  updateEquipmentStatus,
-  type EquipmentDetail,
-  type EquipmentListItem,
+export type {
+  EquipmentDetail,
+  EquipmentListItem,
 } from './api/equipmentService'
+
+export {
+  getEquipmentDetailSnapshot,
+  getEquipmentListSnapshot,
+  isEquipmentDetailStale,
+  isEquipmentListStale,
+  rememberCreatedEquipment,
+  revalidateEquipmentDetail,
+  revalidateEquipmentList,
+  subscribeEquipmentDetail,
+  subscribeEquipmentList,
+  updateEquipmentStatusCached as updateEquipmentStatus,
+} from './api/equipmentRepository'
 
 export {
   createEquipmentStatus,
