@@ -4,7 +4,14 @@ import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 
-export function SettingsScaffold({ title, onBack, children }: { title: string; onBack: () => void; children: ReactNode }) {
+type SettingsScaffoldProps = {
+  title: string
+  onBack: () => void
+  children: ReactNode
+  scroll?: boolean
+}
+
+export function SettingsScaffold({ title, onBack, children, scroll = true }: SettingsScaffoldProps) {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
@@ -15,9 +22,13 @@ export function SettingsScaffold({ title, onBack, children }: { title: string; o
         <Text style={styles.title}>{title}</Text>
         <View style={styles.headerSpacer} />
       </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {children}
-      </ScrollView>
+      {scroll ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {children}
+        </ScrollView>
+      ) : (
+        <View style={styles.fixedContent}>{children}</View>
+      )}
     </SafeAreaView>
   )
 }
@@ -30,4 +41,5 @@ const styles = StyleSheet.create({
   title: { flex: 1, textAlign: 'center', fontSize: 17, lineHeight: 22, fontWeight: '900', color: '#101828' },
   scroll: { flex: 1, backgroundColor: '#F7F8FA' },
   content: { paddingBottom: 28 },
+  fixedContent: { flex: 1, backgroundColor: '#F7F8FA' },
 })
