@@ -1,0 +1,87 @@
+import { supabase } from '../supabase'
+
+export type EquipmentListItem = {
+  equipmentId: string
+  equipmentName: string
+  model: string
+  manufacturer: string
+  status: string
+  area: string
+  line: string
+  category: string
+  updatedAt: string
+}
+
+export type EquipmentDetail = EquipmentListItem & {
+  serialNumber: string
+  origin: string
+  managingDepartment: string
+  responsiblePrimary: string
+  responsibleSecondary: string
+  description: string
+  technicalSpecification: string
+}
+
+type EquipmentMasterRow = {
+  equipment_id: string
+  equipment_name: string | null
+  model: string | null
+  manufacturer: string | null
+  status: string | null
+  source_data: Record<string, unknown> | null
+  updated_at: string | null
+}
+
+function readSourceText(source: Record<string, unknown> | null, ...keys: string[]) {
+  if (!source) return ''
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+function mapRow(row: EquipmentMasterRow): EquipmentDetail {
+  const source = row.source_data || {}
+  return {
+    equipmentId: String(row.equipment_id || ''),
+    equipmentName: String(row.equipment_name || '').trim(),
+    model: String(row.model || '').trim(),
+    manufacturer: String(row.manufacturer || '').trim(),
+    status: String(row.status || readSourceText(source, 'status') || 'UNKNOWN'),
+    area: readSourceText(source, 'currentArea', 'area'),
+    line: readSourceText(source, 'currentLine', 'line'),
+    category: readSourceText(source, 'equipmentCategory', 'category'),
+    updatedAt: String(row.updated_at || ''),
+    serialNumber: readSourceText(source, 'serialNumber', 'serial_number'),
+    origin: readSourceText(source, 'origin'),
+    managingDepartment: readSourceText(source, 'managingDepartment', 'department'),
+    responsiblePrimary: readSourceText(source, 'managementResponsiblePrimary', 'responsiblePrimary'),
+    responsibleSecondary: readSourceText(source, 'managementResponsibleSecondary', 'responsibleSecondary'),
+    description: readSourceText(source, 'description'),
+    technicalSpecification: readSourceText(source, 'technicalSpecification', 'specification'),
+  }
+}
+
+export async function listEquipment(limit = 500): Promise<EquipmentListItem[]> {
+  const { data, error } = await supabase
+    .from('equipment_master')
+    .select('equipment_id,equipment_name,model,manufacturer,status,source_data,updated_at')
+    .eq('active', true)
+    .order('updated_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw new Error(error.message || 'Không tải được danh sách thiết bị.')
+  return ((data || []) as EquipmentMasterRow[]).map(mapRow)
+}
+
+export async function getEquipmentDetail(equipmentId: string): Promise<EquipmentDetail> {
+  const { data, error } = await supabase
+    .from('equipment_master')
+    .select('equipment_id,equipment_name,model,manufacturer,status,source_data,updated_at')
+    .eq('equipment_id', equipmentId)
+    .single()
+
+  if (error) throw new Error(error.message || 'Không tải được chi tiết thiết bị.')
+  return mapRow(data as EquipmentMasterRow)
+}
