@@ -125,10 +125,10 @@ export function LiveDashboardPanel({ onNavigate }: Props) {
       <section className="dashboard-maintenance-snapshot" aria-labelledby="dashboard-maintenance-title">
         <header><div><p className="eyebrow">Maintenance snapshot</p><h3 id="dashboard-maintenance-title">Tình hình Work Order</h3></div><button type="button" onClick={() => onNavigate?.('maintenance')}>Mở Bảo trì →</button></header>
         <div className="dashboard-snapshot-grid">
-          <div><span>Đang mở</span><strong>{summary.workOrderOpen}</strong><small>{summary.workOrderWaitingApproval} chờ duyệt</small></div>
-          <div><span>Đang sửa chữa</span><strong>{summary.workOrderInProgress}</strong><small>{summary.workOrderCompleted + summary.workOrderVerified} chờ xác nhận / bàn giao</small></div>
-          <div className={summary.workOrderOverdue ? 'attention' : ''}><span>Quá hạn</span><strong>{summary.workOrderOverdue}</strong><small>{summary.workOrderDueSoon} sắp đến hạn trong 24h</small></div>
-          <div className={summary.workOrderUnassigned ? 'warning' : ''}><span>Phân công</span><strong>{summary.workOrderAssigned}</strong><small>{summary.workOrderUnassigned} chưa giao người phụ trách</small></div>
+          <button type="button" onClick={() => onNavigate?.('maintenance')}><span>Đang mở</span><strong>{summary.workOrderOpen}</strong><small>{summary.workOrderWaitingApproval} chờ duyệt</small></button>
+          <button type="button" onClick={() => onNavigate?.('maintenance')}><span>Đang sửa chữa</span><strong>{summary.workOrderInProgress}</strong><small>{summary.workOrderCompleted + summary.workOrderVerified} chờ xác nhận / bàn giao</small></button>
+          <button type="button" className={summary.workOrderOverdue ? 'attention' : ''} onClick={() => onNavigate?.('maintenance')}><span>Quá hạn</span><strong>{summary.workOrderOverdue}</strong><small>{summary.workOrderDueSoon} sắp đến hạn trong 24h</small></button>
+          <button type="button" className={summary.workOrderUnassigned ? 'warning' : ''} onClick={() => onNavigate?.('maintenance')}><span>Phân công</span><strong>{summary.workOrderAssigned}</strong><small>{summary.workOrderUnassigned} chưa giao người phụ trách</small></button>
         </div>
       </section>
 
