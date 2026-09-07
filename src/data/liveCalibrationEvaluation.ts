@@ -1,6 +1,6 @@
 import { isClientCacheFresh } from './clientDataCache'
+import { dataGateway } from './dataGateway'
 import { invalidateCalibrationLogs } from './liveCalibration'
-import { supabase } from './supabaseClient'
 
 export type CalibrationEvaluationRow = {
   calibrationLogId: string
@@ -27,9 +27,9 @@ export function getCalibrationEvaluationSnapshot() {
 async function fetchRows() {
   if (inFlight) return inFlight
   inFlight = (async () => {
-    const { data, error } = await supabase.from('calibration_log').select('*').order('calibration_date', { ascending: false }).limit(150)
+    const { data, error } = await dataGateway.readRows('calibration_log', { order: { column: 'calibration_date', ascending: false }, limit: 150 })
     if (error) throw error
-    const rows = ((data || []) as Array<Record<string, unknown>>).map((row) => {
+    const rows = data.map((row) => {
       const source = (row.source_data as Record<string, unknown> | null) || {}
       return {
         calibrationLogId: text(row.calibration_log_id), equipmentId: text(row.equipment_id), calibrationDate: text(row.calibration_date), calibrationResult: text(row.result), provider: text(source.provider), evaluationResult: text(source.evaluationResult), evaluationNote: text(source.evaluationNote), evaluatedBy: text(source.evaluatedBy), evaluatedAt: text(source.evaluatedAt),
@@ -47,7 +47,7 @@ export async function loadCalibrationEvaluations(options: { force?: boolean } = 
 }
 
 export async function evaluateCalibration(input: { calibrationLogId: string; equipmentId: string; result: 'PASS' | 'FAIL' | 'LIMITED_USE'; note: string }) {
-  const { error } = await supabase.rpc('rpc_evaluate_calibration', {
+  const { error } = await dataGateway.rpc('rpc_evaluate_calibration', {
     p_calibration_log_id: input.calibrationLogId,
     p_evaluation_result: input.result,
     p_evaluation_note: input.note.trim(),
