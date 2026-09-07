@@ -2,32 +2,32 @@ import { describe, expect, it } from 'vitest'
 import { classifyWorkOrder, normalizeWorkOrderSourceFamily, WORK_ORDER_SOURCE_TYPE } from './workOrderClassification'
 
 describe('work order source mapping', () => {
-  it('exposes canonical source values for new Web writes', () => {
+  it('locks the persisted source values used by the current workflow contract', () => {
     expect(WORK_ORDER_SOURCE_TYPE).toEqual({
       MANUAL: 'MANUAL',
       INSPECTION: 'DAILY_INSPECTION',
-      PREVENTIVE_PLAN: 'PREVENTIVE_PLAN',
+      PREVENTIVE_PLAN: 'PM',
       REQUEST: 'REQUEST',
-      EQUIPMENT_PROFILE: 'EQUIPMENT_PROFILE',
+      EQUIPMENT_PROFILE: 'QR_PROFILE',
       LEGACY_IMPORT: 'LEGACY_IMPORT',
     })
   })
 
-  it('normalizes canonical and legacy aliases without rewriting stored source values', () => {
+  it('normalizes persisted and compatibility aliases without rewriting stored source values', () => {
     expect(normalizeWorkOrderSourceFamily('DAILY_INSPECTION')).toBe('INSPECTION')
     expect(normalizeWorkOrderSourceFamily('INSPECTION')).toBe('INSPECTION')
-    expect(normalizeWorkOrderSourceFamily('PREVENTIVE_PLAN')).toBe('PREVENTIVE_PLAN')
     expect(normalizeWorkOrderSourceFamily('PM')).toBe('PREVENTIVE_PLAN')
-    expect(normalizeWorkOrderSourceFamily('EQUIPMENT_PROFILE')).toBe('EQUIPMENT_PROFILE')
+    expect(normalizeWorkOrderSourceFamily('PREVENTIVE_PLAN')).toBe('PREVENTIVE_PLAN')
     expect(normalizeWorkOrderSourceFamily('QR_PROFILE')).toBe('EQUIPMENT_PROFILE')
+    expect(normalizeWorkOrderSourceFamily('EQUIPMENT_PROFILE')).toBe('EQUIPMENT_PROFILE')
     expect(normalizeWorkOrderSourceFamily('OTHER')).toBe('UNKNOWN')
   })
 })
 
 describe('classifyWorkOrder', () => {
   it('classifies preventive source aliases as preventive', () => {
-    expect(classifyWorkOrder({ sourceType: 'PREVENTIVE_PLAN' })).toEqual({ sourceFamily: 'PREVENTIVE_PLAN', kind: 'PREVENTIVE' })
     expect(classifyWorkOrder({ sourceType: 'PM' })).toEqual({ sourceFamily: 'PREVENTIVE_PLAN', kind: 'PREVENTIVE' })
+    expect(classifyWorkOrder({ sourceType: 'PREVENTIVE_PLAN' })).toEqual({ sourceFamily: 'PREVENTIVE_PLAN', kind: 'PREVENTIVE' })
   })
 
   it('classifies inspection-generated work distinctly', () => {
@@ -35,8 +35,8 @@ describe('classifyWorkOrder', () => {
   })
 
   it('keeps equipment-profile aliases as manual work', () => {
-    expect(classifyWorkOrder({ sourceType: 'EQUIPMENT_PROFILE' })).toEqual({ sourceFamily: 'EQUIPMENT_PROFILE', kind: 'MANUAL' })
     expect(classifyWorkOrder({ sourceType: 'QR_PROFILE' })).toEqual({ sourceFamily: 'EQUIPMENT_PROFILE', kind: 'MANUAL' })
+    expect(classifyWorkOrder({ sourceType: 'EQUIPMENT_PROFILE' })).toEqual({ sourceFamily: 'EQUIPMENT_PROFILE', kind: 'MANUAL' })
   })
 
   it('uses legacy plan classification without rewriting source', () => {
