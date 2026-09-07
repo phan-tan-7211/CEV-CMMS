@@ -109,6 +109,12 @@ function Field({
   helper,
   icon,
   secureTextEntry,
+  autoComplete,
+  keyboardType,
+  returnKeyType,
+  blurOnSubmit,
+  onSubmitEditing,
+  inputRef,
 }: {
   label: string
   value: string
@@ -119,6 +125,12 @@ function Field({
   helper?: string
   icon?: IconName
   secureTextEntry?: boolean
+  autoComplete?: 'email' | 'password' | 'off'
+  keyboardType?: 'default' | 'email-address'
+  returnKeyType?: 'done' | 'next'
+  blurOnSubmit?: boolean
+  onSubmitEditing?: () => void
+  inputRef?: React.RefObject<TextInput | null>
 }) {
   const [focused, setFocused] = useState(false)
 
@@ -128,6 +140,7 @@ function Field({
       <View style={[styles.inputShell, focused && styles.inputShellFocused, multiline && styles.inputShellMultiline]}>
         {icon ? <Ionicons name={icon} size={18} color={focused ? '#155EEF' : '#98A2B3'} style={styles.inputIcon} /> : null}
         <TextInput
+          ref={inputRef}
           value={value}
           onChangeText={onChangeText}
           onFocus={() => setFocused(true)}
@@ -136,7 +149,13 @@ function Field({
           placeholderTextColor="#98A2B3"
           multiline={multiline}
           secureTextEntry={secureTextEntry}
-          autoCapitalize={secureTextEntry ? 'none' : undefined}
+          autoCapitalize={secureTextEntry || keyboardType === 'email-address' ? 'none' : 'sentences'}
+          autoCorrect={false}
+          autoComplete={autoComplete}
+          keyboardType={keyboardType}
+          returnKeyType={returnKeyType}
+          blurOnSubmit={blurOnSubmit}
+          onSubmitEditing={onSubmitEditing}
           textAlignVertical={multiline ? 'top' : 'center'}
           style={[styles.input, multiline && styles.multilineInput]}
         />
@@ -660,6 +679,7 @@ function LoginScreen() {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const passwordRef = useRef<TextInput | null>(null)
 
   async function signIn() {
     if (!mobileSupabaseConfigured) {
@@ -692,8 +712,33 @@ function LoginScreen() {
           <Text style={styles.loginSubtitle}>Đăng nhập bằng tài khoản hệ thống hiện có.</Text>
         </View>
         <View style={styles.loginCard}>
-          <Field icon="mail-outline" label="Email" value={email} onChangeText={setEmail} placeholder="name@company.com" required />
-          <Field icon="lock-closed-outline" label="Mật khẩu" value={password} onChangeText={setPassword} placeholder="Mật khẩu" required secureTextEntry />
+          <Field
+            icon="mail-outline"
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="name@company.com"
+            required
+            autoComplete="email"
+            keyboardType="email-address"
+            returnKeyType="next"
+            blurOnSubmit={false}
+            onSubmitEditing={() => passwordRef.current?.focus()}
+          />
+          <Field
+            inputRef={passwordRef}
+            icon="lock-closed-outline"
+            label="Mật khẩu"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Mật khẩu"
+            required
+            secureTextEntry
+            autoComplete="password"
+            returnKeyType="done"
+            blurOnSubmit
+            onSubmitEditing={() => { void signIn() }}
+          />
           {error ? <Text style={styles.loginError}>{error}</Text> : null}
           <Pressable
             disabled={submitting}
