@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { Session } from '@supabase/supabase-js'
 import { Ionicons } from '@expo/vector-icons'
 
@@ -33,6 +33,23 @@ export function AccountSettingsScreen({ session, onBack, onSignOut }: { session:
       setSignOutError(reason instanceof Error ? reason.message : 'Đăng xuất thất bại.')
       setSigningOut(false)
     }
+  }
+
+  function confirmSignOut() {
+    if (signingOut) return
+
+    if (Platform.OS === 'web') {
+      const confirm = (globalThis as typeof globalThis & { confirm?: (message: string) => boolean }).confirm
+      if (!confirm || confirm('Bạn muốn đăng xuất khỏi CEV CMMS?')) {
+        void signOut()
+      }
+      return
+    }
+
+    Alert.alert('Đăng xuất', 'Bạn muốn đăng xuất khỏi CEV CMMS?', [
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Đăng xuất', style: 'destructive', onPress: () => { void signOut() } },
+    ])
   }
 
   if (route === 'profile') return <ProfileSettingsScreen session={session} onBack={() => setRoute('root')} />
@@ -87,10 +104,7 @@ export function AccountSettingsScreen({ session, onBack, onSignOut }: { session:
             icon="log-out-outline"
             label="Đăng xuất"
             destructive
-            onPress={() => Alert.alert('Đăng xuất', 'Bạn muốn đăng xuất khỏi CEV CMMS?', [
-              { text: 'Hủy', style: 'cancel' },
-              { text: 'Đăng xuất', style: 'destructive', onPress: () => { void signOut() } },
-            ])}
+            onPress={confirmSignOut}
           />
         )}
       </View>
