@@ -305,7 +305,7 @@ function RegistrationScreen() {
               <Ionicons name="chevron-back" size={22} color="#101828" />
             </Pressable>
             <View style={styles.topTitleWrap}>
-              <Text style={styles.topTitle}>Thêm thiết bị TEST</Text>
+              <Text style={styles.topTitle}>Thêm thiết bị</Text>
               <Text style={styles.topSubtitle}>{current.title}</Text>
             </View>
             <View style={styles.stepBadge}><Text style={styles.stepBadgeText}>{step + 1} / {STEPS.length}</Text></View>
