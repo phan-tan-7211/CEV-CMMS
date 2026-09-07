@@ -17,11 +17,14 @@ const priorityGuide: Record<string,string> = {
   HIGH: 'Ảnh hưởng sản xuất / chất lượng hoặc có nguy cơ dừng máy nếu trì hoãn.',
   CRITICAL: 'Máy đang dừng, có rủi ro an toàn hoặc cần xử lý khẩn cấp.',
 }
-const sourceLabel: Record<string,string> = { MANUAL:'Tạo thủ công', DAILY_INSPECTION:'Từ kiểm tra', INSPECTION:'Từ kiểm tra', PM:'Từ kế hoạch bảo dưỡng', REQUEST:'Từ yêu cầu' }
+const sourceLabel: Record<string,string> = { MANUAL:'Tạo thủ công', DAILY_INSPECTION:'Từ kiểm tra', INSPECTION:'Từ kiểm tra', PM:'Từ kế hoạch bảo dưỡng', REQUEST:'Từ yêu cầu', QR_PROFILE:'Từ hồ sơ thiết bị' }
 const roleLabel: Record<string,string> = { MAINTENANCE:'Bảo trì', SUPERVISOR:'Giám sát', QUALITY:'Chất lượng', MANAGER:'Quản lý', ADMIN:'Quản trị hệ thống', UNKNOWN:'Chưa xác định' }
 const WORKFLOW_STAGES = ['Tiếp nhận', 'Phê duyệt', 'Sửa chữa', 'Xác nhận', 'Bàn giao'] as const
 const PRIORITY_RANK: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
 const STATUS_RANK: Record<MaintenanceWorkflowStatus, number> = { OPEN: 0, WAITING_APPROVAL: 1, APPROVED: 2, IN_PROGRESS: 3, COMPLETED: 4, VERIFIED: 5, RELEASED: 6 }
+const DAY_MS = 24 * 60 * 60 * 1000
+
+type DueState = 'OVERDUE' | 'DUE_SOON' | 'ON_TRACK' | 'NO_DUE' | 'DONE'
 
 function operationId(prefix: string) { return `${prefix}-${crypto.randomUUID()}` }
 function dateTime(value: string) {
@@ -44,6 +47,27 @@ function workflowStage(status: MaintenanceWorkflowStatus) {
 function requestedAtValue(value: string) {
   const parsed = Date.parse(value)
   return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed
+}
+function dueState(item: LiveMaintenanceWorkOrder, now = Date.now()): DueState {
+  if (item.status === 'RELEASED') return 'DONE'
+  if (!item.plannedEndAt) return 'NO_DUE'
+  const due = Date.parse(item.plannedEndAt)
+  if (Number.isNaN(due)) return 'NO_DUE'
+  if (due < now) return 'OVERDUE'
+  if (due - now <= DAY_MS) return 'DUE_SOON'
+  return 'ON_TRACK'
+}
+function dueRank(item: LiveMaintenanceWorkOrder) {
+  const state = dueState(item)
+  return state === 'OVERDUE' ? 0 : state === 'DUE_SOON' ? 1 : state === 'ON_TRACK' ? 2 : state === 'NO_DUE' ? 3 : 4
+}
+function dueLabel(item: LiveMaintenanceWorkOrder) {
+  const state = dueState(item)
+  if (state === 'OVERDUE') return { state, label: 'Quá hạn' }
+  if (state === 'DUE_SOON') return { state, label: 'Sắp đến hạn' }
+  if (state === 'ON_TRACK') return { state, label: 'Đúng tiến độ' }
+  if (state === 'DONE') return { state, label: 'Đã bàn giao' }
+  return { state, label: 'Chưa đặt hạn' }
 }
 
 export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: { equipmentId?: string }) {
@@ -127,6 +151,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
 
   const actionCount = workOrders.filter((item) => workOrderQueueMatches(item.status, 'ACTION', role)).length
   const criticalActionCount = workOrders.filter((item) => workOrderQueueMatches(item.status, 'ACTION', role) && item.priority === 'CRITICAL').length
+  const overdueCount = workOrders.filter((item) => dueState(item) === 'OVERDUE').length
   const inProgressCount = workOrders.filter((item) => item.status === 'IN_PROGRESS').length
   const verifyCount = workOrders.filter((item) => item.status === 'COMPLETED' || item.status === 'VERIFIED').length
   const releasedCount = workOrders.filter((item) => item.status === 'RELEASED').length
@@ -143,7 +168,8 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
       return [item.workOrderId, item.equipmentId, equipmentName.get(item.equipmentId), item.reason, item.priority, item.sourceType, item.requestedBy, item.method]
         .filter(Boolean).join(' ').toLocaleLowerCase().includes(normalizedQuery)
     })
-    .toSorted((left, right) => (PRIORITY_RANK[left.priority] ?? 9) - (PRIORITY_RANK[right.priority] ?? 9)
+    .toSorted((left, right) => dueRank(left) - dueRank(right)
+      || (PRIORITY_RANK[left.priority] ?? 9) - (PRIORITY_RANK[right.priority] ?? 9)
       || STATUS_RANK[left.status] - STATUS_RANK[right.status]
       || requestedAtValue(left.requestedAt) - requestedAtValue(right.requestedAt)), [workOrders, queueFilter, statusFilter, normalizedQuery, equipmentName, role])
   const selected = selectedId ? workOrders.find((item) => item.workOrderId === selectedId) || null : null
@@ -151,6 +177,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
   const selectedAction = selected ? getWorkOrderActionState(selected.status, role) : null
   const selectedNext = selectedAction?.next || null
   const selectedStage = selected ? workflowStage(selected.status) : -1
+  const selectedDue = selected ? dueLabel(selected) : null
 
   const openCreate = () => {
     setCreateError('')
@@ -164,31 +191,16 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
     if (!canCreate) return setCreateError(`Vai trò ${roleLabel[role] || role} không có quyền tạo lệnh công việc.`)
     if (!equipmentId) return setCreateError('Chọn thiết bị cần bảo trì.')
     if (!reason.trim()) return setCreateError('Nhập lý do / hiện tượng cần xử lý.')
-    if (plannedStartAt && plannedEndAt && new Date(plannedEndAt).getTime() < new Date(plannedStartAt).getTime()) {
-      return setCreateError('Thời gian kết thúc dự kiến phải sau thời gian bắt đầu.')
-    }
+    if (plannedStartAt && plannedEndAt && new Date(plannedEndAt).getTime() < new Date(plannedStartAt).getTime()) return setCreateError('Thời gian kết thúc dự kiến phải sau thời gian bắt đầu.')
     setBusy('create'); setError(''); setMessage('')
     try {
       const result = await createManualWorkOrder({
         operationId: operationId('create-wo'),
-        input: {
-          equipmentId,
-          sourceType: 'MANUAL',
-          sourceId: '',
-          reason: reason.trim(),
-          priority,
-          method: method.trim(),
-          plannedStartAt: toIso(plannedStartAt),
-          plannedEndAt: toIso(plannedEndAt),
-        },
+        input: { equipmentId, sourceType: 'MANUAL', sourceId: '', reason: reason.trim(), priority, method: method.trim(), plannedStartAt: toIso(plannedStartAt), plannedEndAt: toIso(plannedEndAt) },
       })
       applyCachedMutation()
       setMessage(`Đã tạo ${result.result.workOrderId}`)
-      setReason('')
-      setMethod('')
-      setPlannedStartAt('')
-      setPlannedEndAt('')
-      setPriority('MEDIUM')
+      setReason(''); setMethod(''); setPlannedStartAt(''); setPlannedEndAt(''); setPriority('MEDIUM')
       setCreateOpen(false)
       setQueueFilter(normalizedEquipmentContext ? 'ALL' : 'ACTION')
       setStatusFilter('ALL')
@@ -211,7 +223,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
 
   return <div className="maintenance-page">
     <section className="maintenance-summary" aria-label="Tổng quan bảo trì">
-      <article><span>Cần tôi xử lý</span><strong>{actionCount}</strong><small>{criticalActionCount} lệnh khẩn cấp</small></article>
+      <article className={overdueCount ? 'attention' : ''}><span>Cần tôi xử lý</span><strong>{actionCount}</strong><small>{criticalActionCount} khẩn cấp · {overdueCount} quá hạn</small></article>
       <article><span>Đang sửa chữa</span><strong>{inProgressCount}</strong><small>Đang thực hiện công việc</small></article>
       <article><span>Chờ xác nhận</span><strong>{verifyCount}</strong><small>Chạy thử / bàn giao</small></article>
       <article><span>Đã bàn giao</span><strong>{releasedCount}</strong><small>Quy trình hoàn tất</small></article>
@@ -219,7 +231,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
 
     <section className="maintenance-surface" aria-labelledby="maintenance-title">
       <header className="maintenance-header">
-        <div><p className="eyebrow">Work Order · IATF workflow</p><h2 id="maintenance-title">Hàng đợi bảo trì</h2><p>{normalizedEquipmentContext ? `Đang lọc toàn bộ lệnh công việc của ${normalizedEquipmentContext}. Tạo lệnh mới sẽ mặc định đúng thiết bị này.` : 'Mặc định chỉ hiện các lệnh mà vai trò hiện tại có thể xử lý ngay. Mở lệnh để xem bước tiếp theo, người chịu trách nhiệm và hồ sơ liên quan.'}</p></div>
+        <div><p className="eyebrow">Work Order · IATF workflow</p><h2 id="maintenance-title">Hàng đợi bảo trì</h2><p>{normalizedEquipmentContext ? `Đang lọc toàn bộ lệnh công việc của ${normalizedEquipmentContext}. Tạo lệnh mới sẽ mặc định đúng thiết bị này.` : 'Mặc định chỉ hiện các lệnh mà vai trò hiện tại có thể xử lý ngay. Lệnh quá hạn và sắp đến hạn được đưa lên trước.'}</p></div>
         {canCreate ? <button className="maintenance-primary" type="button" onClick={openCreate}>+ Tạo lệnh công việc</button> : <span className="maintenance-readonly">Chỉ xem · {roleLabel[role] || role}</span>}
       </header>
 
@@ -229,10 +241,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
 
       <div className="maintenance-toolbar" role="search">
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã lệnh, mã máy, lý do, người yêu cầu…" aria-label="Tìm lệnh công việc" />
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} aria-label="Lọc trạng thái chi tiết">
-          <option value="ALL">Mọi trạng thái trong nhóm</option>
-          {Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
+        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} aria-label="Lọc trạng thái chi tiết"><option value="ALL">Mọi trạng thái trong nhóm</option>{Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
         <button type="button" onClick={() => void refresh()}>↻ Làm mới</button>
       </div>
 
@@ -244,16 +253,14 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
         {filteredWorkOrders.map((item) => {
           const handover = handoverByWorkOrder.get(item.workOrderId)
           const itemAction = getWorkOrderActionState(item.status, role)
-          return <article className={`maintenance-order-card priority-band-${item.priority.toLowerCase()}`} key={item.workOrderId}>
+          const due = dueLabel(item)
+          return <article className={`maintenance-order-card priority-band-${item.priority.toLowerCase()} due-${due.state.toLowerCase()}`} key={item.workOrderId}>
             <header className="maintenance-order-head">
               <div><button className="maintenance-link" type="button" onClick={() => setSelectedId(item.workOrderId)}>{item.workOrderId}</button><small>{sourceLabel[item.sourceType] || item.sourceType || 'Tạo thủ công'}</small></div>
-              <div className="maintenance-order-badges"><span className={`maintenance-priority priority-${item.priority.toLowerCase()}`}>{priorityLabel[item.priority] || item.priority || '—'}</span><span className={`maintenance-status status-${item.status.toLowerCase()}`}>{statusLabel[item.status] || item.status}</span></div>
+              <div className="maintenance-order-badges"><span className={`maintenance-due due-${due.state.toLowerCase()}`}>{due.label}</span><span className={`maintenance-priority priority-${item.priority.toLowerCase()}`}>{priorityLabel[item.priority] || item.priority || '—'}</span><span className={`maintenance-status status-${item.status.toLowerCase()}`}>{statusLabel[item.status] || item.status}</span></div>
             </header>
-            <div className="maintenance-order-body">
-              <div className="maintenance-order-equipment"><span>Thiết bị</span><strong>{item.equipmentId}</strong><small>{equipmentName.get(item.equipmentId) || '—'}</small></div>
-              <div className="maintenance-order-reason"><span>Lý do / hiện tượng</span><p>{item.reason || '—'}</p></div>
-            </div>
-            <div className="maintenance-order-meta"><span><b>Yêu cầu:</b> {dateTime(item.requestedAt)}</span><span><b>Người yêu cầu:</b> {item.requestedBy || '—'}</span>{item.plannedStartAt ? <span><b>Dự kiến:</b> {dateTime(item.plannedStartAt)}</span> : null}{handover ? <span className="maintenance-handover yes">BM-05 · Đã chấp nhận</span> : null}</div>
+            <div className="maintenance-order-body"><div className="maintenance-order-equipment"><span>Thiết bị</span><strong>{item.equipmentId}</strong><small>{equipmentName.get(item.equipmentId) || '—'}</small></div><div className="maintenance-order-reason"><span>Lý do / hiện tượng</span><p>{item.reason || '—'}</p></div></div>
+            <div className="maintenance-order-meta"><span><b>Yêu cầu:</b> {dateTime(item.requestedAt)}</span><span><b>Người yêu cầu:</b> {item.requestedBy || '—'}</span>{item.plannedEndAt ? <span className={due.state === 'OVERDUE' ? 'maintenance-overdue-text' : ''}><b>Hạn xử lý:</b> {dateTime(item.plannedEndAt)}</span> : null}{handover ? <span className="maintenance-handover yes">BM-05 · Đã chấp nhận</span> : null}</div>
             <footer><div className="maintenance-next-action"><span>Tiếp theo</span><strong>{itemAction.next?.label || 'Quy trình đã hoàn tất'}</strong>{itemAction.next ? <small>{itemAction.actionable ? 'Bạn có quyền xử lý bước này' : `Chờ ${itemAction.owner}`}</small> : null}</div><button className="maintenance-row-action" type="button" onClick={() => setSelectedId(item.workOrderId)}>Mở lệnh</button></footer>
           </article>
         })}
@@ -264,26 +271,15 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
     {selected ? <div className="maintenance-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedId('') }}>
       <aside className="maintenance-drawer" role="dialog" aria-modal="true" aria-labelledby="wo-detail-title">
         <header><div><p className="eyebrow">Chi tiết lệnh công việc</p><h2 id="wo-detail-title">{selected.workOrderId}</h2><p>{selected.equipmentId} · {equipmentName.get(selected.equipmentId) || '—'}</p></div><button type="button" aria-label="Đóng" onClick={() => setSelectedId('')}>×</button></header>
-        <div className="maintenance-detail-grid">
-          <div><span>Trạng thái</span><strong>{statusLabel[selected.status] || selected.status}</strong></div>
-          <div><span>Ưu tiên</span><strong>{priorityLabel[selected.priority] || selected.priority || '—'}</strong></div>
-          <div><span>Nguồn</span><strong>{sourceLabel[selected.sourceType] || selected.sourceType || '—'}</strong></div>
-          <div><span>Người yêu cầu</span><strong>{selected.requestedBy || '—'}</strong></div>
-          <div><span>Thời gian yêu cầu</span><strong>{dateTime(selected.requestedAt)}</strong></div>
-          <div><span>BM-05</span><strong>{selectedHandover ? `${selectedHandover.handoverId} · Đã chấp nhận` : 'Chưa chấp nhận'}</strong></div>
-          <div><span>Bắt đầu dự kiến</span><strong>{dateTime(selected.plannedStartAt)}</strong></div>
-          <div><span>Kết thúc dự kiến</span><strong>{dateTime(selected.plannedEndAt)}</strong></div>
-        </div>
+        {selectedDue ? <div className={`maintenance-due-banner due-${selectedDue.state.toLowerCase()}`}><span>Tiến độ thời gian</span><strong>{selectedDue.label}</strong><small>{selected.plannedEndAt ? `Hạn xử lý: ${dateTime(selected.plannedEndAt)}` : 'Lệnh chưa có thời hạn xử lý dự kiến.'}</small></div> : null}
+        <div className="maintenance-detail-grid"><div><span>Trạng thái</span><strong>{statusLabel[selected.status] || selected.status}</strong></div><div><span>Ưu tiên</span><strong>{priorityLabel[selected.priority] || selected.priority || '—'}</strong></div><div><span>Nguồn</span><strong>{sourceLabel[selected.sourceType] || selected.sourceType || '—'}</strong></div><div><span>Người yêu cầu</span><strong>{selected.requestedBy || '—'}</strong></div><div><span>Thời gian yêu cầu</span><strong>{dateTime(selected.requestedAt)}</strong></div><div><span>BM-05</span><strong>{selectedHandover ? `${selectedHandover.handoverId} · Đã chấp nhận` : 'Chưa chấp nhận'}</strong></div><div><span>Bắt đầu dự kiến</span><strong>{dateTime(selected.plannedStartAt)}</strong></div><div><span>Kết thúc dự kiến</span><strong>{dateTime(selected.plannedEndAt)}</strong></div></div>
         <section className="maintenance-detail-section"><span>Lý do / hiện tượng</span><p>{selected.reason || '—'}</p></section>
         {selected.method ? <section className="maintenance-detail-section"><span>Xử lý dự kiến / ghi chú tiếp nhận</span><p>{selected.method}</p></section> : null}
         {selected.approvedBy ? <section className="maintenance-detail-section"><span>Phê duyệt</span><p>{selected.approvedBy} · {dateTime(selected.approvedAt)}</p></section> : null}
         {selectedAction ? <section className={`maintenance-action-callout ${selectedAction.actionable ? 'ready' : 'waiting'}`} aria-label="Việc cần làm tiếp"><span>Việc cần làm tiếp</span><strong>{selectedAction.next?.label || 'Quy trình đã hoàn tất'}</strong><small>{selectedAction.next ? selectedAction.actionable ? `Vai trò ${roleLabel[role] || role} có thể thực hiện ngay.` : `Đang chờ ${selectedAction.owner} thực hiện bước này.` : 'Lệnh công việc đã được bàn giao và đóng quy trình.'}</small></section> : null}
         <MaintenanceSpareFlow equipmentId={selected.equipmentId} workOrderId={selected.workOrderId} />
         <div className="maintenance-workflow" aria-label="Tiến độ lệnh công việc">{WORKFLOW_STAGES.map((stage, index) => <div key={stage} className={`maintenance-workflow-step${index < selectedStage ? ' done' : ''}${index === selectedStage ? ' active' : ''}`}><span>{index < selectedStage ? '✓' : index + 1}</span><small>{stage}</small></div>)}</div>
-        <footer>{selectedNext ? <>
-          {selected.status === 'VERIFIED' && !selectedHandover ? <p className="maintenance-release-lock">Cần BM-05 được chấp nhận trước khi bàn giao.</p> : null}
-          {selectedAction?.actionable ? <button className="maintenance-primary" type="button" disabled={busy === selected.workOrderId || (selected.status === 'VERIFIED' && !selectedHandover)} onClick={() => void advance(selected.workOrderId, selectedNext.action)}>{busy === selected.workOrderId ? 'Đang xử lý…' : selectedNext.label}</button> : <span className="maintenance-readonly">Chờ {selectedAction?.owner}: {selectedNext.label}</span>}
-        </> : <span className="maintenance-complete">Quy trình đã hoàn tất</span>}</footer>
+        <footer>{selectedNext ? <>{selected.status === 'VERIFIED' && !selectedHandover ? <p className="maintenance-release-lock">Cần BM-05 được chấp nhận trước khi bàn giao.</p> : null}{selectedAction?.actionable ? <button className="maintenance-primary" type="button" disabled={busy === selected.workOrderId || (selected.status === 'VERIFIED' && !selectedHandover)} onClick={() => void advance(selected.workOrderId, selectedNext.action)}>{busy === selected.workOrderId ? 'Đang xử lý…' : selectedNext.label}</button> : <span className="maintenance-readonly">Chờ {selectedAction?.owner}: {selectedNext.label}</span>}</> : <span className="maintenance-complete">Quy trình đã hoàn tất</span>}</footer>
       </aside>
     </div> : null}
 
@@ -297,7 +293,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
           <label className="wide"><span>Lý do / hiện tượng *</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={5} required autoFocus placeholder="Mô tả hiện tượng quan sát được, vị trí lỗi, tình trạng máy…" /></label>
           <label className="wide"><span>Xử lý dự kiến / ghi chú tiếp nhận</span><textarea value={method} onChange={(event) => setMethod(event.target.value)} rows={3} placeholder="Ví dụ: kiểm tra motor, thay bạc đạn, cần nhà cung cấp hỗ trợ…" /></label>
           <label><span>Bắt đầu dự kiến</span><input type="datetime-local" value={plannedStartAt} onChange={(event) => setPlannedStartAt(event.target.value)} /></label>
-          <label><span>Kết thúc dự kiến</span><input type="datetime-local" value={plannedEndAt} onChange={(event) => setPlannedEndAt(event.target.value)} /></label>
+          <label><span>Hạn xử lý dự kiến</span><input type="datetime-local" value={plannedEndAt} onChange={(event) => setPlannedEndAt(event.target.value)} /></label>
           {createError ? <div className="maintenance-form-error wide" role="alert">{createError}</div> : null}
           <footer><button type="button" onClick={() => setCreateOpen(false)}>Hủy</button><button className="maintenance-primary" type="submit" disabled={busy === 'create' || !equipment.length}>{busy === 'create' ? 'Đang tạo…' : 'Tạo lệnh công việc'}</button></footer>
         </form>
