@@ -149,9 +149,13 @@ test('A4 and account controls match the current shell', async ({ page }) => {
 
 test('key routes do not create page-level horizontal overflow at target responsive widths', async ({ page }) => {
   const widths = [375, 440, 768, 1024, 1440]
+  await installMocks(page)
+
   for (const width of widths) {
     await page.setViewportSize({ width, height: 900 })
-    await openApp(page)
+    await page.goto('/')
+    await expect(page.locator('.app-shell')).toHaveAttribute('data-role', 'ADMIN')
+    await expect(page.locator('.fatal-screen')).toHaveCount(0)
     await expectNoPageHorizontalOverflow(page)
 
     const labels = width <= 900
