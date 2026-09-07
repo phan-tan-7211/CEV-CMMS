@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { EquipmentPhoto } from '../components/EquipmentPhoto'
 import { getEquipmentDetail, type EquipmentDetail } from '../services/equipmentService'
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -36,7 +37,7 @@ export function EquipmentDetailScreen({ equipmentId, onBack }: { equipmentId: st
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <Pressable onPress={onBack} hitSlop={8} style={styles.iconButton}><Ionicons name="chevron-back" size={25} color="#101828" /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Quay lại danh sách thiết bị" onPress={onBack} hitSlop={8} style={styles.iconButton}><Ionicons name="chevron-back" size={25} color="#101828" /></Pressable>
         <Text style={styles.headerTitle}>Chi tiết thiết bị</Text>
         <View style={styles.iconButton} />
       </View>
@@ -48,7 +49,13 @@ export function EquipmentDetailScreen({ equipmentId, onBack }: { equipmentId: st
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.hero}>
-            <View style={styles.heroIcon}><Ionicons name="cube-outline" size={30} color="#155EEF" /></View>
+            <EquipmentPhoto
+              uri={item.imageUrl}
+              width={96}
+              height={96}
+              borderRadius={14}
+              accessibilityLabel={`Ảnh thiết bị ${item.equipmentId}`}
+            />
             <View style={styles.heroCopy}>
               <Text style={styles.name}>{item.equipmentName || 'Thiết bị chưa đặt tên'}</Text>
               <Text style={styles.id}>{item.equipmentId}</Text>
@@ -95,9 +102,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   error: { marginTop: 10, textAlign: 'center', color: '#B42318' },
   content: { padding: 12, paddingBottom: 28, gap: 10 },
-  hero: { padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth, borderColor: '#DDE1E7' },
-  heroIcon: { width: 58, height: 58, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF4FF' },
-  heroCopy: { flex: 1 },
+  hero: { minHeight: 120, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: StyleSheet.hairlineWidth, borderColor: '#DDE1E7' },
+  heroCopy: { flex: 1, minWidth: 0 },
   name: { fontSize: 18, lineHeight: 23, fontWeight: '900', color: '#101828' },
   id: { marginTop: 4, fontSize: 12, fontWeight: '700', color: '#667085' },
   status: { marginTop: 7, alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F2F4F7', fontSize: 10.5, fontWeight: '800', color: '#344054' },
