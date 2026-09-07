@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-import { supabase } from '../../../supabase'
+import { supabase } from '../../../lib/supabase/client'
 
 const PHOTO_BUCKET = 'equipment-photos'
 const PHOTO_FILE_NAME = 'photo.webp'
@@ -87,6 +87,16 @@ async function persistCache(entries: Record<string, PhotoCacheEntry>) {
   } catch {
     // Image URL persistence is a performance enhancement; image loading remains usable without it.
   }
+}
+
+export async function invalidateEquipmentPhotoUrl(equipmentId: string) {
+  const normalizedId = normalizeEquipmentId(equipmentId)
+  if (!normalizedId) return
+  const cache = await hydrateCache()
+  if (!cache[normalizedId]) return
+  const nextCache = { ...cache }
+  delete nextCache[normalizedId]
+  await persistCache(nextCache)
 }
 
 export async function getEquipmentPhotoUrls(equipmentIds: string[]) {

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { Session } from '@supabase/supabase-js'
 
-import { supabase } from '../../supabase'
+import { updateOwnProfile } from '../../features/settings'
 import { SettingsScaffold } from './SettingsScaffold'
 
 function metaString(session: Session, ...keys: string[]) {
@@ -27,10 +27,14 @@ export function ProfileSettingsScreen({ session, onBack }: { session: Session; o
 
   async function saveProfile() {
     setSaving(true)
-    const { error } = await supabase.auth.updateUser({ data: { display_name: displayName.trim(), phone: phone.trim() } })
-    setSaving(false)
-    if (error) return Alert.alert('Không lưu được hồ sơ', error.message)
-    Alert.alert('Đã lưu', 'Tên hiển thị và số điện thoại đã được cập nhật.')
+    try {
+      await updateOwnProfile(displayName, phone)
+      Alert.alert('Đã lưu', 'Tên hiển thị và số điện thoại đã được cập nhật.')
+    } catch (error) {
+      Alert.alert('Không lưu được hồ sơ', error instanceof Error ? error.message : 'Không thể cập nhật hồ sơ.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

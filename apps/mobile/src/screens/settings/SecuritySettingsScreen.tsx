@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
-import { supabase } from '../../supabase'
+import { updateOwnPassword } from '../../features/settings'
 import { SettingsScaffold } from './SettingsScaffold'
 
 export function SecuritySettingsScreen({ onBack }: { onBack: () => void }) {
@@ -13,12 +13,16 @@ export function SecuritySettingsScreen({ onBack }: { onBack: () => void }) {
     if (password.length < 8) return Alert.alert('Mật khẩu chưa hợp lệ', 'Mật khẩu mới phải có ít nhất 8 ký tự.')
     if (password !== confirmPassword) return Alert.alert('Mật khẩu không khớp', 'Nhập lại mật khẩu mới chưa trùng khớp.')
     setSaving(true)
-    const { error } = await supabase.auth.updateUser({ password })
-    setSaving(false)
-    if (error) return Alert.alert('Không đổi được mật khẩu', error.message)
-    setPassword('')
-    setConfirmPassword('')
-    Alert.alert('Đã cập nhật', 'Mật khẩu tài khoản đã được thay đổi.')
+    try {
+      await updateOwnPassword(password)
+      setPassword('')
+      setConfirmPassword('')
+      Alert.alert('Đã cập nhật', 'Mật khẩu tài khoản đã được thay đổi.')
+    } catch (error) {
+      Alert.alert('Không đổi được mật khẩu', error instanceof Error ? error.message : 'Không thể cập nhật mật khẩu.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

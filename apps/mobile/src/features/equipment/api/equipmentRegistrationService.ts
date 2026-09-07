@@ -1,4 +1,6 @@
-import { createEquipment, mobileSupabaseConfigured, uploadEquipmentPhoto } from '../../../supabase'
+import { mobileSupabaseConfigured } from '../../../lib/supabase/client'
+import { createEquipment } from './equipmentCreateService'
+import { uploadEquipmentPhoto } from './equipmentPhotoMutationService'
 import { rememberCreatedEquipment } from './equipmentRepository'
 
 export const equipmentRegistrationConfigured = mobileSupabaseConfigured
