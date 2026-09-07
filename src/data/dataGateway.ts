@@ -12,6 +12,11 @@ type ValueFilter = {
   value: unknown
 }
 
+type InFilter = {
+  column: string
+  values: unknown[]
+}
+
 type OrderBy = {
   column: string
   ascending?: boolean
@@ -20,9 +25,12 @@ type OrderBy = {
 export type ReadRowsOptions = {
   columns?: string
   eq?: ValueFilter[]
+  neq?: ValueFilter[]
   ilike?: ValueFilter[]
   lt?: ValueFilter[]
+  gt?: ValueFilter[]
   gte?: ValueFilter[]
+  in?: InFilter[]
   or?: string
   order?: OrderBy
   orders?: OrderBy[]
@@ -45,6 +53,7 @@ type UpsertOptions = {
 
 type ListFilesOptions = {
   limit?: number
+  offset?: number
   sortBy?: { column: string; order: 'asc' | 'desc' }
 }
 
@@ -55,6 +64,11 @@ export type DataGatewayUser = {
 
 export type DataGatewayFile = {
   name: string
+  id: string | null
+  createdAt: string | null
+  updatedAt: string | null
+  size: number | null
+  mimeType: string | null
 }
 
 export type DataGatewaySignedFile = {
@@ -83,9 +97,12 @@ export interface DataGateway {
 function applyReadOptions(query: any, options: ReadRowsOptions) {
   let next = query
   for (const filter of options.eq || []) next = next.eq(filter.column, filter.value)
+  for (const filter of options.neq || []) next = next.neq(filter.column, filter.value)
   for (const filter of options.ilike || []) next = next.ilike(filter.column, filter.value)
   for (const filter of options.lt || []) next = next.lt(filter.column, filter.value)
+  for (const filter of options.gt || []) next = next.gt(filter.column, filter.value)
   for (const filter of options.gte || []) next = next.gte(filter.column, filter.value)
+  for (const filter of options.in || []) next = next.in(filter.column, filter.values)
   if (options.or) next = next.or(options.or)
   if (options.order) next = next.order(options.order.column, { ascending: options.order.ascending ?? true })
   for (const order of options.orders || []) next = next.order(order.column, { ascending: order.ascending ?? true })
@@ -155,9 +172,23 @@ class SupabaseDataGateway implements DataGateway {
     const normalized = typeof options === 'number' ? { limit: options } : options
     const { data, error } = await supabase.storage.from(bucket).list(path, {
       limit: normalized.limit ?? 100,
+      offset: normalized.offset,
       sortBy: normalized.sortBy,
     })
-    return { data: (data || []).map((file) => ({ name: file.name })), error }
+    return {
+      data: (data || []).map((file) => {
+        const metadata = (file.metadata || {}) as Record<string, unknown>
+        return {
+          name: file.name,
+          id: file.id || null,
+          createdAt: file.created_at || null,
+          updatedAt: file.updated_at || null,
+          size: typeof metadata.size === 'number' ? metadata.size : null,
+          mimeType: typeof metadata.mimetype === 'string' ? metadata.mimetype : null,
+        }
+      }),
+      error,
+    }
   }
 
   async createSignedUrl(bucket: string, path: string, expiresIn: number): Promise<DataGatewayResult<string>> {
