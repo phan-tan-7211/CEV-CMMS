@@ -152,6 +152,8 @@ function Field({
           autoCapitalize={secureTextEntry || keyboardType === 'email-address' ? 'none' : 'sentences'}
           autoCorrect={false}
           autoComplete={autoComplete}
+          importantForAutofill={autoComplete === 'off' ? 'noExcludeDescendants' : 'auto'}
+          textContentType={autoComplete === 'off' ? 'none' : undefined}
           keyboardType={keyboardType}
           returnKeyType={returnKeyType}
           blurOnSubmit={blurOnSubmit}
@@ -679,7 +681,6 @@ function LoginScreen() {
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const passwordRef = useRef<TextInput | null>(null)
 
   async function signIn() {
     if (!mobileSupabaseConfigured) {
@@ -719,14 +720,12 @@ function LoginScreen() {
             onChangeText={setEmail}
             placeholder="name@company.com"
             required
-            autoComplete="email"
+            autoComplete="off"
             keyboardType="email-address"
-            returnKeyType="next"
-            blurOnSubmit={false}
-            onSubmitEditing={() => passwordRef.current?.focus()}
+            returnKeyType="done"
+            blurOnSubmit
           />
           <Field
-            inputRef={passwordRef}
             icon="lock-closed-outline"
             label="Mật khẩu"
             value={password}
@@ -734,10 +733,9 @@ function LoginScreen() {
             placeholder="Mật khẩu"
             required
             secureTextEntry
-            autoComplete="password"
+            autoComplete="off"
             returnKeyType="done"
             blurOnSubmit
-            onSubmitEditing={() => { void signIn() }}
           />
           {error ? <Text style={styles.loginError}>{error}</Text> : null}
           <Pressable
