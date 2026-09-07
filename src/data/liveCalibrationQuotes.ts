@@ -1,5 +1,5 @@
 import { isClientCacheFresh } from './clientDataCache'
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type CalibrationQuoteRow = {
   quoteId: string
@@ -26,9 +26,9 @@ export function getCalibrationQuoteSnapshot() {
 async function fetchQuotes() {
   if (inFlight) return inFlight
   inFlight = (async () => {
-    const { data, error } = await supabase.from('calibration_vendor_quote').select('*').order('created_at', { ascending: false })
+    const { data, error } = await dataGateway.readRows('calibration_vendor_quote', { order: { column: 'created_at', ascending: false } })
     if (error) throw error
-    const rows = ((data || []) as Array<Record<string, unknown>>).map((row) => {
+    const rows = data.map((row) => {
       const source = (row.source_data as Record<string, unknown> | null) || {}
       return {
         quoteId: text(row.quote_id),
@@ -53,7 +53,7 @@ export async function loadCalibrationQuotes(options: { force?: boolean } = {}) {
 }
 
 export async function recordCalibrationQuote(input: { calibrationEquipmentId: string; provider: string; amountVnd: number; sourceDate: string; sourceDocument: string }) {
-  const { data, error } = await supabase.rpc('rpc_record_calibration_vendor_quote', {
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_record_calibration_vendor_quote', {
     p_input: {
       calibrationEquipmentId: input.calibrationEquipmentId,
       provider: input.provider.trim(),
@@ -63,7 +63,7 @@ export async function recordCalibrationQuote(input: { calibrationEquipmentId: st
     },
   })
   if (error) throw error
-  const result = (data || {}) as Record<string, unknown>
+  const result = data || {}
   const quoteId = text(result.quoteId)
   const created: CalibrationQuoteRow = {
     quoteId,
