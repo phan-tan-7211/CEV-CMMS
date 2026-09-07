@@ -7,6 +7,8 @@ export type LiveMaintenanceWorkOrder = {
   workOrderId: string
   equipmentId: string
   sourceType: string
+  planClassification: string
+  hasDowntime: boolean
   requestedAt: string
   requestedBy: string
   reason: string
@@ -17,13 +19,26 @@ export type LiveMaintenanceWorkOrder = {
   method: string
   plannedStartAt: string
   plannedEndAt: string
+  assignedPersonCode: string
+  assignedPersonName: string
+  assignedBy: string
+  assignedAt: string
+}
+export type LiveMaintenanceTransition = {
+  auditId: string
+  workOrderId: string
+  action: string
+  actorEmail: string
+  createdAt: string
+  beforeStatus: string
+  afterStatus: string
 }
 export type LiveMaintenancePlanItem = { itemId: string; itemName: string; standard: string; method: string; note: string; sequence: number }
 export type LiveMaintenancePlan = {
   planId: string; equipmentId: string; maintenanceType: string; frequency: string; plannedDate: string; responsiblePerson: string; scheduledWindow: string; note: string; status: string; active: boolean; items: LiveMaintenancePlanItem[]
 }
 export type LiveHandover = { handoverId: string; workOrderId: string; equipmentId: string; accepted: boolean; condition: string; handoverAt: string }
-export type LiveMaintenanceSnapshot = { equipment: MaintenanceEquipmentOption[]; plans: LiveMaintenancePlan[]; workOrders: LiveMaintenanceWorkOrder[]; handovers: LiveHandover[] }
+export type LiveMaintenanceSnapshot = { equipment: MaintenanceEquipmentOption[]; plans: LiveMaintenancePlan[]; workOrders: LiveMaintenanceWorkOrder[]; handovers: LiveHandover[]; transitions: LiveMaintenanceTransition[] }
 export type MaintenancePlanInput = {
   planId?: string
   equipmentId: string
@@ -38,7 +53,7 @@ export type MaintenancePlanInput = {
 }
 
 const CACHE_KEY = 'cev:data:maintenance'
-const CACHE_VERSION = 1
+const CACHE_VERSION = 4
 const CACHE_FRESH_MS = 30_000
 const restored = readClientCache<LiveMaintenanceSnapshot>(CACHE_KEY, CACHE_VERSION)
 let maintenanceCache: LiveMaintenanceSnapshot | null = restored?.data || null
@@ -48,6 +63,10 @@ let maintenanceRefreshPromise: Promise<LiveMaintenanceSnapshot> | null = null
 function text(value: unknown) { return value == null ? '' : String(value).trim() }
 function bool(value: unknown) { return value === true || ['TRUE', '1', 'YES'].includes(text(value).toUpperCase()) }
 function number(value: unknown) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : 0 }
+function detailText(value: unknown, key: string) {
+  if (!value || typeof value !== 'object') return ''
+  return text((value as Record<string, unknown>)[key])
+}
 
 function persistMaintenanceCache() {
   if (!maintenanceCache) return
@@ -62,6 +81,7 @@ export function getMaintenanceCacheSnapshot(): LiveMaintenanceSnapshot | null {
     plans: [...maintenanceCache.plans],
     workOrders: [...maintenanceCache.workOrders],
     handovers: [...maintenanceCache.handovers],
+    transitions: [...maintenanceCache.transitions],
   }
 }
 
@@ -71,6 +91,22 @@ function patchWorkOrderStatus(workOrderId: string, status: MaintenanceWorkflowSt
     ...maintenanceCache,
     workOrders: maintenanceCache.workOrders.map((item) => item.workOrderId === workOrderId ? { ...item, status } : item),
   }
+  persistMaintenanceCache()
+}
+
+function appendTransition(workOrderId: string, action: MaintenanceWorkflowAction, status: MaintenanceWorkflowStatus) {
+  if (!maintenanceCache) return
+  const before = maintenanceCache.workOrders.find((item) => item.workOrderId === workOrderId)?.status || ''
+  const event: LiveMaintenanceTransition = {
+    auditId: `local-${workOrderId}-${Date.now()}`,
+    workOrderId,
+    action,
+    actorEmail: '',
+    createdAt: new Date().toISOString(),
+    beforeStatus: before,
+    afterStatus: status,
+  }
+  maintenanceCache = { ...maintenanceCache, transitions: [event, ...maintenanceCache.transitions] }
   persistMaintenanceCache()
 }
 
@@ -99,6 +135,8 @@ function insertCreatedWorkOrder(input: {
     workOrderId: input.workOrderId,
     equipmentId: input.equipmentId,
     sourceType: input.sourceType,
+    planClassification: '',
+    hasDowntime: false,
     requestedAt: new Date().toISOString(),
     requestedBy: '',
     reason: input.reason,
@@ -109,6 +147,10 @@ function insertCreatedWorkOrder(input: {
     method: input.method,
     plannedStartAt: input.plannedStartAt,
     plannedEndAt: input.plannedEndAt,
+    assignedPersonCode: '',
+    assignedPersonName: '',
+    assignedBy: '',
+    assignedAt: '',
   }
   maintenanceCache = { ...maintenanceCache, workOrders: [created, ...maintenanceCache.workOrders.filter((item) => item.workOrderId !== created.workOrderId)] }
   persistMaintenanceCache()
@@ -118,14 +160,16 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
   if (maintenanceRefreshPromise) return maintenanceRefreshPromise
 
   maintenanceRefreshPromise = (async () => {
-    const [equipmentResult, planResult, planItemResult, woResult, handoverResult] = await Promise.all([
+    const [equipmentResult, planResult, planItemResult, woResult, handoverResult, transitionResult, downtimeResult] = await Promise.all([
       supabase.from('equipment_master').select('equipment_id,equipment_name,equipment_type,status,active').eq('active', true),
       supabase.from('maintenance_plan').select('*').order('created_at', { ascending: false }),
       supabase.from('maintenance_plan_item').select('*'),
       supabase.from('maintenance_work_order').select('*').order('created_at', { ascending: false }),
       supabase.from('equipment_handover').select('*').order('created_at', { ascending: false }),
+      supabase.from('audit_log').select('audit_id,entity_id,action,actor_email,detail,created_at').eq('entity_type', 'Maintenance_Work_Order').order('created_at', { ascending: false }).limit(1000),
+      supabase.from('downtime_event').select('work_order_id'),
     ])
-    for (const result of [equipmentResult, planResult, planItemResult, woResult, handoverResult]) if (result.error) throw result.error
+    for (const result of [equipmentResult, planResult, planItemResult, woResult, handoverResult, transitionResult, downtimeResult]) if (result.error) throw result.error
 
     const equipment: MaintenanceEquipmentOption[] = ((equipmentResult.data || []) as Array<Record<string, unknown>>)
       .filter((row) => text(row.equipment_id) && text(row.equipment_type) === 'PRODUCTION' && text(row.status) !== 'DISPOSED')
@@ -160,12 +204,16 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
       }
     })
 
+    const downtimeWorkOrders = new Set(((downtimeResult.data || []) as Array<Record<string, unknown>>).map((row) => text(row.work_order_id)).filter(Boolean))
     const workOrders: LiveMaintenanceWorkOrder[] = ((woResult.data || []) as Array<Record<string, unknown>>).map((row) => {
       const source = (row.source_data as Record<string, unknown> | null) || {}
+      const workOrderId = text(row.work_order_id)
       return {
-        workOrderId: text(row.work_order_id),
+        workOrderId,
         equipmentId: text(row.equipment_id),
         sourceType: text(row.source_type),
+        planClassification: text(source.planClassification),
+        hasDowntime: downtimeWorkOrders.has(workOrderId),
         requestedAt: text(row.created_at),
         requestedBy: text(row.created_by),
         reason: text(row.reason),
@@ -176,6 +224,10 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
         method: text(source.method),
         plannedStartAt: text(source.plannedStartAt),
         plannedEndAt: text(source.plannedEndAt),
+        assignedPersonCode: text(source.assignedPersonCode),
+        assignedPersonName: text(source.assignedPersonName),
+        assignedBy: text(source.assignedBy),
+        assignedAt: text(source.assignedAt),
       }
     })
 
@@ -183,7 +235,17 @@ async function fetchMaintenanceFromServer(): Promise<LiveMaintenanceSnapshot> {
       handoverId: text(row.handover_id), workOrderId: text(row.work_order_id), equipmentId: text(row.equipment_id), accepted: bool(row.accepted), condition: text(row.equipment_condition), handoverAt: text(row.created_at),
     }))
 
-    maintenanceCache = { equipment, plans, workOrders, handovers }
+    const transitions: LiveMaintenanceTransition[] = ((transitionResult.data || []) as Array<Record<string, unknown>>).map((row) => ({
+      auditId: text(row.audit_id),
+      workOrderId: text(row.entity_id),
+      action: text(row.action),
+      actorEmail: text(row.actor_email),
+      createdAt: text(row.created_at),
+      beforeStatus: detailText(row.detail, 'before'),
+      afterStatus: detailText(row.detail, 'after'),
+    }))
+
+    maintenanceCache = { equipment, plans, workOrders, handovers, transitions }
     persistMaintenanceCache()
     return maintenanceCache
   })().finally(() => { maintenanceRefreshPromise = null })
@@ -248,6 +310,7 @@ export async function transitionLiveMaintenance(request: { workOrderId: string; 
   if (error) throw error
   const result = (data || {}) as Record<string, unknown>
   const status = text(result.status) as MaintenanceWorkflowStatus
+  appendTransition(request.workOrderId, request.workflowAction, status)
   patchWorkOrderStatus(request.workOrderId, status)
   void loadLiveMaintenance({ force: true }).catch(() => undefined)
   return { result: { status } }
