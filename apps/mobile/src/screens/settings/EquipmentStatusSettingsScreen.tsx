@@ -100,16 +100,6 @@ export function EquipmentStatusSettingsScreen({ onBack }: { onBack: () => void }
       >
         <Text style={styles.note}>Trạng thái đang được thiết bị sử dụng sẽ khóa sửa/xóa. Trạng thái chưa liên kết có thể đổi tên, đổi màu hoặc xóa.</Text>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Thêm trạng thái mới"
-          onPress={openCreate}
-          style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
-        >
-          <Ionicons name="add-circle-outline" size={22} color="#FFFFFF" />
-          <Text style={styles.addButtonText}>Thêm trạng thái mới</Text>
-        </Pressable>
-
         {error ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle-outline" size={19} color="#B42318" />
@@ -174,6 +164,15 @@ export function EquipmentStatusSettingsScreen({ onBack }: { onBack: () => void }
         )}
       </ScrollView>
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Thêm trạng thái mới"
+        onPress={openCreate}
+        style={({ pressed }) => [styles.fab, pressed && styles.pressed]}
+      >
+        <Ionicons name="add" size={34} color="#FFFFFF" />
+      </Pressable>
+
       <Modal visible={editorOpen} transparent animationType="fade" onRequestClose={() => setEditorOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setEditorOpen(false)}>
           <Pressable style={styles.dialog} onPress={() => undefined}>
@@ -221,10 +220,8 @@ export function EquipmentStatusSettingsScreen({ onBack }: { onBack: () => void }
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: '#F8F9FB' },
-  content: { paddingBottom: 28 },
+  content: { paddingBottom: 118 },
   note: { padding: 16, fontSize: 12.5, lineHeight: 18, color: '#667085', backgroundColor: '#F8F9FB' },
-  addButton: { minHeight: 48, marginHorizontal: 16, marginBottom: 14, paddingHorizontal: 16, borderRadius: 12, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
-  addButtonText: { fontSize: 14, fontWeight: '900', color: '#FFFFFF' },
   center: { paddingVertical: 36, alignItems: 'center' },
   errorBox: { marginHorizontal: 16, marginBottom: 12, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#FECDCA', flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#FEF3F2' },
   error: { flex: 1, fontSize: 12, lineHeight: 17, color: '#B42318' },
@@ -247,6 +244,7 @@ const styles = StyleSheet.create({
   actionCell: { width: 96, flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'flex-end' },
   iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   lockedAction: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  fab: { position: 'absolute', right: 20, bottom: 22, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF', elevation: 6, shadowColor: '#101828', shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
   pressed: { opacity: 0.62 },
   backdrop: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: 'rgba(16,24,40,0.45)' },
   dialog: { padding: 20, borderRadius: 16, backgroundColor: '#FFFFFF' },
