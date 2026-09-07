@@ -4,8 +4,11 @@ import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { updateEquipmentStatus } from '../services/equipmentService'
-import { listEquipmentStatuses, type EquipmentStatusMaster } from '../services/equipmentStatusService'
+import {
+  listEquipmentStatuses,
+  updateEquipmentStatus,
+  type EquipmentStatusMaster,
+} from '../features/equipment'
 
 export function EquipmentStatusScreen({
   equipmentId,
