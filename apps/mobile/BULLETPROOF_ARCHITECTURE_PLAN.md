@@ -74,21 +74,26 @@ src/
 
 ### Phase 1 - architecture guard + Equipment public boundary
 
-Status: started in this batch.
+Status: complete.
 
-- Add `src/features/equipment/index.ts` as the public feature API.
-- Migrate Equipment Status picker and Equipment Status Settings to consume the public API.
-- Add `npm run check:architecture` and run it before TypeScript typecheck.
-- Keep existing service files in place temporarily behind the public API to reduce regression risk.
+- `src/features/equipment/index.ts` is the Equipment public API.
+- Equipment Status picker and Equipment Status Settings consume the public API.
+- `npm run check:architecture` runs before TypeScript typecheck.
 
 ### Phase 2 - finish Equipment feature migration
 
-- Migrate Equipment List and Equipment Detail imports to the Equipment public API.
-- Move Equipment-specific UI (`EquipmentPhoto`) under `features/equipment/ui` while preserving the public export.
-- Move equipment services under `features/equipment/api` without changing route-screen imports.
-- Extract registration business/data logic from root `App.tsx` into the Equipment feature.
+Status: complete.
+
+- Equipment List and Equipment Detail consume the Equipment public API.
+- Equipment-specific UI (`EquipmentPhoto`, `SuggestField`) lives under `features/equipment/ui`.
+- Equipment list/detail/status/photo repositories live under `features/equipment/api`.
+- Equipment suggestion canonicalization lives under `features/equipment/model`.
+- Root registration no longer imports Supabase, Equipment services, Equipment suggestions or Equipment-specific UI directly; creation + optional photo upload is orchestrated by the Equipment feature API.
+- Compatibility re-export files remain temporarily to avoid breaking older imports outside active route/entry UI, but architecture checks reject new route/entry usage of those paths.
 
 ### Phase 3 - shared infrastructure
+
+Status: next.
 
 - Move the Supabase client and storage/cache primitives under `src/lib`.
 - Keep all data-driven features on the required flow: memory cache -> persistent snapshot -> Supabase revalidate.
@@ -106,7 +111,7 @@ Each feature receives a public API and route screens may import only from that A
 
 ### Phase 5 - stronger architecture checks
 
-After legacy imports are migrated, remove temporary allowlists from the architecture checker and fail CI on any new direct feature-service import from screens.
+After legacy imports are migrated, remove remaining non-Equipment allowlists from the architecture checker and fail CI on any direct data-client import from route/entry UI.
 
 ## Rules for new code from now on
 
@@ -120,6 +125,5 @@ After legacy imports are migrated, remove temporary allowlists from the architec
 
 ## Legacy exceptions still to remove
 
-- `App.tsx` still owns a large part of Equipment Registration and is a planned Phase 2 extraction target.
-- Equipment List / Detail still have legacy service imports until Phase 2.
-- Existing service files remain in `src/services` temporarily; screens migrated to a feature API will not depend on those paths directly.
+- `ProfileSettingsScreen.tsx` and `SecuritySettingsScreen.tsx` still contain direct Supabase imports and are explicitly baselined until the Settings/Auth feature migration.
+- Compatibility re-exports remain at the old Equipment service/component paths only as migration shims; active Equipment route/entry UI is guarded against using them.
