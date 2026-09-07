@@ -88,16 +88,39 @@ export async function createEquipment(input: EquipmentCreateInput): Promise<Equi
   }
 }
 
+const PHOTO_FORMATS: Record<string, { contentType: string; extension: string }> = {
+  gif: { contentType: 'image/gif', extension: 'gif' },
+  heic: { contentType: 'image/heic', extension: 'heic' },
+  heif: { contentType: 'image/heif', extension: 'heif' },
+  jpeg: { contentType: 'image/jpeg', extension: 'jpg' },
+  jpg: { contentType: 'image/jpeg', extension: 'jpg' },
+  png: { contentType: 'image/png', extension: 'png' },
+  webp: { contentType: 'image/webp', extension: 'webp' },
+}
+
+function resolvePhotoFormat(photoUri: string, responseContentType: string | null) {
+  const headerType = responseContentType?.split(';')[0].trim().toLowerCase() || ''
+  const headerFormat = Object.values(PHOTO_FORMATS).find(({ contentType }) => contentType === headerType)
+  if (headerFormat) return headerFormat
+
+  const uriExtension = photoUri.match(/\.([a-z0-9]+)(?:[?#]|$)/i)?.[1]?.toLowerCase() || ''
+  return PHOTO_FORMATS[uriExtension] || PHOTO_FORMATS.jpeg
+}
+
 export async function uploadEquipmentPhoto(equipmentId: string, photoUri: string) {
   const response = await fetch(photoUri)
   if (!response.ok) throw new Error('Không đọc được ảnh trên thiết bị.')
 
   const bytes = await response.arrayBuffer()
-  const contentType = response.headers.get('content-type') || 'image/jpeg'
-  const path = `${equipmentId}/photo.webp`
+  const format = resolvePhotoFormat(photoUri, response.headers.get('content-type'))
+  const path = `${equipmentId}/photo.${format.extension}`
   const { error } = await supabase.storage
     .from('equipment-photos')
-    .upload(path, bytes, { cacheControl: '3600', contentType, upsert: true })
+    .upload(path, bytes, {
+      cacheControl: '3600',
+      contentType: format.contentType,
+      upsert: true,
+    })
 
   if (error) throw new Error(`Không tải được ảnh thiết bị: ${error.message}`)
   return path
