@@ -81,7 +81,9 @@ export function MobileShell() {
 
   if (!session) return <LoginScreen onSignIn={handleSignIn} />
 
-  if (route === 'registration') return <EquipmentRegistrationScreen />
+  if (route === 'registration') {
+    return <EquipmentRegistrationScreen onBack={() => setRoute('home')} />
+  }
   if (route === 'equipment') {
     return (
       <EquipmentListScreen
