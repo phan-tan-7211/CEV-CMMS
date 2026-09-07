@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type EquipmentA4Spare = {
   partId: string
@@ -164,13 +164,13 @@ export async function loadEquipmentA4Relations(equipmentId: string, options: { f
 
   const task = (async () => {
     const [sparesResult, workOrdersResult, downtimeResult, usageResult, inspectionResult, movementResult, calibrationResult] = await Promise.all([
-      supabase.from('spare_part_overview').select('part_id,part_name,part_number,maker,stock_qty,min_qty,spare_classification,equipment').order('part_id'),
-      supabase.from('maintenance_work_order').select('work_order_id,status,reason,created_by,source_data,created_at,updated_at').eq('equipment_id', id).order('created_at', { ascending: false }).limit(10),
-      supabase.from('downtime_event').select('downtime_id,work_order_id,started_at,ended_at,source_data,created_at').eq('equipment_id', id).order('started_at', { ascending: false }).limit(10),
-      supabase.from('spare_part_usage').select('usage_id,part_id,quantity,used_at,work_order_id,reason,performed_by,actor_email,created_at').eq('equipment_id', id).order('used_at', { ascending: false }).limit(10),
-      supabase.from('daily_inspection').select('inspection_id,inspection_date,overall_mark,note,actor_email,created_at').eq('equipment_id', id).order('created_at', { ascending: false }).limit(10),
-      supabase.from('equipment_movement_log').select('movement_id,from_location,to_location,actor_email,created_at').eq('equipment_id', id).order('created_at', { ascending: false }).limit(10),
-      supabase.from('calibration_log').select('calibration_date,next_due_date,result,actor_email,created_at').eq('equipment_id', id).order('calibration_date', { ascending: false }).limit(1),
+      dataGateway.readRows('spare_part_overview', { columns: 'part_id,part_name,part_number,maker,stock_qty,min_qty,spare_classification,equipment', order: { column: 'part_id' } }),
+      dataGateway.readRows('maintenance_work_order', { columns: 'work_order_id,status,reason,created_by,source_data,created_at,updated_at', eq: [{ column: 'equipment_id', value: id }], order: { column: 'created_at', ascending: false }, limit: 10 }),
+      dataGateway.readRows('downtime_event', { columns: 'downtime_id,work_order_id,started_at,ended_at,source_data,created_at', eq: [{ column: 'equipment_id', value: id }], order: { column: 'started_at', ascending: false }, limit: 10 }),
+      dataGateway.readRows('spare_part_usage', { columns: 'usage_id,part_id,quantity,used_at,work_order_id,reason,performed_by,actor_email,created_at', eq: [{ column: 'equipment_id', value: id }], order: { column: 'used_at', ascending: false }, limit: 10 }),
+      dataGateway.readRows('daily_inspection', { columns: 'inspection_id,inspection_date,overall_mark,note,actor_email,created_at', eq: [{ column: 'equipment_id', value: id }], order: { column: 'created_at', ascending: false }, limit: 10 }),
+      dataGateway.readRows('equipment_movement_log', { columns: 'movement_id,from_location,to_location,actor_email,created_at', eq: [{ column: 'equipment_id', value: id }], order: { column: 'created_at', ascending: false }, limit: 10 }),
+      dataGateway.readRows('calibration_log', { columns: 'calibration_date,next_due_date,result,actor_email,created_at', eq: [{ column: 'equipment_id', value: id }], order: { column: 'calibration_date', ascending: false }, limit: 1 }),
     ])
 
     const firstError = [sparesResult, workOrdersResult, downtimeResult, usageResult, inspectionResult, movementResult, calibrationResult].find((result) => result.error)?.error
@@ -179,24 +179,24 @@ export async function loadEquipmentA4Relations(equipmentId: string, options: { f
       throw firstError
     }
 
-    const spares = ((sparesResult.data || []) as Row[])
+    const spares = sparesResult.data
       .filter((row) => equipmentLinked(row, id))
       .map(normalizeSpare)
       .toSorted((a, b) => spareClassificationWeight(a.classification) - spareClassificationWeight(b.classification) || a.partId.localeCompare(b.partId))
       .slice(0, 5)
 
     const history = [
-      ...((workOrdersResult.data || []) as Row[]).map(normalizeWorkOrder),
-      ...((downtimeResult.data || []) as Row[]).map(normalizeDowntime),
-      ...((usageResult.data || []) as Row[]).map(normalizeSpareUsage),
-      ...((inspectionResult.data || []) as Row[]).map(normalizeInspection).filter((item): item is EquipmentA4History => Boolean(item)),
-      ...((movementResult.data || []) as Row[]).map(normalizeMovement),
+      ...workOrdersResult.data.map(normalizeWorkOrder),
+      ...downtimeResult.data.map(normalizeDowntime),
+      ...usageResult.data.map(normalizeSpareUsage),
+      ...inspectionResult.data.map(normalizeInspection).filter((item): item is EquipmentA4History => Boolean(item)),
+      ...movementResult.data.map(normalizeMovement),
     ]
       .filter((item) => item.date)
       .toSorted((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 6)
 
-    const latestCalibration = ((calibrationResult.data || []) as Row[])[0]
+    const latestCalibration = calibrationResult.data[0]
     const calibration = latestCalibration ? {
       calibrationDate: text(latestCalibration.calibration_date),
       nextDueDate: text(latestCalibration.next_due_date),
