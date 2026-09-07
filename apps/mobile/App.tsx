@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -17,6 +18,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as ImagePicker from 'expo-image-picker'
+import type { Session } from '@supabase/supabase-js'
+import { createEquipment, mobileSupabaseConfigured, supabase, uploadEquipmentPhoto } from './src/supabase'
 
 type EquipmentType = 'PRODUCTION' | 'MEASUREMENT'
 type EquipmentStatus = 'RUNNING' | 'STOPPED' | 'MAINTENANCE' | 'DOWN'
@@ -105,6 +108,7 @@ function Field({
   multiline,
   helper,
   icon,
+  secureTextEntry,
 }: {
   label: string
   value: string
@@ -114,6 +118,7 @@ function Field({
   multiline?: boolean
   helper?: string
   icon?: IconName
+  secureTextEntry?: boolean
 }) {
   const [focused, setFocused] = useState(false)
 
@@ -130,6 +135,8 @@ function Field({
           placeholder={placeholder}
           placeholderTextColor="#98A2B3"
           multiline={multiline}
+          secureTextEntry={secureTextEntry}
+          autoCapitalize={secureTextEntry ? 'none' : undefined}
           textAlignVertical={multiline ? 'top' : 'center'}
           style={[styles.input, multiline && styles.multilineInput]}
         />
@@ -255,11 +262,14 @@ function StepProgress({ step }: { step: number }) {
   )
 }
 
-function RegistrationScreen() {
+function RegistrationScreen({ onSignOut }: { onSignOut: () => void }) {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<EquipmentDraft>(INITIAL)
   const [photoUri, setPhotoUri] = useState<string | null>(null)
   const [cameraOpen, setCameraOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
+  const [saveError, setSaveError] = useState('')
   const [cameraPermission, requestCameraPermission] = useCameraPermissions()
   const cameraRef = useRef<CameraView | null>(null)
   const current = STEPS[step]
@@ -327,12 +337,65 @@ function RegistrationScreen() {
     }
   }
 
-  function submitUi() {
-    Alert.alert(
-      'Sẵn sàng tạo thiết bị',
-      `UI đã đủ dữ liệu bắt buộc. Bước tiếp theo sẽ nối RPC để tạo ${codePreview}.`,
-      [{ text: 'OK' }],
-    )
+  async function submitUi() {
+    if (saving) return
+    if (!mobileSupabaseConfigured) {
+      setSaveError('Chưa cấu hình EXPO_PUBLIC_SUPABASE_URL và EXPO_PUBLIC_SUPABASE_ANON_KEY.')
+      return
+    }
+
+    setSaving(true)
+    setSaveError('')
+    setSaveMessage('')
+
+    try {
+      const result = await createEquipment({
+        equipmentType: form.equipmentType,
+        equipmentName: form.equipmentName.trim(),
+        equipmentCategory: form.equipmentCategory.trim(),
+        manufacturer: form.manufacturer.trim(),
+        distributor: form.distributor.trim(),
+        model: form.model.trim(),
+        serialNumber: form.serialNumber.trim(),
+        department: '',
+        currentArea: form.currentArea.trim(),
+        currentLine: form.currentLine.trim(),
+        managingDepartment: form.managingDepartment.trim(),
+        managementResponsiblePrimary: form.managementResponsiblePrimary.trim(),
+        managementResponsibleSecondary: form.managementResponsibleSecondary.trim(),
+        technicalSpecification: form.technicalSpecification.trim(),
+        description: form.description.trim(),
+        origin: form.origin.trim(),
+        inServiceDate: form.inServiceDate.trim(),
+        warrantyUntil: form.warrantyUntil.trim(),
+        warrantyContact: form.warrantyContact.trim(),
+        note: form.note.trim(),
+        status: form.status,
+        controlsProductQuality: form.controlsProductQuality === 'YES',
+        specialCharacteristicImpact: form.specialCharacteristicImpact === 'YES',
+        stopsProduction: form.stopsProduction === 'YES',
+        hasBackup: form.hasBackup === 'YES',
+        capacityImpact: form.capacityImpact === 'YES',
+      })
+
+      if (photoUri) {
+        try {
+          await uploadEquipmentPhoto(result.equipmentId, photoUri)
+        } catch (photoError) {
+          const detail = photoError instanceof Error ? photoError.message : 'Không tải được ảnh.'
+          setSaveError(`Thiết bị ${result.equipmentId} đã được tạo nhưng ảnh chưa tải lên: ${detail}`)
+          return
+        }
+      }
+
+      const message = `${result.equipmentId} · Criticality ${result.criticality || '—'}`
+      setSaveMessage(message)
+      Alert.alert('Đã tạo thiết bị', message)
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Không thể tạo thiết bị.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -344,7 +407,7 @@ function RegistrationScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Quay lại"
-              onPress={() => step > 0 ? setStep(step - 1) : Alert.alert('Thêm thiết bị', 'Đây là màn đăng ký thiết bị native của CEV CMMS.')}
+              onPress={() => step > 0 ? setStep(step - 1) : Alert.alert('Tài khoản', 'Bạn muốn đăng xuất khỏi CEV CMMS?', [{ text: 'Hủy', style: 'cancel' }, { text: 'Đăng xuất', style: 'destructive', onPress: onSignOut }])}
               style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             >
               <Ionicons name="chevron-back" size={22} color="#101828" />
@@ -501,6 +564,19 @@ function RegistrationScreen() {
                   <Field icon="create-outline" label="Ghi chú" value={form.note} onChangeText={(value) => patch('note', value)} placeholder="Thông tin cần lưu cho lần đăng ký đầu tiên" multiline />
                 </SectionCard>
 
+                {saveError ? (
+                  <View style={styles.saveError}>
+                    <Ionicons name="alert-circle" size={19} color="#B42318" />
+                    <Text style={styles.saveErrorText}>{saveError}</Text>
+                  </View>
+                ) : null}
+                {saveMessage ? (
+                  <View style={styles.saveSuccess}>
+                    <Ionicons name="checkmark-circle" size={19} color="#067647" />
+                    <Text style={styles.saveSuccessText}>{saveMessage}</Text>
+                  </View>
+                ) : null}
+
                 <View style={styles.reviewCard}>
                   <View style={styles.reviewHeader}>
                     <View>
@@ -531,17 +607,18 @@ function RegistrationScreen() {
               </Pressable>
             ) : null}
             <Pressable
-              disabled={!stepValid}
+              disabled={!stepValid || saving}
               onPress={() => step < STEPS.length - 1 ? setStep(step + 1) : submitUi()}
               style={({ pressed }) => [
                 styles.primaryAction,
                 step === 0 && styles.primaryActionFull,
-                !stepValid && styles.primaryActionDisabled,
-                pressed && stepValid && styles.primaryActionPressed,
+                (!stepValid || saving) && styles.primaryActionDisabled,
+                pressed && stepValid && !saving && styles.primaryActionPressed,
               ]}
             >
-              <Text style={styles.primaryActionText}>{step < STEPS.length - 1 ? 'Tiếp tục' : 'Lưu thiết bị'}</Text>
-              <Ionicons name={step < STEPS.length - 1 ? 'arrow-forward' : 'checkmark'} size={19} color="#FFFFFF" />
+              {saving ? <ActivityIndicator size="small" color="#FFFFFF" /> : null}
+              <Text style={styles.primaryActionText}>{step < STEPS.length - 1 ? 'Tiếp tục' : saving ? 'Đang lưu...' : 'Lưu thiết bị'}</Text>
+              {!saving ? <Ionicons name={step < STEPS.length - 1 ? 'arrow-forward' : 'checkmark'} size={19} color="#FFFFFF" /> : null}
             </Pressable>
           </View>
         </KeyboardAvoidingView>
@@ -578,10 +655,81 @@ function RegistrationScreen() {
   )
 }
 
+function LoginScreen() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  async function signIn() {
+    if (!mobileSupabaseConfigured) {
+      setError('Chưa cấu hình Supabase cho mobile.')
+      return
+    }
+    if (!email.trim() || !password) {
+      setError('Nhập email và mật khẩu.')
+      return
+    }
+
+    setSubmitting(true)
+    setError('')
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+    if (authError) setError(authError.message)
+    setSubmitting(false)
+  }
+
+  return (
+    <SafeAreaView style={styles.loginSafeArea} edges={['top', 'bottom']}>
+      <StatusBar style="dark" />
+      <KeyboardAvoidingView style={styles.loginBody} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.loginBrand}>
+          <View style={styles.loginLogo}><Ionicons name="construct" size={28} color="#FFFFFF" /></View>
+          <Text style={styles.loginEyebrow}>CORE ELECTRONICS VIETNAM</Text>
+          <Text style={styles.loginTitle}>CEV CMMS</Text>
+          <Text style={styles.loginSubtitle}>Đăng nhập bằng tài khoản hệ thống hiện có.</Text>
+        </View>
+        <View style={styles.loginCard}>
+          <Field icon="mail-outline" label="Email" value={email} onChangeText={setEmail} placeholder="name@company.com" required />
+          <Field icon="lock-closed-outline" label="Mật khẩu" value={password} onChangeText={setPassword} placeholder="Mật khẩu" required secureTextEntry />
+          {error ? <Text style={styles.loginError}>{error}</Text> : null}
+          <Pressable
+            disabled={submitting}
+            onPress={signIn}
+            style={({ pressed }) => [styles.loginButton, submitting && styles.primaryActionDisabled, pressed && !submitting && styles.primaryActionPressed]}
+          >
+            {submitting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name="log-in-outline" size={19} color="#FFFFFF" />}
+            <Text style={styles.loginButtonText}>{submitting ? 'Đang đăng nhập...' : 'Đăng nhập'}</Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  )
+}
+
+function MobileApp() {
+  const [session, setSession] = useState<Session | null | undefined>(undefined)
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession))
+    return () => data.subscription.unsubscribe()
+  }, [])
+
+  if (session === undefined) {
+    return <View style={styles.loadingScreen}><ActivityIndicator size="large" color="#155EEF" /></View>
+  }
+
+  if (!session) return <LoginScreen />
+  return <RegistrationScreen onSignOut={() => { void supabase.auth.signOut() }} />
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
-      <RegistrationScreen />
+      <MobileApp />
     </SafeAreaProvider>
   )
 }
@@ -690,6 +838,10 @@ const styles = StyleSheet.create({
   answerText: { fontSize: 12, fontWeight: '800', color: '#667085' },
   answerTextYes: { color: '#067647' },
   answerTextNo: { color: '#B42318' },
+  saveError: { marginBottom: 12, padding: 13, borderRadius: 14, borderWidth: 1, borderColor: '#FECDCA', flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#FEF3F2' },
+  saveErrorText: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '700', color: '#B42318' },
+  saveSuccess: { marginBottom: 12, padding: 13, borderRadius: 14, borderWidth: 1, borderColor: '#ABEFC6', flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#ECFDF3' },
+  saveSuccessText: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '800', color: '#067647' },
   reviewCard: { marginBottom: 8, padding: 17, borderRadius: 20, borderWidth: 1, borderColor: '#EAECF0', backgroundColor: '#FFFFFF' },
   reviewHeader: { flexDirection: 'row', gap: 12, alignItems: 'center', justifyContent: 'space-between' },
   reviewEyebrow: { fontSize: 9.5, fontWeight: '900', letterSpacing: 1.1, color: '#667085' },
@@ -712,6 +864,18 @@ const styles = StyleSheet.create({
   primaryActionDisabled: { backgroundColor: '#B2CCFF', shadowOpacity: 0, elevation: 0 },
   primaryActionPressed: { backgroundColor: '#004EEB', transform: [{ scale: 0.99 }] },
   primaryActionText: { fontSize: 14, fontWeight: '900', color: '#FFFFFF' },
+  loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F8FA' },
+  loginSafeArea: { flex: 1, backgroundColor: '#F3F5F7' },
+  loginBody: { flex: 1, justifyContent: 'center', paddingHorizontal: 22, paddingVertical: 28 },
+  loginBrand: { alignItems: 'center', marginBottom: 24 },
+  loginLogo: { width: 58, height: 58, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#101828' },
+  loginEyebrow: { marginTop: 17, fontSize: 9.5, fontWeight: '900', letterSpacing: 1.2, color: '#667085' },
+  loginTitle: { marginTop: 5, fontSize: 29, fontWeight: '900', color: '#101828' },
+  loginSubtitle: { marginTop: 6, textAlign: 'center', fontSize: 13, color: '#667085' },
+  loginCard: { width: '100%', maxWidth: 460, alignSelf: 'center', padding: 18, borderRadius: 22, borderWidth: 1, borderColor: '#EAECF0', backgroundColor: '#FFFFFF' },
+  loginError: { marginBottom: 12, fontSize: 12, lineHeight: 17, fontWeight: '700', color: '#B42318' },
+  loginButton: { minHeight: 52, borderRadius: 15, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
+  loginButtonText: { fontSize: 14, fontWeight: '900', color: '#FFFFFF' },
   cameraModal: { flex: 1, backgroundColor: '#000000' },
   cameraHeader: { minHeight: 60, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#101828' },
   cameraClose: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1D2939' },
