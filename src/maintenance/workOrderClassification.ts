@@ -15,6 +15,17 @@ export type WorkOrderKind =
   | 'MANUAL'
   | 'UNKNOWN'
 
+export const WORK_ORDER_SOURCE_TYPE = {
+  MANUAL: 'MANUAL',
+  INSPECTION: 'DAILY_INSPECTION',
+  PREVENTIVE_PLAN: 'PM',
+  REQUEST: 'REQUEST',
+  EQUIPMENT_PROFILE: 'QR_PROFILE',
+  LEGACY_IMPORT: 'LEGACY_IMPORT',
+} as const
+
+export type WorkOrderCreateSourceType = typeof WORK_ORDER_SOURCE_TYPE[keyof typeof WORK_ORDER_SOURCE_TYPE]
+
 export type WorkOrderClassificationInput = {
   sourceType?: string | null
   planClassification?: string | null
@@ -31,17 +42,25 @@ function normalized(value: string | null | undefined) {
   return String(value || '').trim().toUpperCase()
 }
 
-export function classifyWorkOrder(input: WorkOrderClassificationInput): WorkOrderClassification {
-  const sourceType = normalized(input.sourceType)
-  const planClassification = normalized(input.planClassification)
+const SOURCE_FAMILY_BY_TYPE: Record<string, WorkOrderSourceFamily> = {
+  MANUAL: 'MANUAL',
+  DAILY_INSPECTION: 'INSPECTION',
+  INSPECTION: 'INSPECTION',
+  PREVENTIVE_PLAN: 'PREVENTIVE_PLAN',
+  PM: 'PREVENTIVE_PLAN',
+  REQUEST: 'REQUEST',
+  EQUIPMENT_PROFILE: 'EQUIPMENT_PROFILE',
+  QR_PROFILE: 'EQUIPMENT_PROFILE',
+  LEGACY_IMPORT: 'LEGACY_IMPORT',
+}
 
-  let sourceFamily: WorkOrderSourceFamily = 'UNKNOWN'
-  if (sourceType === 'MANUAL') sourceFamily = 'MANUAL'
-  else if (sourceType === 'DAILY_INSPECTION' || sourceType === 'INSPECTION') sourceFamily = 'INSPECTION'
-  else if (sourceType === 'PM') sourceFamily = 'PREVENTIVE_PLAN'
-  else if (sourceType === 'REQUEST') sourceFamily = 'REQUEST'
-  else if (sourceType === 'QR_PROFILE') sourceFamily = 'EQUIPMENT_PROFILE'
-  else if (sourceType === 'LEGACY_IMPORT') sourceFamily = 'LEGACY_IMPORT'
+export function normalizeWorkOrderSourceFamily(sourceType: string | null | undefined): WorkOrderSourceFamily {
+  return SOURCE_FAMILY_BY_TYPE[normalized(sourceType)] || 'UNKNOWN'
+}
+
+export function classifyWorkOrder(input: WorkOrderClassificationInput): WorkOrderClassification {
+  const sourceFamily = normalizeWorkOrderSourceFamily(input.sourceType)
+  const planClassification = normalized(input.planClassification)
 
   if (input.hasDowntime || input.equipmentStopped) return { sourceFamily, kind: 'BREAKDOWN' }
   if (sourceFamily === 'INSPECTION') return { sourceFamily, kind: 'INSPECTION_GENERATED' }
