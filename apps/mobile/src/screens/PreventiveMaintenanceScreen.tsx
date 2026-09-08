@@ -1,0 +1,2 @@
+import { ModulePreviewScreen } from './ModulePreviewScreen'
+export function PreventiveMaintenanceScreen({ onBack }: { onBack: () => void }) { return <ModulePreviewScreen title="Bảo trì định kỳ" hint="Tìm kế hoạch bảo trì..." onBack={onBack} items={[{title:'Kiểm tra máy nén khí',subtitle:'Hàng tuần • Sắp đến hạn',icon:'calendar-outline',color:'#155EEF'},{title:'Bôi trơn dây chuyền A',subtitle:'Hàng tháng • Đang hoạt động',icon:'construct-outline',color:'#12B76A'},{title:'Hiệu chuẩn thiết bị đo',subtitle:'Hàng quý • Chưa bắt đầu',icon:'settings-outline',color:'#F79009'}]} /> }
