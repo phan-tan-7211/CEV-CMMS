@@ -1,0 +1,2 @@
+import { ModulePreviewScreen } from './ModulePreviewScreen'
+export function MetersScreen({ onBack }: { onBack: () => void }) { return <ModulePreviewScreen title="Đồng hồ đo" hint="Tìm đồng hồ đo..." onBack={onBack} items={[{title:'Giờ vận hành',subtitle:'Thiết bị • Cập nhật hôm nay',icon:'speedometer-outline',color:'#E31B54'},{title:'Nhiệt độ',subtitle:'Thiết bị • °C',icon:'thermometer-outline',color:'#F79009'},{title:'Số chu kỳ',subtitle:'Thiết bị • Đang theo dõi',icon:'analytics-outline',color:'#155EEF'}]} /> }
