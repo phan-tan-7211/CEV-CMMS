@@ -8,6 +8,9 @@ import { type LiveSession } from './data/liveAudit'
 import { AuthGate } from './auth/AuthGate'
 import { PwaStatus } from './PwaStatus'
 import { DesktopSidebar } from './DesktopSidebar'
+import { AccountMenu } from './AccountMenu'
+import { AccountPreferences } from './AccountPreferences'
+import { NotificationCenter } from './NotificationCenter'
 
 const A4PrintCenter = lazy(() => import('./A4PrintCenter').then((module) => ({ default: module.A4PrintCenter })))
 const LiveAuditPanel = lazy(() => import('./LiveAuditPanel').then((module) => ({ default: module.LiveAuditPanel })))
@@ -136,6 +139,7 @@ function AppWorkspace({ session, signOut }: { session: LiveSession; signOut: () 
   const [equipmentTarget, setEquipmentTarget] = useState(initialEquipmentTarget)
   const [returnEquipmentId, setReturnEquipmentId] = useState('')
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
+  const [preferenceMode, setPreferenceMode] = useState<'cookie' | 'notifications' | null>(null)
   const sessionEmail = session.email
 
   const markVisited = useCallback((nextView: View) => {
@@ -231,12 +235,20 @@ function AppWorkspace({ session, signOut }: { session: LiveSession; signOut: () 
       <a className="skip-link" href="#main-content">Bỏ qua điều hướng</a>
       <DesktopSidebar items={visibleNav} currentView={view} roleLabel={ROLE_LABEL[role]} email={sessionEmail || ''} onNavigate={openView} onSignOut={() => void signOut()} />
       <div className="app-body">
+        <header className="workspace-topbar">
+          <div><p className="eyebrow">CEV CMMS · UpKeep workspace</p><h1>{NAV.find((item) => item.id === view)?.label || 'Tổng quan'}</h1></div>
+          <div className="workspace-topbar-actions">
+            <NotificationCenter />
+            <AccountMenu email={sessionEmail || ''} role={role} signOut={signOut} onProfile={() => openView('settings')} onCompanyProfile={() => openView('organization')} onCookieSettings={() => setPreferenceMode('cookie')} onNotificationSettings={() => setPreferenceMode('notifications')} />
+          </div>
+        </header>
         <main id="main-content" className={`main-content${view === 'equipment' ? ' equipment-main' : ''}`} tabIndex={-1}>
           {returnEquipmentId && view !== 'equipment' ? <div className="equipment-context-nav"><button type="button" onClick={backToEquipmentContext}>← Trở về {returnEquipmentId}</button><span>Đang làm việc trong ngữ cảnh thiết bị {returnEquipmentId}</span></div> : null}
           {mountedViews.map((item) => <section key={item.id} hidden={item.id !== view} aria-hidden={item.id !== view} className="workspace-keepalive-pane"><AppErrorBoundary><Suspense fallback={<div className="workspace-loading" role="status">Đang mở chức năng…</div>}><LiveView view={item.id} equipmentTarget={item.id === 'equipment' && view === 'equipment' ? equipmentTarget : ''} contextEquipmentId={item.id === view ? returnEquipmentId : ''} onOpenEquipment={openEquipmentFromQr} onCloseQrResult={closeQrResult} onEditQrResult={editQrResult} onNavigate={openView} /></Suspense></AppErrorBoundary></section>)}
         </main>
       </div>
     </div>
+    <AccountPreferences mode={preferenceMode} onClose={() => setPreferenceMode(null)} />
     {createPortal(mobileNav, document.body)}
   </AppRoleProvider>
 }
