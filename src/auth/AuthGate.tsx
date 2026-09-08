@@ -105,7 +105,7 @@ export function AuthGate({ children }: { children: (session: LiveSession, signOu
   if (state.status === 'recovery') return <PasswordRecovery onClose={() => { clearPasswordReset(); setError(''); setState({ status: 'loading' }); setRetry(value => value + 1) }}/>
 
   if (state.status === 'ready' && state.session) return <>{error && <p className="auth-notice" role="alert">{error}</p>}{children(state.session, signOut)}</>
-  return <main className="auth-page"><section className="auth-card" aria-label="Đăng nhập CEV Equipment"><p className="eyebrow">CEV Equipment · IATF 16949</p><h1>Đăng nhập</h1>
+  return <main className="auth-page"><section className="auth-card" aria-label="Đăng nhập CEV CMMS"><p className="eyebrow">CEV CMMS</p><h1>Đăng nhập</h1>
     {state.status === 'loading' ? <p role="status">Đang xác nhận phiên đăng nhập…</p> : <>
       {error && <p className="auth-error" role="alert">{error}</p>}
       {state.status === 'denied' ? <div className="auth-actions"><button type="button" onClick={() => setRetry(value => value + 1)}>Thử lại</button><button type="button" disabled={busy} onClick={() => void signOut()}>Đăng xuất</button></div> : <form onSubmit={signIn}>
