@@ -15,6 +15,7 @@ export function ScanAssetScreen({
   onOpenPendingWorkOrders,
   onOpenPendingRequests,
   onOpenCompletedWorkOrders,
+  onCreateAsset,
   isOperatorFlow = false,
 }: {
   onBack: () => void
@@ -23,6 +24,7 @@ export function ScanAssetScreen({
   onOpenPendingWorkOrders: (equipmentId: string) => void
   onOpenPendingRequests: (equipmentId: string) => void
   onOpenCompletedWorkOrders: (equipmentId: string) => void
+  onCreateAsset: (code: string) => void
   isOperatorFlow?: boolean
 }) {
   const [manualCode, setManualCode] = useState('')
@@ -154,6 +156,7 @@ export function ScanAssetScreen({
           result={result}
           onDismiss={closeResult}
           onRescan={rescan}
+          onCreateAsset={onCreateAsset}
           onOpenAsset={onOpenEquipment}
           onOpenHierarchy={onOpenHierarchy}
           onOpenPendingWorkOrders={onOpenPendingWorkOrders}

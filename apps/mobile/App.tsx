@@ -298,9 +298,9 @@ function StepProgress({ step }: { step: number }) {
   )
 }
 
-export function RegistrationScreen({ onBack }: { onBack: () => void }) {
+export function RegistrationScreen({ onBack, initialBarcode = '', onCreated }: { onBack: () => void; initialBarcode?: string; onCreated?: (equipmentId: string) => void }) {
   const [step, setStep] = useState(0)
-  const [form, setForm] = useState<EquipmentDraft>(INITIAL)
+  const [form, setForm] = useState<EquipmentDraft>(() => ({ ...INITIAL, serialNumber: initialBarcode.trim() }))
   const [photoUri, setPhotoUri] = useState<string | null>(null)
   const [cameraOpen, setCameraOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -475,13 +475,13 @@ export function RegistrationScreen({ onBack }: { onBack: () => void }) {
 
       if (result.photoError) {
         setSaveError(`Thiết bị ${result.equipmentId} đã được tạo nhưng ảnh chưa tải lên: ${result.photoError}`)
-        return
       }
 
       rememberSubmittedSuggestions()
       const message = `${result.equipmentId} · Criticality ${result.criticality || '—'}`
       setSaveMessage(message)
-      Alert.alert('Đã tạo thiết bị', message)
+      if (onCreated) onCreated(result.equipmentId)
+      else Alert.alert('Đã tạo thiết bị', message)
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Không thể tạo thiết bị.')
     } finally {
