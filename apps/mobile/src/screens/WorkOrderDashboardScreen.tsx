@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
@@ -31,6 +31,8 @@ export function WorkOrderDashboardScreen({
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [visibleFilters, setVisibleFilters] = useState<WorkOrderDashboardFilter[]>(['due-today', 'high-priority', 'overdue', 'open', 'in-progress', 'pm', 'completed', 'all'])
 
   useEffect(() => {
     let mounted = true
@@ -79,35 +81,60 @@ export function WorkOrderDashboardScreen({
     { filter: 'all', label: 'Tất cả Work Order', count: stats.all, icon: 'list-outline', hint: 'Mở toàn bộ danh sách' },
   ]
 
+  function toggleCard(filter: WorkOrderDashboardFilter, enabled: boolean) {
+    setVisibleFilters((current) => enabled ? (current.includes(filter) ? current : [...current, filter]) : current.filter((value) => value !== filter))
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Pressable onPress={onBack} hitSlop={8} style={styles.iconButton}><Ionicons name="arrow-back" size={23} color="#344054" /></Pressable>
-        <View style={styles.headerCopy}><Text style={styles.title}>Bảng điều khiển Work Order</Text><Text style={styles.subtitle}>Tổng quan công việc bảo trì</Text></View>
-        <Pressable onPress={() => void refresh()} hitSlop={8} style={styles.iconButton}><Ionicons name="refresh-outline" size={22} color="#667085" /></Pressable>
+        <View style={styles.headerCopy}><Text style={styles.title}>Bảng điều khiển Work Order</Text><Text style={styles.subtitle}>{editing ? 'Chỉnh sửa dashboard' : 'Tổng quan công việc bảo trì'}</Text></View>
+        <Pressable onPress={() => setEditing((value) => !value)} hitSlop={8} style={styles.iconButton}><Ionicons name={editing ? 'checkmark-outline' : 'options-outline'} size={22} color="#155EEF" /></Pressable>
       </View>
-      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="#155EEF" />} contentContainerStyle={styles.content}>
+      <ScrollView refreshControl={!editing ? <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="#155EEF" /> : undefined} contentContainerStyle={styles.content}>
         {error ? <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View> : null}
         {loading && items.length === 0 ? <View style={styles.loading}><ActivityIndicator size="large" color="#155EEF" /></View> : null}
-        <View style={styles.hero}>
-          <Text style={styles.heroLabel}>WORK ORDER ĐANG HOẠT ĐỘNG</Text>
-          <Text style={styles.heroValue}>{stats.open + stats.inProgress}</Text>
-          <Text style={styles.heroHint}>OPEN + IN PROGRESS</Text>
-        </View>
-        <View style={styles.grid}>
-          {cards.map((card) => (
-            <Pressable key={card.filter} onPress={() => onOpenList(card.filter)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-              <View style={styles.cardIcon}><Ionicons name={card.icon} size={22} color="#155EEF" /></View>
-              <Text style={styles.cardCount}>{card.count}</Text>
-              <Text style={styles.cardLabel}>{card.label}</Text>
-              <Text style={styles.cardHint}>{card.hint}</Text>
+
+        {editing ? (
+          <View style={styles.editPanel}>
+            <Text style={styles.editHeading}>Edit Dashboard</Text>
+            <Text style={styles.editDescription}>Chọn các card muốn hiển thị. Thay đổi được giữ trong phiên kiểm thử hiện tại.</Text>
+            {cards.map((card) => {
+              const enabled = visibleFilters.includes(card.filter)
+              return (
+                <View key={card.filter} style={styles.editRow}>
+                  <View style={styles.editIcon}><Ionicons name={card.icon} size={19} color="#475467" /></View>
+                  <View style={styles.editText}><Text style={styles.editLabel}>{card.label}</Text><Text style={styles.editHint}>{card.hint}</Text></View>
+                  <Switch value={enabled} onValueChange={(value) => toggleCard(card.filter, value)} trackColor={{ false: '#D0D5DD', true: '#84ADFF' }} thumbColor={enabled ? '#155EEF' : '#F2F4F7'} />
+                </View>
+              )
+            })}
+          </View>
+        ) : (
+          <>
+            <View style={styles.hero}>
+              <Text style={styles.heroLabel}>WORK ORDER ĐANG HOẠT ĐỘNG</Text>
+              <Text style={styles.heroValue}>{stats.open + stats.inProgress}</Text>
+              <Text style={styles.heroHint}>OPEN + IN PROGRESS</Text>
+            </View>
+            <View style={styles.grid}>
+              {cards.filter((card) => visibleFilters.includes(card.filter)).map((card) => (
+                <Pressable key={card.filter} onPress={() => onOpenList(card.filter)} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+                  <View style={styles.cardIcon}><Ionicons name={card.icon} size={22} color="#155EEF" /></View>
+                  <Text style={styles.cardCount}>{card.count}</Text>
+                  <Text style={styles.cardLabel}>{card.label}</Text>
+                  <Text style={styles.cardHint}>{card.hint}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable onPress={() => setEditing(true)} style={({ pressed }) => [styles.editNote, pressed && styles.pressed]}>
+              <Ionicons name="options-outline" size={20} color="#475467" />
+              <View style={styles.editCopy}><Text style={styles.editTitle}>Edit Dashboard</Text><Text style={styles.editHintBottom}>Chọn All Work Orders hoặc custom các card cần theo dõi.</Text></View>
+              <Ionicons name="chevron-forward" size={20} color="#98A2B3" />
             </Pressable>
-          ))}
-        </View>
-        <View style={styles.editNote}>
-          <Ionicons name="options-outline" size={20} color="#475467" />
-          <View style={styles.editCopy}><Text style={styles.editTitle}>Edit Dashboard</Text><Text style={styles.editHint}>Các card dùng dữ liệu Work Order thật; thứ tự dashboard sẽ được giữ ổn định cho CEV.</Text></View>
-        </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   )
@@ -135,8 +162,16 @@ const styles = StyleSheet.create({
   cardCount: { marginTop: 13, fontSize: 28, fontWeight: '900', color: '#101828' },
   cardLabel: { marginTop: 3, fontSize: 13.5, lineHeight: 18, fontWeight: '900', color: '#344054' },
   cardHint: { marginTop: 5, fontSize: 10.5, lineHeight: 14, color: '#98A2B3' },
-  editNote: { marginTop: 14, padding: 15, flexDirection: 'row', gap: 11, borderRadius: 16, backgroundColor: '#FFFFFF' },
+  editNote: { marginTop: 14, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 16, backgroundColor: '#FFFFFF' },
   editCopy: { flex: 1 },
   editTitle: { fontSize: 13.5, fontWeight: '900', color: '#344054' },
-  editHint: { marginTop: 3, fontSize: 11.5, lineHeight: 16, color: '#667085' },
+  editHintBottom: { marginTop: 3, fontSize: 11.5, lineHeight: 16, color: '#667085' },
+  editPanel: { borderRadius: 18, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: '#E1E1EA', backgroundColor: '#FFFFFF' },
+  editHeading: { paddingHorizontal: 16, paddingTop: 16, fontSize: 18, fontWeight: '900', color: '#101828' },
+  editDescription: { paddingHorizontal: 16, paddingTop: 5, paddingBottom: 10, fontSize: 11.5, lineHeight: 16, color: '#667085' },
+  editRow: { minHeight: 66, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EAECF0' },
+  editIcon: { width: 36, height: 36, marginRight: 11, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2F4F7' },
+  editText: { flex: 1, minWidth: 0, paddingRight: 8 },
+  editLabel: { fontSize: 13.5, fontWeight: '800', color: '#344054' },
+  editHint: { marginTop: 2, fontSize: 10.5, color: '#98A2B3' },
 })
