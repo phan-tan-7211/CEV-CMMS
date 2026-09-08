@@ -1,3 +1,4 @@
+import type { Header } from '@tanstack/react-table'
 import { EquipmentInlineCell } from '../../components/EquipmentInlineCell'
 import type { LiveEquipment } from '../../data/liveEquipment'
 import {
@@ -12,12 +13,12 @@ import {
 
 type EquipmentPanelController = ReturnType<typeof useEquipmentPanelController>
 
-export function EquipmentTableHeaderCell({ controller: c, column }: { controller: EquipmentPanelController; column: ColumnDef }) {
+export function EquipmentTableHeaderCell({ controller: c, column, header }: { controller: EquipmentPanelController; column: ColumnDef; header: Header<LiveEquipment, unknown> }) {
   const selected = c.columnFilters[column.key] || []
   const options = c.filterOptions(column.key).filter((value) => value.toLocaleLowerCase().includes(c.filterSearch.toLocaleLowerCase()))
   const active = c.sortKey === column.key
 
-  return <th className="equipment-sheet-head" style={{ width: c.columnWidths[column.key] }} aria-sort={active ? (c.sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+  return <th className="equipment-sheet-head" style={{ width: header.getSize() }} aria-sort={active ? (c.sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
     <div className="equipment-sheet-head-main">
       <button className={`equipment-sort${active ? ' active' : ''}`} type="button" onClick={() => c.toggleSort(column.key)}>
         {column.label}<span aria-hidden="true">{active ? (c.sortDirection === 'asc' ? '▲' : '▼') : '↕'}</span>
