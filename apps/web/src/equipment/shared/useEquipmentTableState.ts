@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LiveEquipment } from '../../data/liveEquipment'
 import {
   COLUMN_STORAGE_KEY,
@@ -28,6 +28,7 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(loadVisibleColumns)
   const [columnWidths, setColumnWidths] = useState<Partial<Record<ColumnKey, number>>>(loadColumnWidths)
+  const columnWidthsRef = useRef(columnWidths)
   const [columnPickerOpen, setColumnPickerOpen] = useState(false)
   const [filterColumn, setFilterColumn] = useState<ColumnKey | null>(null)
   const [filterSearch, setFilterSearch] = useState('')
@@ -37,10 +38,6 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
   useEffect(() => {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleColumns))
   }, [visibleColumns])
-
-  useEffect(() => {
-    localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(columnWidths))
-  }, [columnWidths])
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
@@ -89,20 +86,40 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
   }
 
   function resizeColumn(key: ColumnKey, startX: number) {
-    const startWidth = columnWidths[key] || 150
-    const onMove = (event: PointerEvent) => {
-      const nextWidth = Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, startWidth + event.clientX - startX))
-      setColumnWidths((current) => ({ ...current, [key]: nextWidth }))
+    const startWidth = columnWidthsRef.current[key] || 150
+    let latestWidth = startWidth
+    let frame = 0
+
+    const publish = () => {
+      frame = 0
+      setColumnWidths((current) => ({ ...current, [key]: latestWidth }))
     }
+
+    const onMove = (event: PointerEvent) => {
+      latestWidth = Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, startWidth + event.clientX - startX))
+      columnWidthsRef.current = { ...columnWidthsRef.current, [key]: latestWidth }
+      if (!frame) frame = window.requestAnimationFrame(publish)
+    }
+
     const onUp = () => {
+      if (frame) window.cancelAnimationFrame(frame)
+      setColumnWidths((current) => ({ ...current, [key]: latestWidth }))
+      localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify({ ...columnWidthsRef.current, [key]: latestWidth }))
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
     }
+
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp, { once: true })
+    window.addEventListener('pointercancel', onUp, { once: true })
   }
 
-  function resetColumnWidths() { setColumnWidths({}) }
+  function resetColumnWidths() {
+    columnWidthsRef.current = {}
+    setColumnWidths({})
+    localStorage.removeItem(COLUMN_WIDTH_STORAGE_KEY)
+  }
 
   function toggleColumn(key: ColumnKey) {
     setVisibleColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])
