@@ -190,7 +190,10 @@ export function EquipmentListScreen({
       <View style={styles.header}>
         <Pressable onPress={onBack} hitSlop={8} style={styles.iconButton}><Ionicons name="chevron-back" size={25} color="#101828" /></Pressable>
         <Text style={styles.headerTitle}>Thiết bị</Text>
-        <View style={styles.headerActions}>\n          <Pressable accessibilityRole="button" accessibilityLabel="Quét mã thiết bị" onPress={onScan} hitSlop={8} style={styles.iconButton}><Ionicons name="scan-outline" size={23} color="#155EEF" /></Pressable>\n          <Pressable accessibilityRole="button" accessibilityLabel="Thêm thiết bị" onPress={onCreateEquipment} hitSlop={8} style={styles.iconButton}><Ionicons name="add" size={27} color="#155EEF" /></Pressable>\n        </View>
+        <View style={styles.headerActions}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Quét mã thiết bị" onPress={onScan} hitSlop={8} style={styles.iconButton}><Ionicons name="scan-outline" size={23} color="#155EEF" /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Thêm thiết bị" onPress={onCreateEquipment} hitSlop={8} style={styles.iconButton}><Ionicons name="add" size={27} color="#155EEF" /></Pressable>
+        </View>
       </View>
 
       <View style={styles.searchWrap}>
@@ -274,7 +277,8 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F8F9FB' },
   header: { minHeight: 58, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, fontWeight: '900', color: '#101828' },\n  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  headerTitle: { fontSize: 18, fontWeight: '900', color: '#101828' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   searchWrap: { minHeight: 46, marginHorizontal: 12, marginTop: 12, marginBottom: 9, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 23, borderWidth: 1, borderColor: '#E4E7EC', backgroundColor: '#FFFFFF' },
   searchInput: { flex: 1, minHeight: 44, fontSize: 14, color: '#101828' },
   filterToolsRow: { minHeight: 47, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF' },
