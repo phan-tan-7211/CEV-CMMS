@@ -40,6 +40,7 @@ type EquipmentMasterRow = {
   model: string | null
   manufacturer: string | null
   status: string | null
+  active: boolean | null
   source_data: Record<string, unknown> | null
   updated_at: string | null
 }
@@ -96,7 +97,7 @@ function mapRow(row: EquipmentMasterRow, imageUrl = ''): EquipmentDetail {
     category: readSourceText(source, 'equipmentCategory', 'category'),
     updatedAt: String(row.updated_at || ''),
     imageUrl,
-    archived: readSourceBoolean(source, 'archived', 'isArchived'),
+    archived: row.active === false || readSourceBoolean(source, 'archived', 'isArchived'),
     createdAt: readSourceText(source, 'createdAt', 'created_at', 'dateCreated', 'createdDate'),
     createdBy: readSourceText(source, 'createdBy', 'created_by', 'creator', 'createdByEmail'),
     responsiblePrimary,
@@ -116,8 +117,7 @@ function mapRow(row: EquipmentMasterRow, imageUrl = ''): EquipmentDetail {
 export async function listEquipment(limit = 500): Promise<EquipmentListItem[]> {
   const { data, error } = await supabase
     .from('equipment_master')
-    .select('equipment_id,equipment_name,model,manufacturer,status,source_data,updated_at')
-    .eq('active', true)
+    .select('equipment_id,equipment_name,model,manufacturer,status,active,source_data,updated_at')
     .order('updated_at', { ascending: false })
     .limit(limit)
 
@@ -131,7 +131,7 @@ export async function listEquipment(limit = 500): Promise<EquipmentListItem[]> {
 export async function getEquipmentDetail(equipmentId: string): Promise<EquipmentDetail> {
   const { data, error } = await supabase
     .from('equipment_master')
-    .select('equipment_id,equipment_name,model,manufacturer,status,source_data,updated_at')
+    .select('equipment_id,equipment_name,model,manufacturer,status,active,source_data,updated_at')
     .eq('equipment_id', equipmentId)
     .single()
 
