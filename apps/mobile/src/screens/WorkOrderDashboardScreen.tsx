@@ -9,15 +9,22 @@ import {
   subscribeWorkOrderList,
   type WorkOrderListItem,
 } from '../features/work-orders'
+import { loadSettingsBundle, saveDashboardPreference } from '../features/settings/api/settingsService'
 
 export type WorkOrderDashboardFilter = 'all' | 'open' | 'in-progress' | 'due-today' | 'high-priority' | 'overdue' | 'completed' | 'pm'
 
+const DEFAULT_FILTERS: WorkOrderDashboardFilter[] = ['due-today', 'high-priority', 'overdue', 'open', 'in-progress', 'pm', 'completed', 'all']
 function normalized(value: string) { return String(value || '').trim().toUpperCase() }
 function dayKey(value?: string) {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+}
+function asDashboardFilters(values: string[]) {
+  const allowed = new Set<WorkOrderDashboardFilter>(DEFAULT_FILTERS)
+  const next = values.filter((value): value is WorkOrderDashboardFilter => allowed.has(value as WorkOrderDashboardFilter))
+  return next.length ? next : DEFAULT_FILTERS
 }
 
 export function WorkOrderDashboardScreen({
@@ -32,7 +39,8 @@ export function WorkOrderDashboardScreen({
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(false)
-  const [visibleFilters, setVisibleFilters] = useState<WorkOrderDashboardFilter[]>(['due-today', 'high-priority', 'overdue', 'open', 'in-progress', 'pm', 'completed', 'all'])
+  const [visibleFilters, setVisibleFilters] = useState<WorkOrderDashboardFilter[]>(DEFAULT_FILTERS)
+  const [savingPreference, setSavingPreference] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -46,6 +54,16 @@ export function WorkOrderDashboardScreen({
       .catch((reason) => { if (mounted) setError(reason instanceof Error ? reason.message : 'Không tải được Work Order.') })
       .finally(() => { if (mounted) setLoading(false) })
     return () => { mounted = false; unsubscribe() }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    void loadSettingsBundle().then((bundle) => {
+      if (mounted) setVisibleFilters(asDashboardFilters(bundle.dashboard.visibleCards))
+    }).catch((reason) => {
+      if (mounted) setError(reason instanceof Error ? reason.message : 'Không tải được tùy chọn dashboard.')
+    })
+    return () => { mounted = false }
   }, [])
 
   const stats = useMemo(() => {
@@ -81,8 +99,18 @@ export function WorkOrderDashboardScreen({
     { filter: 'all', label: 'Tất cả Work Order', count: stats.all, icon: 'list-outline', hint: 'Mở toàn bộ danh sách' },
   ]
 
-  function toggleCard(filter: WorkOrderDashboardFilter, enabled: boolean) {
-    setVisibleFilters((current) => enabled ? (current.includes(filter) ? current : [...current, filter]) : current.filter((value) => value !== filter))
+  async function toggleCard(filter: WorkOrderDashboardFilter, enabled: boolean) {
+    if (savingPreference) return
+    const previous = visibleFilters
+    const next = enabled ? (previous.includes(filter) ? previous : [...previous, filter]) : previous.filter((value) => value !== filter)
+    setVisibleFilters(next)
+    setSavingPreference(true)
+    setError('')
+    try { await saveDashboardPreference(next, DEFAULT_FILTERS) }
+    catch (reason) {
+      setVisibleFilters(previous)
+      setError(reason instanceof Error ? reason.message : 'Không lưu được tùy chọn dashboard.')
+    } finally { setSavingPreference(false) }
   }
 
   return (
@@ -99,17 +127,18 @@ export function WorkOrderDashboardScreen({
         {editing ? (
           <View style={styles.editPanel}>
             <Text style={styles.editHeading}>Edit Dashboard</Text>
-            <Text style={styles.editDescription}>Chọn các card muốn hiển thị. Thay đổi được giữ trong phiên kiểm thử hiện tại.</Text>
+            <Text style={styles.editDescription}>Chọn các card muốn hiển thị. Tùy chọn được lưu theo tài khoản của bạn.</Text>
             {cards.map((card) => {
               const enabled = visibleFilters.includes(card.filter)
               return (
                 <View key={card.filter} style={styles.editRow}>
                   <View style={styles.editIcon}><Ionicons name={card.icon} size={19} color="#475467" /></View>
                   <View style={styles.editText}><Text style={styles.editLabel}>{card.label}</Text><Text style={styles.editHint}>{card.hint}</Text></View>
-                  <Switch value={enabled} onValueChange={(value) => toggleCard(card.filter, value)} trackColor={{ false: '#D0D5DD', true: '#84ADFF' }} thumbColor={enabled ? '#155EEF' : '#F2F4F7'} />
+                  <Switch disabled={savingPreference} value={enabled} onValueChange={(value) => void toggleCard(card.filter, value)} trackColor={{ false: '#D0D5DD', true: '#84ADFF' }} thumbColor={enabled ? '#155EEF' : '#F2F4F7'} />
                 </View>
               )
             })}
+            {savingPreference ? <View style={styles.savingRow}><ActivityIndicator size="small" /><Text style={styles.savingText}>Đang lưu...</Text></View> : null}
           </View>
         ) : (
           <>
@@ -130,7 +159,7 @@ export function WorkOrderDashboardScreen({
             </View>
             <Pressable onPress={() => setEditing(true)} style={({ pressed }) => [styles.editNote, pressed && styles.pressed]}>
               <Ionicons name="options-outline" size={20} color="#475467" />
-              <View style={styles.editCopy}><Text style={styles.editTitle}>Edit Dashboard</Text><Text style={styles.editHintBottom}>Chọn All Work Orders hoặc custom các card cần theo dõi.</Text></View>
+              <View style={styles.editCopy}><Text style={styles.editTitle}>Edit Dashboard</Text><Text style={styles.editHintBottom}>Chọn các card cần theo dõi; cấu hình được lưu theo tài khoản.</Text></View>
               <Ionicons name="chevron-forward" size={20} color="#98A2B3" />
             </Pressable>
           </>
@@ -174,4 +203,6 @@ const styles = StyleSheet.create({
   editText: { flex: 1, minWidth: 0, paddingRight: 8 },
   editLabel: { fontSize: 13.5, fontWeight: '800', color: '#344054' },
   editHint: { marginTop: 2, fontSize: 10.5, color: '#98A2B3' },
+  savingRow: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EAECF0' },
+  savingText: { fontSize: 11.5, color: '#667085' },
 })
