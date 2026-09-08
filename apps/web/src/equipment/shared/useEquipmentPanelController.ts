@@ -38,7 +38,7 @@ export function useEquipmentPanelController() {
 
   const {
     query,setQuery,sortKey,sortDirection,
-    visibleColumns,setVisibleColumns,columnPickerOpen,setColumnPickerOpen,
+    visibleColumns,setVisibleColumns,columnWidths,resizeColumn,resetColumnWidths,columnPickerOpen,setColumnPickerOpen,
     filterColumn,setFilterColumn,filterSearch,setFilterSearch,columnFilters,setColumnFilters,
     photoHover,setPhotoHover,activeFilterCount,sortedRows,
     toggleSort,toggleColumn,filterOptions,toggleFilterValue,clearFilter,
@@ -66,7 +66,7 @@ export function useEquipmentPanelController() {
   return {
     rows, photos, editing, setEditing, profileId, setProfileId, loading, error, message, uploadingId, deletingPhotoId, saving, deleting,
     query, setQuery, sortKey, sortDirection, bulkMode, setBulkMode, bulkSaving, inlineChanges, setInlineChanges,
-    visibleColumns, setVisibleColumns, columnPickerOpen, setColumnPickerOpen, filterColumn, setFilterColumn, filterSearch, setFilterSearch,
+    visibleColumns, setVisibleColumns, columnWidths, resizeColumn, resetColumnWidths, columnPickerOpen, setColumnPickerOpen, filterColumn, setFilterColumn, filterSearch, setFilterSearch,
     columnFilters, setColumnFilters, photoHover, setPhotoHover, masterSuggestions, editCriticality, activeFilterCount,
     sortedRows, productionCount, measurementCount, profileEquipment, dirtyCount, canBulkEdit,
     reloadEquipment, openPhotoHover, openEdit, toggleSort, toggleColumn, filterOptions, toggleFilterValue, clearFilter, setInlineCell,
