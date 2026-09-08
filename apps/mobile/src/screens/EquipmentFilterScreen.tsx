@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -90,12 +90,12 @@ function CheckRow({ label, value, onChange }: { label: string; value: boolean; o
   )
 }
 
-function SelectorRow({ label, selectedCount, onPress }: { label: string; selectedCount: number; onPress: () => void }) {
+function SelectorRow({ label, selectedValues, onPress }: { label: string; selectedValues: string[]; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.selectorRow}>
       <View style={styles.selectorCopy}>
         <Text style={styles.selectorLabel}>{label}</Text>
-        {selectedCount ? <Text style={styles.selectorValue}>{selectedCount} đã chọn</Text> : null}
+        {selectedValues.length ? <View style={styles.chipRow}>{selectedValues.slice(0, 4).map((value) => <View key={value} style={styles.chip}><Text style={styles.chipText} numberOfLines={1}>{value}</Text></View>)}{selectedValues.length > 4 ? <Text style={styles.moreCount}>+{selectedValues.length - 4}</Text> : null}</View> : null}
       </View>
       <Ionicons name="chevron-forward" size={23} color="#98A2B3" />
     </Pressable>
@@ -200,12 +200,13 @@ export function EquipmentFilterScreen({
         </View>
 
         <View style={styles.selectorGroup}>
-          <SelectorRow label="Vị trí" selectedCount={draft.locations.length} onPress={() => openPicker('locations')} />
-          <SelectorRow label="Người dùng chính" selectedCount={draft.primaryUsers.length} onPress={() => openPicker('primaryUsers')} />
-          <SelectorRow label="Người dùng được giao" selectedCount={draft.assignedUsers.length} onPress={() => openPicker('assignedUsers')} />
-          <SelectorRow label="Nhóm được giao" selectedCount={draft.assignedTeams.length} onPress={() => openPicker('assignedTeams')} />
-          <SelectorRow label="Nhà cung cấp được giao" selectedCount={draft.assignedVendors.length} onPress={() => openPicker('assignedVendors')} />
-          <SelectorRow label="Khách hàng được giao" selectedCount={draft.assignedCustomers.length} onPress={() => openPicker('assignedCustomers')} />
+          <SelectorRow label="Vị trí" selectedValues={draft.locations} onPress={() => openPicker('locations')} />
+          <SelectorRow label="Người dùng chính" selectedValues={draft.primaryUsers} onPress={() => openPicker('primaryUsers')} />
+          <Text style={styles.assignedHeading}>ĐƯỢC GIAO</Text>
+          <SelectorRow label="Người dùng được giao" selectedValues={draft.assignedUsers} onPress={() => openPicker('assignedUsers')} />
+          <SelectorRow label="Nhóm được giao" selectedValues={draft.assignedTeams} onPress={() => openPicker('assignedTeams')} />
+          <SelectorRow label="Nhà cung cấp được giao" selectedValues={draft.assignedVendors} onPress={() => openPicker('assignedVendors')} />
+          <SelectorRow label="Khách hàng được giao" selectedValues={draft.assignedCustomers} onPress={() => openPicker('assignedCustomers')} />
         </View>
 
         <Text style={styles.dateSectionLabel}>Ngày tạo</Text>
@@ -215,10 +216,7 @@ export function EquipmentFilterScreen({
           <DateCell label="Kết thúc" value={draft.createdEnd} onPress={() => setDateTarget('createdEnd')} onClear={() => patch({ createdEnd: '' })} />
         </View>
 
-        <View style={styles.switchHintRow}>
-          <View style={styles.switchHintCopy}><Text style={styles.switchHintTitle}>Giữ bộ lọc khi quay lại danh sách</Text><Text style={styles.switchHintText}>Bộ lọc chỉ áp dụng trong phiên màn hình Thiết bị hiện tại.</Text></View>
-          <Switch value onValueChange={() => undefined} disabled trackColor={{ false: '#D0D5DD', true: '#84ADFF' }} thumbColor="#155EEF" />
-        </View>
+        <Text style={styles.sessionNote}>Bộ lọc chỉ áp dụng trong phiên màn hình Thiết bị hiện tại.</Text>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -240,7 +238,7 @@ export function EquipmentFilterScreen({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  safeArea: { flex: 1, backgroundColor: '#F1F1FA' },
   header: { minHeight: 62, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0', backgroundColor: '#FFFFFF' },
   headerIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, fontSize: 22, lineHeight: 28, fontWeight: '900', color: '#101828' },
@@ -258,10 +256,14 @@ const styles = StyleSheet.create({
   checkboxChecked: { borderColor: '#155EEF', backgroundColor: '#155EEF' },
   checkLabel: { flex: 1, fontSize: 17, lineHeight: 22, color: '#1D2939' },
   selectorGroup: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0' },
-  selectorRow: { minHeight: 62, paddingHorizontal: 30, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0', backgroundColor: '#FFFFFF' },
+  selectorRow: { minHeight: 68, paddingHorizontal: 30, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0', backgroundColor: '#FFFFFF' },
   selectorCopy: { flex: 1, minWidth: 0 },
   selectorLabel: { fontSize: 17, color: '#1D2939' },
-  selectorValue: { marginTop: 3, fontSize: 12.5, fontWeight: '700', color: '#155EEF' },
+  chipRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  chip: { maxWidth: 130, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, backgroundColor: '#E9EDFF' },
+  chipText: { fontSize: 11, fontWeight: '800', color: '#344054' },
+  moreCount: { fontSize: 11.5, fontWeight: '900', color: '#155EEF' },
+  assignedHeading: { paddingHorizontal: 30, paddingTop: 18, paddingBottom: 7, fontSize: 12, fontWeight: '900', letterSpacing: .7, color: '#98A2B3', backgroundColor: '#FFFFFF' },
   dateSectionLabel: { paddingHorizontal: 48, paddingTop: 18, paddingBottom: 8, fontSize: 14.5, color: '#667085' },
   dateRow: { minHeight: 75, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#EAECF0' },
   dateCell: { flex: 1, minWidth: 0, paddingHorizontal: 30, flexDirection: 'row', alignItems: 'center' },
@@ -269,10 +271,7 @@ const styles = StyleSheet.create({
   dateCopy: { flex: 1, minWidth: 0 },
   dateLabel: { fontSize: 16, color: '#667085' },
   dateValue: { marginTop: 4, fontSize: 13, fontWeight: '800', color: '#101828' },
-  switchHintRow: { marginTop: 12, paddingHorizontal: 18, minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F9FAFB' },
-  switchHintCopy: { flex: 1 },
-  switchHintTitle: { fontSize: 13, fontWeight: '800', color: '#344054' },
-  switchHintText: { marginTop: 3, fontSize: 11.5, lineHeight: 16, color: '#667085' },
+  sessionNote: { marginTop: 12, paddingHorizontal: 18, paddingVertical: 14, fontSize: 11.5, lineHeight: 17, color: '#667085', backgroundColor: '#F9FAFB' },
   footer: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EAECF0', backgroundColor: '#FFFFFF' },
   applyButton: { minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
   applyText: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
