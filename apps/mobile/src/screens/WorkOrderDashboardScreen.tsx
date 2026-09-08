@@ -9,7 +9,7 @@ import {
   subscribeWorkOrderList,
   type WorkOrderListItem,
 } from '../features/work-orders'
-import { loadSettingsBundle, saveDashboardPreference } from '../features/settings/api/settingsService'
+import { loadSettingsBundle, saveDashboardPreference } from '../features/settings'
 
 export type WorkOrderDashboardFilter = 'all' | 'open' | 'in-progress' | 'due-today' | 'high-priority' | 'overdue' | 'completed' | 'pm'
 
