@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { getCoreRowModel, useReactTable, type ColumnDef as TanStackColumnDef, type ColumnSizingState } from '@tanstack/react-table'
 import type { LiveEquipment } from '../../data/liveEquipment'
 import {
+  COLUMNS,
   COLUMN_STORAGE_KEY,
   columnValue,
   includesQuery,
@@ -27,8 +29,22 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
   const [sortKey, setSortKey] = useState<ColumnKey>('equipmentId')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(loadVisibleColumns)
-  const [columnWidths, setColumnWidths] = useState<Partial<Record<ColumnKey, number>>>(loadColumnWidths)
-  const columnWidthsRef = useRef(columnWidths)
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(() => loadColumnWidths() as ColumnSizingState)
+  const columnWidths = columnSizing as Partial<Record<ColumnKey, number>>
+  const columnWidthsRef = useRef(columnSizing)
+  const tableColumns = useMemo<TanStackColumnDef<LiveEquipment>[]>(() => COLUMNS.map((column) => ({
+    id: column.key,
+    header: column.label,
+    accessorFn: (row) => columnValue(row, column.key),
+  })), [])
+  const table = useReactTable({
+    data: rows,
+    columns: tableColumns,
+    state: { columnSizing },
+    onColumnSizingChange: setColumnSizing,
+    columnResizeMode: 'onChange',
+    getCoreRowModel: getCoreRowModel(),
+  })
   const [columnPickerOpen, setColumnPickerOpen] = useState(false)
   const [filterColumn, setFilterColumn] = useState<ColumnKey | null>(null)
   const [filterSearch, setFilterSearch] = useState('')
@@ -92,7 +108,7 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
 
     const publish = () => {
       frame = 0
-      setColumnWidths((current) => ({ ...current, [key]: latestWidth }))
+      table.setColumnSizing((current) => ({ ...current, [key]: latestWidth }))
     }
 
     const onMove = (event: PointerEvent) => {
@@ -103,7 +119,7 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
 
     const onUp = () => {
       if (frame) window.cancelAnimationFrame(frame)
-      setColumnWidths((current) => ({ ...current, [key]: latestWidth }))
+      table.setColumnSizing((current) => ({ ...current, [key]: latestWidth }))
       localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify({ ...columnWidthsRef.current, [key]: latestWidth }))
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
@@ -117,7 +133,7 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
 
   function resetColumnWidths() {
     columnWidthsRef.current = {}
-    setColumnWidths({})
+    setColumnSizing({})
     localStorage.removeItem(COLUMN_WIDTH_STORAGE_KEY)
   }
 
