@@ -37,7 +37,7 @@ export async function barcodeSearch(code: string): Promise<ScanSearchCandidate[]
 }
 
 export async function loadRequestPortalSettings(): Promise<RequestPortalSettings> {
-  // No production Request Portal settings contract exists in CEV Mobile yet.
-  // Return an explicit disabled state rather than fabricating portal behavior.
-  return REQUEST_PORTAL_DISABLED
+  const { data, error } = await (await import('../../../lib/supabase/client')).supabase.from('request_portal_settings').select('enabled,can_create_work_order,can_create_request').eq('settings_id', 'DEFAULT').maybeSingle()
+  if (error || !data) return REQUEST_PORTAL_DISABLED
+  return { enabled: Boolean(data.enabled), canCreateWorkOrder: Boolean(data.can_create_work_order), canCreateRequest: Boolean(data.can_create_request) }
 }
