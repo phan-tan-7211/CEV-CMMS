@@ -13,6 +13,7 @@ import { PartInventoryScreen } from '../screens/PartInventoryScreen'
 import { PartsListScreen } from '../screens/PartsListScreen'
 import { PartFormScreen } from '../screens/PartFormScreen'
 import { CreateRequestScreen } from '../screens/CreateRequestScreen'
+import { RequestDetailScreen } from '../screens/RequestDetailScreen'
 import { HomeScreen } from '../screens/HomeScreen'
 import { LoginScreen } from '../screens/LoginScreen'
 import { MoreScreen } from '../screens/MoreScreen'
@@ -30,13 +31,14 @@ import {
 } from '../features/auth'
 import { revalidateEquipmentDetail } from '../features/equipment'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'work-orders' | 'work-order-detail' | 'requests' | 'request-detail' | 'more' | 'settings'
 
 type RouteEntry = {
   name: Route
   equipmentId?: string
   equipmentStatus?: string
   workOrderId?: string
+  requestId?: string
   operatorFlow?: boolean
   workOrderScope?: 'pending' | 'completed'
   barcode?: string
@@ -135,6 +137,7 @@ export function MobileShell() {
     [currentEntry.equipmentId, route],
   )
   const selectedWorkOrderId = route === 'work-order-detail' ? String(currentEntry.workOrderId || '') : ''
+  const selectedRequestId = route === 'request-detail' ? String(currentEntry.requestId || '') : ''
   const selectedPartId = String(currentEntry.partId || '')
   const scopedEquipmentId = String(currentEntry.equipmentId || '')
 
@@ -245,7 +248,8 @@ export function MobileShell() {
   if (route === 'work-order-detail' && selectedWorkOrderId) {
     return <WorkOrderDetailScreen workOrderId={selectedWorkOrderId} onBack={goBack} />
   }
-  if (route === 'requests') return <RequestsScreen onBack={goBack} equipmentId={scopedEquipmentId || undefined} />
+  if (route === 'requests') return <RequestsScreen onBack={goBack} equipmentId={scopedEquipmentId || undefined} onOpenRequest={(requestId) => navigate({ name: 'request-detail', requestId })} />
+  if (route === 'request-detail' && selectedRequestId) return <RequestDetailScreen requestId={selectedRequestId} onBack={goBack} />
   if (route === 'more') {
     return (
       <MoreScreen
