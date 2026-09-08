@@ -40,7 +40,7 @@ export function useEquipmentPanelController() {
     query,setQuery,sortKey,sortDirection,
     visibleColumns,setVisibleColumns,columnWidths,resizeColumn,resetColumnWidths,columnPickerOpen,setColumnPickerOpen,
     filterColumn,setFilterColumn,filterSearch,setFilterSearch,columnFilters,setColumnFilters,
-    photoHover,setPhotoHover,activeFilterCount,sortedRows,
+    photoHover,setPhotoHover,activeFilterCount,sortedRows,table,
     toggleSort,toggleColumn,filterOptions,toggleFilterValue,clearFilter,
   }=useEquipmentTableState(rows)
 
