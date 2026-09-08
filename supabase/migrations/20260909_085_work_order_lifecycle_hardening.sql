@@ -126,7 +126,7 @@ begin
         from public.cmms_work_order_checklist_item c
         where c.work_order_id = v_wo.work_order_id
           and c.required = true
-          and c.completed = false
+          and coalesce(c.completed,false) = false
       ) then
         raise exception 'REQUIRED_CHECKLIST_INCOMPLETE';
       end if;
