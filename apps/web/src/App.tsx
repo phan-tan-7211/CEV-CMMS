@@ -25,7 +25,7 @@ const LiveSparePartsAutoPanel = lazy(() => import('./LiveSparePartsAutoPanel').t
 const LiveToolingPanel = lazy(() => import('./LiveToolingPanel').then((module) => ({ default: module.LiveToolingPanel })))
 const OrgManagementPanel = lazy(() => import('./OrgManagementPanel').then((module) => ({ default: module.OrgManagementPanel })))
 
-type View = 'dashboard' | 'qr' | 'equipment' | 'inventory' | 'inspection' | 'maintenance' | 'spare' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
+type View = 'dashboard' | 'qr' | 'equipment' | 'inventory' | 'inspection' | 'work-orders' | 'maintenance' | 'spare' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
 
 const NAV: Array<{ id: View; label: string; adminOnly?: boolean }> = [
   { id: 'dashboard', label: 'Tổng quan' },
@@ -33,6 +33,7 @@ const NAV: Array<{ id: View; label: string; adminOnly?: boolean }> = [
   { id: 'equipment', label: 'Thiết bị' },
   { id: 'inventory', label: 'Kiểm kê thiết bị' },
   { id: 'inspection', label: 'Kiểm tra ngày' },
+  { id: 'work-orders', label: 'Work Orders' },
   { id: 'maintenance', label: 'Bảo trì' },
   { id: 'spare', label: 'Phụ tùng' },
   { id: 'tooling', label: 'Jig, gá & dụng cụ' },
@@ -60,7 +61,7 @@ const ROLE_LABEL: Record<AppRole, string> = {
 
 function initialView(): View {
   const requested = new URLSearchParams(window.location.search).get('phase3')
-  if (requested === 'qr' || requested === 'equipment' || requested === 'inventory' || requested === 'dashboard' || requested === 'inspection' || requested === 'maintenance' || requested === 'spare' || requested === 'tooling' || requested === 'calibration' || requested === 'print' || requested === 'organization') return requested
+  if (requested === 'qr' || requested === 'equipment' || requested === 'inventory' || requested === 'dashboard' || requested === 'inspection' || requested === 'work-orders' || requested === 'maintenance' || requested === 'spare' || requested === 'tooling' || requested === 'calibration' || requested === 'print' || requested === 'organization') return requested
   if (requested === 'audit') return 'settings'
   return 'dashboard'
 }
@@ -92,6 +93,7 @@ function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, 
   if (view === 'equipment') return <EquipmentWorkspace />
   if (view === 'inventory') return <LiveEquipmentInventoryPanel />
   if (view === 'inspection') return <LiveInspectionPanel />
+  if (view === 'work-orders') return <MaintenanceWorkspace equipmentId={contextEquipmentId} />
   if (view === 'maintenance') return <MaintenanceWorkspace equipmentId={contextEquipmentId} />
   if (view === 'spare') return <LiveSparePartsAutoPanel />
   if (view === 'tooling') return <LiveToolingPanel />
