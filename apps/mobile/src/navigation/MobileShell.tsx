@@ -154,7 +154,14 @@ export function MobileShell() {
       />
     )
   }
-  if (route === 'scan') return <ScanAssetScreen onBack={goBack} />
+  if (route === 'scan') {
+    return (
+      <ScanAssetScreen
+        onBack={goBack}
+        onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
+      />
+    )
+  }
   if (route === 'work-orders') {
     return <WorkOrdersScreen onBack={goBack} onOpenWorkOrder={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
   }
