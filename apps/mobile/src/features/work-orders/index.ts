@@ -12,6 +12,7 @@ export type {
 export {
   createMaintenanceWorkOrder,
   assignWorkOrder,
+  setWorkOrderReviewAssignments,
   addWorkOrderChecklistItem,
   completeWorkOrderChecklistItem,
   addWorkOrderPartUsage,
@@ -21,6 +22,8 @@ export {
   recordWorkOrderHandover,
 } from './api/workOrderMutationService'
 export type { WorkOrderTransitionAction } from './api/workOrderMutationService'
+export { listAvailablePartStock, issuePartToWorkOrder } from './api/workOrderInventoryService'
+export type { AvailablePartStock } from './api/workOrderInventoryService'
 
 export {
   getWorkOrderDetailSnapshot,
