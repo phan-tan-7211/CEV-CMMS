@@ -24,10 +24,10 @@ type HomeScreenProps = {
 
 const QUICK_ACTIONS: Array<{ label: string; icon: IconName; primary?: boolean }> = [
   { label: 'Quét', icon: 'scan-outline', primary: true },
-  { label: 'Công việc', icon: 'bar-chart-outline' },
-  { label: 'Ứng dụng', icon: 'grid-outline' },
+  { label: 'Tác động của tôi', icon: 'bar-chart-outline' },
+  { label: 'Apps', icon: 'grid-outline' },
   { label: 'Thông báo', icon: 'notifications-outline' },
-  { label: 'Thiết bị', icon: 'cube-outline' },
+  { label: 'Tài sản', icon: 'cube-outline' },
 ]
 
 const WORK_ORDER_ROWS: Array<{ label: string; count: number; accent: string }> = [
@@ -61,8 +61,7 @@ export function HomeScreen({
 
   function handleQuickAction(label: string) {
     if (label === 'Quét') return onOpenScan()
-    if (label === 'Công việc') return onOpenWorkOrders()
-    if (label === 'Thiết bị') return onOpenEquipment()
+    if (label === 'Tài sản') return onOpenEquipment()
     showComingSoon(label)
   }
 
@@ -172,7 +171,7 @@ export function HomeScreen({
           onHome={() => {}}
           onWorkOrders={onOpenWorkOrders}
           onCenterPress={handleCenterAction}
-          onEquipment={onOpenEquipment}
+          onRequests={onOpenRequests}
           onMore={onOpenMore}
           centerMode={isOperatorFlow ? 'scan' : 'create'}
         />
