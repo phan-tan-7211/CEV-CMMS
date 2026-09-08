@@ -103,19 +103,19 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F8F9FB' },
+  safeArea: { flex: 1, backgroundColor: '#F1F1FA' },
   header: { minHeight: 58, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0', backgroundColor: '#FFFFFF' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 18, fontWeight: '900', color: '#101828' },
   content: { paddingBottom: 28 },
-  hero: { padding: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0', backgroundColor: '#FFFFFF' },
+  hero: { margin: 14, padding: 20, borderRadius: 18, backgroundColor: '#E9EDFF' },
   id: { fontSize: 13, fontWeight: '900', color: '#155EEF' },
   reason: { marginTop: 8, fontSize: 21, lineHeight: 27, fontWeight: '900', color: '#101828' },
   badge: { alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 12, backgroundColor: '#F2F4F7' },
   badgeText: { fontSize: 11.5, fontWeight: '900', color: '#344054' },
-  section: { marginTop: 16 },
+  section: { marginTop: 4, paddingHorizontal: 14 },
   sectionLabel: { marginBottom: 7, paddingHorizontal: 16, fontSize: 10.5, fontWeight: '800', letterSpacing: 0.65, color: '#98A2B3' },
-  card: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#EAECF0', backgroundColor: '#FFFFFF' },
+  card: { overflow: 'hidden', borderRadius: 17, borderWidth: StyleSheet.hairlineWidth, borderColor: '#E1E1EA', backgroundColor: '#FFFFFF' },
   row: { minHeight: 58, paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0' },
   lastRow: { borderBottomWidth: 0 },
   rowLabel: { width: 125, fontSize: 13, fontWeight: '700', color: '#667085' },
