@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
@@ -39,7 +39,6 @@ export function ScanAssetScreen({
   onCreatePortalRequest: (equipmentId: string, sourceId?: string) => void
   isOperatorFlow?: boolean
 }) {
-  const [manualCode, setManualCode] = useState('')
   const [resolving, setResolving] = useState(false)
   const [result, setResult] = useState<HomeScanResult | null>(null)
   const [scannerEnabled, setScannerEnabled] = useState(true)
@@ -137,32 +136,6 @@ export function ScanAssetScreen({
       </View>
 
       {!isOperatorFlow ? (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.manualPanel}>
-          <Text style={styles.manualLabel}>Hoặc nhập mã thủ công</Text>
-          <View style={styles.manualRow}>
-            <View style={styles.inputWrap}>
-              <Ionicons name="barcode-outline" size={22} color="#667085" />
-              <TextInput
-                value={manualCode}
-                onChangeText={setManualCode}
-                onSubmitEditing={() => void resolveCode(manualCode)}
-                placeholder="Ví dụ: CEV-PR-118"
-                placeholderTextColor="#98A2B3"
-                autoCapitalize="characters"
-                autoCorrect={false}
-                returnKeyType="search"
-                style={styles.input}
-              />
-              {manualCode ? <Pressable onPress={() => setManualCode('')} hitSlop={8}><Ionicons name="close-circle" size={21} color="#98A2B3" /></Pressable> : null}
-            </View>
-            <Pressable disabled={!manualCode.trim() || resolving} onPress={() => void resolveCode(manualCode)} style={({ pressed }) => [styles.searchButton, (!manualCode.trim() || resolving) && styles.searchButtonDisabled, pressed && styles.pressed]}>
-              <Ionicons name="search" size={22} color="#FFFFFF" />
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      ) : null}
-
-      {!isOperatorFlow ? (
         <HomeScanResultSheet
           loading={resolving}
           result={result}
@@ -198,12 +171,4 @@ const styles = StyleSheet.create({
   cameraSection: { flex: 1, minHeight: 320, backgroundColor: '#101828' },
   operatorToast: { position: 'absolute', left: 16, right: 16, bottom: 18, minHeight: 48, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, backgroundColor: 'rgba(16,24,40,0.90)' },
   operatorToastText: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: '700', color: '#FFFFFF' },
-  manualPanel: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EAECF0', backgroundColor: '#FFFFFF' },
-  manualLabel: { marginBottom: 7, fontSize: 12.5, fontWeight: '800', color: '#475467' },
-  manualRow: { flexDirection: 'row', gap: 10 },
-  inputWrap: { flex: 1, minHeight: 50, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, borderColor: '#D0D5DD', backgroundColor: '#FFFFFF' },
-  input: { flex: 1, minHeight: 48, fontSize: 15.5, color: '#101828' },
-  searchButton: { width: 50, height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
-  searchButtonDisabled: { opacity: 0.45 },
-  pressed: { opacity: 0.82 },
 })
