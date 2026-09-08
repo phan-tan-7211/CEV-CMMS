@@ -7,6 +7,7 @@ import { EquipmentListScreen } from '../screens/EquipmentListScreen'
 import { EquipmentRegistrationScreen } from '../screens/EquipmentRegistrationScreen'
 import { EquipmentStatusScreen } from '../screens/EquipmentStatusScreen'
 import { EquipmentHierarchyScreen } from '../screens/EquipmentHierarchyScreen'
+import { CreateWorkOrderScreen } from '../screens/CreateWorkOrderScreen'
 import { HomeScreen } from '../screens/HomeScreen'
 import { LoginScreen } from '../screens/LoginScreen'
 import { MoreScreen } from '../screens/MoreScreen'
@@ -24,7 +25,7 @@ import {
 } from '../features/auth'
 import { revalidateEquipmentDetail } from '../features/equipment'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -176,6 +177,9 @@ export function MobileShell() {
   if (route === 'equipment-hierarchy' && selectedEquipmentId) {
     return <EquipmentHierarchyScreen equipmentId={selectedEquipmentId} onBack={goBack} />
   }
+  if (route === 'create-work-order' && scopedEquipmentId) {
+    return <CreateWorkOrderScreen equipmentId={scopedEquipmentId} onBack={goBack} onCreated={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
+  }
   if (route === 'scan') {
     return (
       <ScanAssetScreen
@@ -186,6 +190,7 @@ export function MobileShell() {
         onOpenPendingRequests={(equipmentId) => navigate({ name: 'requests', equipmentId })}
         onOpenCompletedWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'completed' })}
         onCreateAsset={(code) => navigate({ name: 'registration', barcode: code })}
+        onCreateWorkOrder={(equipmentId) => navigate({ name: 'create-work-order', equipmentId })}
         isOperatorFlow={Boolean(currentEntry.operatorFlow)}
       />
     )
