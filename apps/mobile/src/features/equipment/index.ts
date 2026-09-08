@@ -57,6 +57,7 @@ export {
   applyEquipmentFilter,
   EMPTY_EQUIPMENT_FILTER,
   hasEquipmentFilter,
+  NO_ASSIGNEES_FILTER_VALUE,
   uniqueEquipmentFilterValues,
   type EquipmentFilter,
 } from './model/equipmentFilter'
