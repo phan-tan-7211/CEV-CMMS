@@ -11,6 +11,7 @@ import { LoginScreen } from '../screens/LoginScreen'
 import { MoreScreen } from '../screens/MoreScreen'
 import { RequestsScreen } from '../screens/RequestsScreen'
 import { ScanAssetScreen } from '../screens/ScanAssetScreen'
+import { WorkOrderDetailScreen } from '../screens/WorkOrderDetailScreen'
 import { WorkOrdersScreen } from '../screens/WorkOrdersScreen'
 import { AccountSettingsScreen } from '../screens/settings/AccountSettingsScreen'
 import {
@@ -20,12 +21,13 @@ import {
   subscribeAuthState,
 } from '../features/auth'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'scan' | 'work-orders' | 'requests' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'scan' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
 
 type RouteEntry = {
   name: Route
   equipmentId?: string
   equipmentStatus?: string
+  workOrderId?: string
 }
 
 const HOME_ENTRY: RouteEntry = { name: 'home' }
@@ -101,6 +103,7 @@ export function MobileShell() {
     () => (route === 'equipment-detail' || route === 'equipment-status') ? String(currentEntry.equipmentId || '') : '',
     [currentEntry.equipmentId, route],
   )
+  const selectedWorkOrderId = route === 'work-order-detail' ? String(currentEntry.workOrderId || '') : ''
 
   if (session === undefined) {
     return (
@@ -142,7 +145,12 @@ export function MobileShell() {
     )
   }
   if (route === 'scan') return <ScanAssetScreen onBack={goBack} />
-  if (route === 'work-orders') return <WorkOrdersScreen onBack={goBack} />
+  if (route === 'work-orders') {
+    return <WorkOrdersScreen onBack={goBack} onOpenWorkOrder={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
+  }
+  if (route === 'work-order-detail' && selectedWorkOrderId) {
+    return <WorkOrderDetailScreen workOrderId={selectedWorkOrderId} onBack={goBack} />
+  }
   if (route === 'requests') return <RequestsScreen onBack={goBack} />
   if (route === 'more') return <MoreScreen onBack={goBack} />
   if (route === 'settings') {
