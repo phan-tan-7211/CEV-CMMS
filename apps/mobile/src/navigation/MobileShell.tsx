@@ -12,6 +12,7 @@ import { PartDetailsScreen } from '../screens/PartDetailsScreen'
 import { PartInventoryScreen } from '../screens/PartInventoryScreen'
 import { PartsListScreen } from '../screens/PartsListScreen'
 import { PartFormScreen } from '../screens/PartFormScreen'
+import { CreateRequestScreen } from '../screens/CreateRequestScreen'
 import { HomeScreen } from '../screens/HomeScreen'
 import { LoginScreen } from '../screens/LoginScreen'
 import { MoreScreen } from '../screens/MoreScreen'
@@ -29,7 +30,7 @@ import {
 } from '../features/auth'
 import { revalidateEquipmentDetail } from '../features/equipment'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -197,6 +198,7 @@ export function MobileShell() {
     Alert.alert(matches.length ? 'Có nhiều kết quả' : 'Không tìm thấy phụ tùng', matches.length ? 'Hãy dùng tìm kiếm trong danh sách Phụ tùng.' : `Chưa có phụ tùng có mã “${code}”.`)
     return false
   }} />
+  if (route === 'create-request' && scopedEquipmentId) return <CreateRequestScreen equipmentId={scopedEquipmentId} sourceId={currentEntry.barcode} onBack={goBack} onCreated={() => navigate({ name: 'requests', equipmentId: scopedEquipmentId })} />
   if (route === 'scan') {
     return (
       <ScanAssetScreen
@@ -210,6 +212,8 @@ export function MobileShell() {
         onCreateWorkOrder={(equipmentId) => navigate({ name: 'create-work-order', equipmentId })}
         onOpenPart={(partId) => navigate({ name: 'part-detail', partId })}
         onOpenPartInventory={(partId) => navigate({ name: 'part-inventory', partId })}
+        onCreatePortalWorkOrder={(equipmentId) => navigate({ name: 'create-work-order', equipmentId })}
+        onCreatePortalRequest={(equipmentId, sourceId) => navigate({ name: 'create-request', equipmentId, barcode: sourceId })}
         isOperatorFlow={Boolean(currentEntry.operatorFlow)}
       />
     )
