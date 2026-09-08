@@ -16,8 +16,10 @@ type IconName = 'dashboard' | 'qr' | 'equipment' | 'inventory' | 'inspection' | 
 
 const GROUPS = [
   { label: 'Tổng quan', ids: ['dashboard', 'qr'] },
-  { label: 'Thiết bị & bảo trì', ids: ['equipment', 'inventory', 'inspection', 'maintenance', 'spare', 'tooling', 'calibration'] },
-  { label: 'Hồ sơ & quản trị', ids: ['print', 'organization', 'settings'] },
+  { label: 'Công việc', ids: ['work-orders', 'maintenance', 'scheduler', 'requests'] },
+  { label: 'Phân tích', ids: ['analytics'] },
+  { label: 'Tài sản & quản lý', ids: ['meters', 'edge', 'equipment', 'locations', 'organization', 'inspection', 'files', 'import-export', 'inventory', 'spare', 'purchase-orders', 'customers', 'providers', 'people', 'tooling', 'calibration'] },
+  { label: 'Hồ sơ & quản trị', ids: ['print', 'settings'] },
 ] as const
 
 function NavIcon({ name }: { name: IconName }) {
@@ -41,7 +43,34 @@ function NavIcon({ name }: { name: IconName }) {
 }
 
 function iconFor(id: string): IconName {
-  return (['dashboard','qr','equipment','inventory','inspection','maintenance','spare','tooling','calibration','print','organization','settings'].includes(id) ? id : 'dashboard') as IconName
+  const aliases: Record<string, IconName> = {
+    dashboard: 'dashboard',
+    qr: 'qr',
+    equipment: 'equipment',
+    inventory: 'inventory',
+    inspection: 'inspection',
+    maintenance: 'maintenance',
+    spare: 'spare',
+    tooling: 'tooling',
+    calibration: 'calibration',
+    print: 'print',
+    organization: 'organization',
+    settings: 'settings',
+    work-orders: 'maintenance',
+    scheduler: 'calibration',
+    requests: 'inspection',
+    analytics: 'dashboard',
+    meters: 'calibration',
+    edge: 'qr',
+    locations: 'equipment',
+    files: 'print',
+    'import-export': 'inventory',
+    'purchase-orders': 'print',
+    customers: 'organization',
+    providers: 'organization',
+    people: 'organization',
+  }
+  return aliases[id] || 'dashboard'
 }
 
 export function DesktopSidebar<T extends string>({ items, currentView, roleLabel, email, onNavigate, onSignOut }: DesktopSidebarProps<T>) {
