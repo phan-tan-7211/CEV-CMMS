@@ -11,8 +11,11 @@ import { LanguageSettingsScreen } from './LanguageSettingsScreen'
 import { SecuritySettingsScreen } from './SecuritySettingsScreen'
 import { AboutSettingsScreen } from './AboutSettingsScreen'
 import { EquipmentStatusSettingsScreen } from './EquipmentStatusSettingsScreen'
+import { OrganizationSettingsScreen } from './OrganizationSettingsScreen'
+import { ModuleSettingsScreen } from './ModuleSettingsScreen'
+import { WorkOrderSettingsScreen } from './WorkOrderSettingsScreen'
 
-type SettingsRoute = 'root' | 'profile' | 'notifications' | 'language' | 'security' | 'about' | 'equipment-status'
+type SettingsRoute = 'root' | 'profile' | 'notifications' | 'language' | 'security' | 'about' | 'equipment-status' | 'organization' | 'modules' | 'work-order-settings'
 
 function displayName(session: Session) {
   const metadata = session.user.user_metadata || {}
@@ -38,15 +41,11 @@ export function AccountSettingsScreen({ session, onBack, onSignOut }: { session:
 
   function confirmSignOut() {
     if (signingOut) return
-
     if (Platform.OS === 'web') {
       const confirm = (globalThis as typeof globalThis & { confirm?: (message: string) => boolean }).confirm
-      if (!confirm || confirm('Bạn muốn đăng xuất khỏi CEV CMMS?')) {
-        void signOut()
-      }
+      if (!confirm || confirm('Bạn muốn đăng xuất khỏi CEV CMMS?')) void signOut()
       return
     }
-
     Alert.alert('Đăng xuất', 'Bạn muốn đăng xuất khỏi CEV CMMS?', [
       { text: 'Hủy', style: 'cancel' },
       { text: 'Đăng xuất', style: 'destructive', onPress: () => { void signOut() } },
@@ -59,6 +58,9 @@ export function AccountSettingsScreen({ session, onBack, onSignOut }: { session:
   if (route === 'security') return <SecuritySettingsScreen onBack={() => setRoute('root')} />
   if (route === 'about') return <AboutSettingsScreen onBack={() => setRoute('root')} />
   if (route === 'equipment-status') return <EquipmentStatusSettingsScreen onBack={() => setRoute('root')} />
+  if (route === 'organization') return <OrganizationSettingsScreen onBack={() => setRoute('root')} />
+  if (route === 'modules') return <ModuleSettingsScreen onBack={() => setRoute('root')} />
+  if (route === 'work-order-settings') return <WorkOrderSettingsScreen onBack={() => setRoute('root')} />
 
   const name = displayName(session)
   const department = String(session.user.user_metadata?.department || session.user.user_metadata?.department_name || 'Chưa được gán')
@@ -66,7 +68,7 @@ export function AccountSettingsScreen({ session, onBack, onSignOut }: { session:
   const site = String(session.user.user_metadata?.site || session.user.user_metadata?.site_name || 'Chưa được gán')
 
   return (
-    <SettingsScaffold title="Cài đặt tài khoản" onBack={onBack}>
+    <SettingsScaffold title="Cài đặt" onBack={onBack}>
       <View style={styles.profileHeader}>
         <View style={styles.avatar}><Text style={styles.avatarText}>{name.trim().slice(0, 1).toUpperCase()}</Text></View>
         <View style={styles.profileCopy}>
@@ -83,11 +85,18 @@ export function AccountSettingsScreen({ session, onBack, onSignOut }: { session:
         <SettingsRow icon="person-outline" label="Hồ sơ cá nhân" value="Avatar, tên hiển thị, số điện thoại" onPress={() => setRoute('profile')} />
         <SettingsRow icon="notifications-outline" label="Thông báo" value="Chọn từng loại cảnh báo" onPress={() => setRoute('notifications')} />
         <SettingsRow icon="language-outline" label="Ngôn ngữ" value="Tiếng Việt" onPress={() => setRoute('language')} />
-        <SettingsRow icon="pulse-outline" label="Trạng thái thiết bị" value="Tên, màu và trạng thái tùy chỉnh" onPress={() => setRoute('equipment-status')} />
         <SettingsRow icon="shield-checkmark-outline" label="Bảo mật" value="Đổi mật khẩu" onPress={() => setRoute('security')} />
       </View>
 
-      <Text style={styles.sectionLabel}>TỔ CHỨC · CHỈ ADMIN ĐƯỢC SỬA</Text>
+      <Text style={styles.sectionLabel}>TỔ CHỨC</Text>
+      <View style={styles.group}>
+        <SettingsRow icon="business-outline" label="General / Organization" value="Ngôn ngữ · ngày · tiền tệ · múi giờ · automation" onPress={() => setRoute('organization')} />
+        <SettingsRow icon="apps-outline" label="Module Settings" value="Assets · Parts · Requests · Work Orders · PO · Meters · Tags" onPress={() => setRoute('modules')} />
+        <SettingsRow icon="clipboard-outline" label="Work Order Settings" value="Feedback · Forms · Statuses · Custom Fields · Categories" onPress={() => setRoute('work-order-settings')} />
+        <SettingsRow icon="pulse-outline" label="Trạng thái thiết bị" value="Tên, màu và trạng thái tùy chỉnh" onPress={() => setRoute('equipment-status')} />
+      </View>
+
+      <Text style={styles.sectionLabel}>THÔNG TIN TỔ CHỨC · CHỈ ADMIN ĐƯỢC SỬA</Text>
       <View style={styles.group}>
         <SettingsRow icon="business-outline" label="Department" value={department} disabled />
         <SettingsRow icon="people-outline" label="Role" value={role} disabled />
@@ -98,10 +107,7 @@ export function AccountSettingsScreen({ session, onBack, onSignOut }: { session:
       <View style={styles.group}>
         <SettingsRow icon="information-circle-outline" label="Thông tin ứng dụng" value="CEV CMMS" onPress={() => setRoute('about')} />
         {signingOut ? (
-          <View style={styles.signingOutRow}>
-            <ActivityIndicator size="small" color="#D92D20" />
-            <Text style={styles.signingOutText}>Đang đăng xuất...</Text>
-          </View>
+          <View style={styles.signingOutRow}><ActivityIndicator size="small" color="#D92D20" /><Text style={styles.signingOutText}>Đang đăng xuất...</Text></View>
         ) : (
           <SettingsRow icon="log-out-outline" label="Đăng xuất" destructive onPress={confirmSignOut} />
         )}
