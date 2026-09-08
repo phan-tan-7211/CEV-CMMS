@@ -2,7 +2,7 @@
   "name": "cev-cmms-mobile",
   "private": true,
   "version": "0.1.0",
-  "main": "expo/AppEntry",
+  "main": "index.tsx",
   "scripts": {
     "start": "expo start --dev-client",
     "start:go": "expo start",
@@ -13,7 +13,8 @@
     "android:device": "expo run:android --device",
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
-    "typecheck": "tsc --noEmit",
+    "check:architecture": "node scripts/check-architecture.mjs",
+    "typecheck": "npm run check:architecture && tsc --noEmit",
     "doctor": "expo-doctor",
     "eas:init": "npx eas-cli@latest init",
     "build:android:dev": "npx eas-cli@latest build --platform android --profile development"
@@ -22,6 +23,7 @@
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "8.4.4",
     "@supabase/supabase-js": "2.114.0",
     "expo": "~54.0.20",
     "expo-camera": "~17.0.10",
@@ -33,7 +35,9 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-autocomplete-dropdown": "5.1.0",
     "react-native-safe-area-context": "~5.6.1",
+    "react-native-svg": "15.12.1",
     "react-native-web": "~0.21.0",
     "react-native-url-polyfill": "2.0.0"
   },

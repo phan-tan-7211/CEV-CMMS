@@ -14,7 +14,7 @@ vi.mock('./LiveDashboardPanel', () => ({ LiveDashboardPanel: () => <h2>Tổng qu
 vi.mock('./equipment/EquipmentWorkspace', () => ({ EquipmentWorkspace: () => <h2>Thiết bị trực tiếp</h2> }))
 vi.mock('./LiveEquipmentInventoryPanel', () => ({ LiveEquipmentInventoryPanel: () => <h2>Kiểm kê thiết bị trực tiếp</h2> }))
 vi.mock('./LiveInspectionPanel', () => ({ LiveInspectionPanel: () => <h2>Kiểm tra trực tiếp</h2> }))
-vi.mock('./LiveMaintenancePanel', () => ({ LiveMaintenancePanel: () => <h2>Bảo trì trực tiếp</h2> }))
+vi.mock('./maintenance/MaintenanceWorkspace', () => ({ MaintenanceWorkspace: () => <h2>Bảo trì trực tiếp</h2> }))
 vi.mock('./LiveToolingPanel', () => ({ LiveToolingPanel: () => <h2>Jig gá trực tiếp</h2> }))
 vi.mock('./LiveCalibrationPanel', () => ({ LiveCalibrationPanel: () => <h2>Hiệu chuẩn trực tiếp</h2> }))
 vi.mock('./LiveAuditPanel', () => ({ LiveAuditPanel: () => <h2>Nhật ký trực tiếp</h2> }))
@@ -40,7 +40,8 @@ describe('khung ứng dụng Vercel + Supabase', () => {
     expect(await screen.findByRole('heading', { name: 'Tổng quan trực tiếp' })).toBeInTheDocument()
     expect(screen.getByLabelText('Điều hướng trên máy tính')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Đăng xuất' })).toBeInTheDocument()
-    expect(screen.getByText(/Hệ thống quản lý thiết bị CEV/)).toBeInTheDocument()
+    expect(screen.getByText('CEV CMMS')).toBeInTheDocument()
+    expect(screen.queryByText(/IATF/i)).not.toBeInTheDocument()
     expect((await screen.findAllByText('Quản trị hệ thống')).length).toBeGreaterThan(0)
   })
 

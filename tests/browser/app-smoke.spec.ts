@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const USER_ID = '00000000-0000-4000-8000-000000000001'
+const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url')
 const payload = Buffer.from(JSON.stringify({ sub: USER_ID, aud: 'authenticated', exp: 4102444800, email: 'smoke@example.com', role: 'authenticated' })).toString('base64url')
-const token = `eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.${payload}.`
+const token = `${header}.${payload}.`
 
 const EQUIPMENT = [{
   equipment_id: 'CEV-PR-001', equipment_type: 'PRODUCTION', control_number: 'SMOKE', qr_code: 'CEV-PR-001',
@@ -48,7 +49,7 @@ function mobile(page: Page) {
 
 async function openView(page: Page, label: string) {
   if (!mobile(page)) {
-    await page.locator('.sidebar nav').getByRole('button', { name: label, exact: true }).click()
+    await page.locator('.desktop-sidebar-nav').getByRole('button', { name: label, exact: true }).click()
   } else if (label === 'Quét QR' || label === 'Thiết bị') {
     await page.locator('.bottom-nav').getByRole('button', { name: label, exact: true }).click()
   } else if (label === 'Bảo trì') {
@@ -62,6 +63,14 @@ async function openMore(page: Page) {
   const sheet = page.getByRole('dialog', { name: 'Các chức năng khác' })
   await expect(sheet).toBeVisible()
   return sheet
+}
+
+async function expectNoPageHorizontalOverflow(page: Page) {
+  await expect.poll(async () => page.evaluate(() => {
+    const root = document.documentElement
+    const body = document.body
+    return Math.max(root.scrollWidth, body.scrollWidth) - window.innerWidth
+  })).toBeLessThanOrEqual(1)
 }
 
 test('current navigation surfaces open without browser crash', async ({ page }) => {
@@ -81,11 +90,11 @@ test('maintenance opens work orders first and can switch record tabs', async ({ 
   await openView(page, 'Bảo trì')
   const workspace = page.locator('.maintenance-workspace')
   await expect(workspace.getByRole('heading', { name: 'Bảo trì thiết bị' })).toBeVisible()
-  const workOrdersTab = workspace.getByRole('button', { name: /^Công việc/ })
+  const workOrdersTab = workspace.locator('button[aria-controls="maintenance-tab-work-orders"]')
   await expect(workOrdersTab).toHaveAttribute('aria-current', 'page')
   const workOrdersPanel = page.locator('#maintenance-tab-work-orders')
   await expect(workOrdersPanel).toBeVisible()
-  await expect(workOrdersPanel.getByRole('button', { name: /^Cần tôi xử lý/ })).toBeVisible()
+  await expect(workOrdersPanel.locator('.maintenance-queue-tabs').getByRole('button', { name: /^Cần tôi xử lý/ })).toBeVisible()
 
   await workOrdersPanel.getByRole('button', { name: '+ Tạo lệnh công việc', exact: true }).click()
   const intake = page.getByRole('dialog', { name: 'Tạo yêu cầu bảo trì' })
@@ -95,7 +104,7 @@ test('maintenance opens work orders first and can switch record tabs', async ({ 
   await expect(intake.getByLabel(/^Lý do \/ hiện tượng/)).toBeVisible()
   await expect(intake.getByLabel(/^Xử lý dự kiến \/ ghi chú tiếp nhận/)).toBeVisible()
   await expect(intake.getByLabel(/^Bắt đầu dự kiến/)).toBeVisible()
-  await expect(intake.getByLabel(/^Kết thúc dự kiến/)).toBeVisible()
+  await expect(intake.getByLabel(/^Hạn xử lý dự kiến/)).toBeVisible()
   await intake.getByRole('button', { name: 'Hủy', exact: true }).click()
   await expect(intake).toHaveCount(0)
 
@@ -134,6 +143,29 @@ test('A4 and account controls match the current shell', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Hồ sơ / Tem quản lý' })).toBeVisible()
   await expect(page.locator('.a4-document')).toContainText('CEV-BM-TBSX-01')
   await expect(page.getByRole('button', { name: 'In / Xuất PDF A4' })).toBeVisible()
-  await expect(page.locator('.sidebar-user')).toContainText('Quản trị hệ thống')
-  await expect(page.locator('.sidebar-user').getByRole('button', { name: 'Đăng xuất', exact: true })).toBeVisible()
+  await expect(page.locator('.sidebar-account')).toContainText('Quản trị hệ thống')
+  await expect(page.locator('.sidebar-account').getByRole('button', { name: 'Đăng xuất', exact: true })).toBeVisible()
+})
+
+test('key routes do not create page-level horizontal overflow at target responsive widths', async ({ page }) => {
+  const widths = [375, 440, 768, 1024, 1440]
+  await page.setViewportSize({ width: widths[0], height: 900 })
+  await openApp(page)
+
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(page.locator('.app-shell')).toHaveAttribute('data-role', 'ADMIN')
+    await expect(page.locator('.fatal-screen')).toHaveCount(0)
+    await expectNoPageHorizontalOverflow(page)
+
+    const labels = width <= 900
+      ? ['Quét QR', 'Thiết bị', 'Bảo trì']
+      : ['Thiết bị', 'Kiểm tra ngày', 'Bảo trì', 'Jig, gá & dụng cụ', 'Hiệu chuẩn', 'Hồ sơ A4', 'Nhật ký & cấu hình']
+
+    for (const label of labels) {
+      await openView(page, label)
+      await expect(page.locator('main')).toBeVisible()
+      await expectNoPageHorizontalOverflow(page)
+    }
+  }
 })

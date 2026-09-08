@@ -1,5 +1,5 @@
 import { isClientCacheFresh, readClientCache, writeClientCache } from './clientDataCache'
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type SpareClassification = 'NORMAL' | 'RECOMMENDED' | 'REQUIRED'
 
@@ -150,21 +150,21 @@ function decrementSpareCache(partId: string, quantity: number) {
 
 export async function loadSpareParts(options: { force?: boolean } = {}) {
   if (!options.force && spareCache && isClientCacheFresh(spareCacheSavedAt, SPARE_CACHE_FRESH_MS)) return spareCache
-  const { data, error } = await supabase.from('spare_part_overview').select('*').order('part_id')
+  const { data, error } = await dataGateway.readRows('spare_part_overview', { order: { column: 'part_id' } })
   if (error) {
     if (spareCache) return spareCache
     throw error
   }
-  spareCache = ((data || []) as Array<Record<string, unknown>>).map(normalizePart)
+  spareCache = data.map(normalizePart)
   persistSpareCache()
   return spareCache
 }
 
 export async function saveSparePart(input: SaveSparePartInput) {
   const payload = { ...input, leadTimeDays: input.leadTimeDays ?? null }
-  const { data, error } = await supabase.rpc('rpc_save_spare_part', { p_input: payload })
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_save_spare_part', { p_input: payload })
   if (error) throw error
-  const saved = normalizePart((data || {}) as Record<string, unknown>)
+  const saved = normalizePart(data || {})
   upsertSpareCache(saved)
   return saved
 }
@@ -174,24 +174,32 @@ export async function loadSpareUsage(partId: string, options: { force?: boolean 
   if (!id) return []
   const cached = spareUsageCache.get(id)
   if (!options.force && cached && isClientCacheFresh(cached.savedAt, SPARE_USAGE_CACHE_FRESH_MS)) return cached.data
-  const { data, error } = await supabase.from('spare_part_usage').select('*').eq('part_id', id).order('used_at', { ascending: false }).limit(50)
+  const { data, error } = await dataGateway.readRows('spare_part_usage', {
+    eq: [{ column: 'part_id', value: id }],
+    order: { column: 'used_at', ascending: false },
+    limit: 50,
+  })
   if (error) {
     if (cached) return cached.data
     throw error
   }
-  const normalized = ((data || []) as Array<Record<string, unknown>>).map(normalizeUsage)
+  const normalized = data.map(normalizeUsage)
   spareUsageCache.set(id, { savedAt: Date.now(), data: normalized })
   return normalized
 }
 
 export async function loadWorkOrderSpareUsage(workOrderId: string) {
-  const { data, error } = await supabase.from('spare_part_usage').select('*').eq('work_order_id', workOrderId).order('used_at', { ascending: false }).limit(50)
+  const { data, error } = await dataGateway.readRows('spare_part_usage', {
+    eq: [{ column: 'work_order_id', value: workOrderId }],
+    order: { column: 'used_at', ascending: false },
+    limit: 50,
+  })
   if (error) throw error
-  return ((data || []) as Array<Record<string, unknown>>).map(normalizeUsage)
+  return data.map(normalizeUsage)
 }
 
 export async function recordSpareUsage(input: { partId: string; equipmentId: string; quantity: number; reason?: string; performedBy?: string; workOrderId?: string }) {
-  const { data, error } = await supabase.rpc('rpc_record_spare_usage', { p_input: input })
+  const { data, error } = await dataGateway.rpc('rpc_record_spare_usage', { p_input: input })
   if (error) throw error
   decrementSpareCache(input.partId, Math.max(0, Number(input.quantity) || 0))
   spareUsageCache.delete(input.partId.trim())

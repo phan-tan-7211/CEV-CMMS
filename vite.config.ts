@@ -20,9 +20,9 @@ export default defineConfig(() => {
         registerType: 'prompt',
         includeAssets: ['app-icon.svg'],
         manifest: {
-          name: 'CEV Equipment · IATF 16949',
-          short_name: 'CEV Equipment',
-          description: 'Quản lý thiết bị, bảo trì và hiệu chuẩn theo hướng IATF 16949',
+          name: 'CEV CMMS',
+          short_name: 'CEV CMMS',
+          description: 'Quản lý thiết bị, bảo trì, kiểm tra, phụ tùng và hiệu chuẩn',
           lang: 'vi',
           start_url: base,
           scope: base,

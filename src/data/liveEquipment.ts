@@ -1,5 +1,5 @@
 import { readClientCache } from './clientDataCache'
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 import type { EquipmentCriticalityFacts } from './autoRegistration'
 import { loadOrgMaster, type OrgResolvedAssignment } from './orgMaster'
 
@@ -126,7 +126,7 @@ export async function loadLiveEquipment(options: { force?: boolean } = {}) {
     loadOrgMaster({ force: Boolean(options.force) }).catch(() => null),
     cached?.data?.length
       ? Promise.resolve({ data: cached.data as unknown as Array<Record<string, unknown>>, error: null })
-      : supabase.from('equipment_master').select('*').order('equipment_id'),
+      : dataGateway.readRows('equipment_master', { order: { column: 'equipment_id' } }),
   ])
 
   if (equipmentResult.error) throw equipmentResult.error

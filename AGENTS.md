@@ -118,3 +118,65 @@ Before merge: local tests, architecture tests when applicable, build, lint, Chro
 Supabase diagnostics when database behavior changed, and final DB/Storage reconciliation where relevant must pass.
 Android and iPhone camera scans are separate physical-device gates. Browser emulation
 cannot satisfy them. Do not merge while any required gate is failing or unverified.
+
+## Mandatory local worktree layout
+
+The operator's Windows machine uses two permanent Git worktrees. These paths and branch assignments are project rules and must not be changed by an assistant unless the operator explicitly requests a migration.
+
+### Web worktree
+
+Path:
+`C:\Users\T\Documents\Inventor\zinitek\WEB\IATF-16949-Equipment-Management`
+
+Required branch:
+`feat/cmms-workflow-next-web`
+
+Standard Web startup:
+
+```powershell
+cd C:\Users\T\Documents\Inventor\zinitek\WEB\IATF-16949-Equipment-Management
+git status
+git branch --show-current
+git pull --ff-only
+npm run dev -- --port 3000
+```
+
+Before `git pull`, `git branch --show-current` must equal `feat/cmms-workflow-next-web`. If it does not, stop. Do not switch to Mobile or integration in this worktree.
+
+### Mobile worktree
+
+Path:
+`C:\Users\T\Documents\Inventor\zinitek\MOBILE\IATF-16949-Equipment-Management`
+
+Required branch:
+`feat/cmms-workflow-next-mobile`
+
+Standard Mobile startup:
+
+```powershell
+cd C:\Users\T\Documents\Inventor\zinitek\MOBILE\IATF-16949-Equipment-Management
+git status
+git branch --show-current
+git pull --ff-only
+cd apps\mobile
+npm run start -- --clear
+```
+
+Before `git pull`, `git branch --show-current` must equal `feat/cmms-workflow-next-mobile`. If it does not, stop. Do not switch to Web or integration in this worktree.
+
+### Integration branch
+
+`feat/cmms-workflow-next` is for controlled merge/integration only. It is not a daily-development checkout and must not replace either permanent worktree branch.
+
+### Non-negotiable worktree rules
+
+1. Never use one working directory for both Web and Mobile development.
+2. Never run `git switch feat/cmms-workflow-next-mobile` inside the Web worktree.
+3. Never run `git switch feat/cmms-workflow-next-web` inside the Mobile worktree.
+4. Never switch either permanent development worktree to `feat/cmms-workflow-next` for normal testing.
+5. Always verify path, `git status`, and `git branch --show-current` before pulling or starting a server.
+6. Web local testing uses `http://localhost:3000` from the Web worktree only.
+7. Mobile Metro/Expo runs from `apps/mobile` inside the Mobile worktree only.
+8. Do not manually copy or move `.git`, `node_modules`, or source trees between the two worktrees.
+9. If Git reports a branch is already checked out in another worktree, inspect `git worktree list`; do not use `-f` to defeat worktree safety.
+10. The Mobile worktree may contain local untracked `apps/mobile/package-lock.json`; do not delete or commit it automatically without first checking the current Mobile package-manager/lockfile policy.

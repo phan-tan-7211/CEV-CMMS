@@ -1,5 +1,5 @@
 import { isClientCacheFresh, readClientCache, writeClientCache } from './clientDataCache'
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type DailyInspectionMark = 'V' | 'URGENT_REPAIR' | 'MAINTENANCE_REQUIRED' | 'STOP_REPAIR'
 export type DailyInspectionShift = 'MORNING' | 'AFTERNOON' | 'NIGHT'
@@ -85,8 +85,15 @@ export function normalizeInspections(rows: Array<Record<string, unknown>>): Live
 export async function loadLiveInspection(options: { force?: boolean } = {}) {
   if (!options.force && inspectionCache && isClientCacheFresh(inspectionCacheSavedAt, INSPECTION_CACHE_FRESH_MS)) return inspectionCache
   const [equipmentResult, inspectionResult] = await Promise.all([
-    supabase.from('equipment_master').select('equipment_id,equipment_type,equipment_name,department,status,source_data').eq('active', true),
-    supabase.from('daily_inspection').select('*').order('created_at', { ascending: false }).limit(100),
+    dataGateway.readRows('equipment_master', {
+      columns: 'equipment_id,equipment_type,equipment_name,department,status,source_data',
+      eq: [{ column: 'active', value: true }],
+    }),
+    dataGateway.readRows('daily_inspection', {
+      columns: '*',
+      order: { column: 'created_at', ascending: false },
+      limit: 100,
+    }),
   ])
   if (equipmentResult.error || inspectionResult.error) {
     if (inspectionCache) return inspectionCache
@@ -94,8 +101,8 @@ export async function loadLiveInspection(options: { force?: boolean } = {}) {
     throw inspectionResult.error
   }
   inspectionCache = {
-    equipment: normalizeInspectionEquipment((equipmentResult.data || []) as Array<Record<string, unknown>>),
-    inspections: normalizeInspections((inspectionResult.data || []) as Array<Record<string, unknown>>),
+    equipment: normalizeInspectionEquipment(equipmentResult.data),
+    inspections: normalizeInspections(inspectionResult.data),
   }
   persistInspectionCache()
   return inspectionCache
@@ -111,7 +118,7 @@ export async function submitLiveInspection(request: {
   damagedParts: string
   priority: WorkOrderPriority
 }) {
-  const { data, error } = await supabase.rpc('rpc_submit_daily_inspection', {
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_submit_daily_inspection', {
     p_operation_id: request.operationId,
     p_equipment_id: request.equipmentId,
     p_shift: request.shift,
@@ -122,7 +129,7 @@ export async function submitLiveInspection(request: {
     p_priority: request.priority,
   })
   if (error) throw error
-  const result = (data || {}) as Record<string, unknown>
+  const result = data || {}
   const response = {
     result: {
       inspectionId: text(result.inspectionId),

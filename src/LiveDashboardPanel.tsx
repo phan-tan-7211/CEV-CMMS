@@ -11,6 +11,14 @@ const EMPTY: LiveDashboardSummary = {
   calibrationTotal: 0,
   calibrationOverdue: 0,
   workOrderOpen: 0,
+  workOrderWaitingApproval: 0,
+  workOrderInProgress: 0,
+  workOrderCompleted: 0,
+  workOrderVerified: 0,
+  workOrderOverdue: 0,
+  workOrderDueSoon: 0,
+  workOrderAssigned: 0,
+  workOrderUnassigned: 0,
   criticalOpen: 0,
   pmOverdue: 0,
   downtimeOpen: 0,
@@ -25,7 +33,7 @@ const kindLabel: Record<LiveDashboardAction['kind'], string> = {
   DOWNTIME_OPEN: 'DỪNG MÁY',
 }
 
-type DashboardTarget = 'qr' | 'maintenance' | 'equipment' | 'inventory' | 'inspection'
+type DashboardTarget = 'qr' | 'maintenance' | 'equipment' | 'inventory' | 'inspection' | 'calibration'
 
 type Props = {
   onNavigate?: (view: DashboardTarget) => void
@@ -35,6 +43,12 @@ function dateText(value: string) {
   if (!value) return '—'
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN')
+}
+
+function actionTarget(action: LiveDashboardAction): DashboardTarget {
+  if (action.kind === 'DOWN') return 'equipment'
+  if (action.kind === 'CALIBRATION_OVERDUE') return 'calibration'
+  return 'maintenance'
 }
 
 export function LiveDashboardPanel({ onNavigate }: Props) {
@@ -87,18 +101,18 @@ export function LiveDashboardPanel({ onNavigate }: Props) {
 
     {!loading && !error ? <>
       <section className="dashboard-priority-grid" aria-label="Các chỉ số cần hành động">
-        <article className={summary.downCount ? 'needs-action' : ''}>
-          <span>Máy đang dừng</span><strong>{summary.downCount}</strong><small>{summary.downCount ? 'Cần xử lý ngay' : 'Không có máy đang dừng'}</small>
-        </article>
-        <article className={summary.criticalOpen ? 'needs-action' : ''}>
-          <span>Lệnh khẩn cấp</span><strong>{summary.criticalOpen}</strong><small>{summary.workOrderOpen} lệnh công việc đang mở</small>
-        </article>
-        <article className={summary.calibrationOverdue ? 'warning' : ''}>
-          <span>Hiệu chuẩn quá hạn</span><strong>{summary.calibrationOverdue}</strong><small>{summary.calibrationTotal} hồ sơ hiệu chuẩn</small>
-        </article>
-        <article className={summary.pmOverdue ? 'warning' : ''}>
-          <span>Bảo dưỡng định kỳ quá hạn</span><strong>{summary.pmOverdue}</strong><small>Kế hoạch cần cập nhật</small>
-        </article>
+        <button type="button" className={summary.downCount ? 'needs-action' : ''} onClick={() => onNavigate?.('equipment')}>
+          <span>Máy đang dừng</span><strong>{summary.downCount}</strong><small>{summary.downCount ? 'Cần xử lý ngay · Mở Thiết bị' : 'Không có máy đang dừng'}</small>
+        </button>
+        <button type="button" className={summary.criticalOpen ? 'needs-action' : ''} onClick={() => onNavigate?.('maintenance')}>
+          <span>Lệnh khẩn cấp</span><strong>{summary.criticalOpen}</strong><small>{summary.workOrderOpen} lệnh công việc đang mở · Mở Bảo trì</small>
+        </button>
+        <button type="button" className={summary.calibrationOverdue ? 'warning' : ''} onClick={() => onNavigate?.('calibration')}>
+          <span>Hiệu chuẩn quá hạn</span><strong>{summary.calibrationOverdue}</strong><small>{summary.calibrationTotal} hồ sơ hiệu chuẩn · Mở Hiệu chuẩn</small>
+        </button>
+        <button type="button" className={summary.pmOverdue ? 'warning' : ''} onClick={() => onNavigate?.('maintenance')}>
+          <span>Bảo dưỡng định kỳ quá hạn</span><strong>{summary.pmOverdue}</strong><small>Kế hoạch cần cập nhật · Mở Bảo trì</small>
+        </button>
       </section>
 
       <section className="dashboard-overview-strip" aria-label="Tình trạng hệ thống">
@@ -108,6 +122,16 @@ export function LiveDashboardPanel({ onNavigate }: Props) {
         <div><span>Cần chú ý ngay</span><b>{urgentCount}</b><small>Máy dừng + lệnh khẩn cấp + sự kiện dừng máy đang mở</small></div>
       </section>
 
+      <section className="dashboard-maintenance-snapshot" aria-labelledby="dashboard-maintenance-title">
+        <header><div><p className="eyebrow">Maintenance snapshot</p><h3 id="dashboard-maintenance-title">Tình hình Work Order</h3></div><button type="button" onClick={() => onNavigate?.('maintenance')}>Mở Bảo trì →</button></header>
+        <div className="dashboard-snapshot-grid">
+          <button type="button" onClick={() => onNavigate?.('maintenance')}><span>Đang mở</span><strong>{summary.workOrderOpen}</strong><small>{summary.workOrderWaitingApproval} chờ duyệt</small></button>
+          <button type="button" onClick={() => onNavigate?.('maintenance')}><span>Đang sửa chữa</span><strong>{summary.workOrderInProgress}</strong><small>{summary.workOrderCompleted + summary.workOrderVerified} chờ xác nhận / bàn giao</small></button>
+          <button type="button" className={summary.workOrderOverdue ? 'attention' : ''} onClick={() => onNavigate?.('maintenance')}><span>Quá hạn</span><strong>{summary.workOrderOverdue}</strong><small>{summary.workOrderDueSoon} sắp đến hạn trong 24h</small></button>
+          <button type="button" className={summary.workOrderUnassigned ? 'warning' : ''} onClick={() => onNavigate?.('maintenance')}><span>Phân công</span><strong>{summary.workOrderAssigned}</strong><small>{summary.workOrderUnassigned} chưa giao người phụ trách</small></button>
+        </div>
+      </section>
+
       <section className="dashboard-action-panel" aria-labelledby="dashboard-actions-title">
         <header>
           <div><p className="eyebrow">Danh sách ưu tiên</p><h3 id="dashboard-actions-title">Việc cần xử lý</h3></div>
@@ -115,12 +139,13 @@ export function LiveDashboardPanel({ onNavigate }: Props) {
         </header>
 
         {actions.length ? <div className="dashboard-action-list">
-          {actions.slice(0, 30).map((action) => <article key={`${action.kind}-${action.sourceId}`} className={`dashboard-action-row ${action.severity.toLowerCase()}`}>
+          {actions.slice(0, 30).map((action) => <button type="button" key={`${action.kind}-${action.sourceId}`} className={`dashboard-action-row ${action.severity.toLowerCase()}`} onClick={() => onNavigate?.(actionTarget(action))}>
             <div className="dashboard-action-kind">{kindLabel[action.kind]}</div>
             <div className="dashboard-action-equipment"><b>{action.equipmentId || '—'}</b><span>{action.equipmentName || 'Chưa có tên thiết bị'}</span></div>
             <div className="dashboard-action-detail"><b>{action.title}</b><span>{action.detail}</span></div>
             <div className="dashboard-action-source"><b>{action.sourceId || '—'}</b><span>{dateText(action.date)}</span></div>
-          </article>)}
+            <span className="dashboard-action-open" aria-hidden="true">Mở →</span>
+          </button>)}
         </div> : <div className="dashboard-clear-state"><strong>Không có cảnh báo ưu tiên.</strong><span>Không có máy dừng, lệnh khẩn cấp, hiệu chuẩn/bảo dưỡng quá hạn hoặc sự kiện dừng máy đang mở.</span></div>}
       </section>
 

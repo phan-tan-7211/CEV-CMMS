@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type OrgUnit = {
   unitCode: string
@@ -113,35 +113,35 @@ export async function loadOrgMaster(options: { force?: boolean } = {}) {
 
   inFlight = (async () => {
     const [unitsResult, peopleResult, locationsResult, resolvedResult] = await Promise.all([
-      supabase.from('org_units').select('unit_code,unit_name,unit_type,parent_unit_code').eq('active', true).order('sort_order'),
-      supabase.from('org_people').select('person_code,display_name,unit_code,job_title').eq('active', true).order('display_name'),
-      supabase.from('org_locations').select('location_code,location_name,location_type,unit_code').eq('active', true).order('sort_order'),
-      supabase.from('equipment_org_resolved').select('*'),
+      dataGateway.readRows('org_units', { columns: 'unit_code,unit_name,unit_type,parent_unit_code', eq: [{ column: 'active', value: true }], order: { column: 'sort_order' } }),
+      dataGateway.readRows('org_people', { columns: 'person_code,display_name,unit_code,job_title', eq: [{ column: 'active', value: true }], order: { column: 'display_name' } }),
+      dataGateway.readRows('org_locations', { columns: 'location_code,location_name,location_type,unit_code', eq: [{ column: 'active', value: true }], order: { column: 'sort_order' } }),
+      dataGateway.readRows('equipment_org_resolved'),
     ])
 
     const firstError = unitsResult.error || peopleResult.error || locationsResult.error || resolvedResult.error
     if (firstError) throw firstError
 
     cache = {
-      units: (unitsResult.data || []).map((row) => ({
+      units: unitsResult.data.map((row) => ({
         unitCode: text(row.unit_code),
         unitName: text(row.unit_name),
         unitType: text(row.unit_type),
         parentUnitCode: text(row.parent_unit_code),
       })),
-      people: (peopleResult.data || []).map((row) => ({
+      people: peopleResult.data.map((row) => ({
         personCode: text(row.person_code),
         displayName: text(row.display_name),
         unitCode: text(row.unit_code),
         jobTitle: text(row.job_title),
       })),
-      locations: (locationsResult.data || []).map((row) => ({
+      locations: locationsResult.data.map((row) => ({
         locationCode: text(row.location_code),
         locationName: text(row.location_name),
         locationType: text(row.location_type) === 'LINE' ? 'LINE' : 'AREA',
         unitCode: text(row.unit_code),
       })),
-      resolvedAssignments: (resolvedResult.data || []).map((row) => ({
+      resolvedAssignments: resolvedResult.data.map((row) => ({
         equipmentId: text(row.equipment_id),
         primaryRoleCode: text(row.primary_role_code),
         primaryRoleName: text(row.primary_role_name),

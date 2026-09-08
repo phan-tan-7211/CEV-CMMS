@@ -1,6 +1,6 @@
 import type { LiveEquipment } from './liveEquipment'
 import { patchEquipmentCacheAfterBulk, patchEquipmentCacheAfterWrite } from './supabaseEquipment'
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 
 export type EquipmentBulkPatch = {
   department?: string
@@ -46,18 +46,20 @@ export type EquipmentRowPatch = Partial<{
 
 export type EquipmentRowChange = { equipmentId: string; patch: EquipmentRowPatch }
 
+function errorMessage(error: unknown) { return error instanceof Error ? error.message : String(error) }
+
 export async function bulkUpdateEquipment(equipmentIds: string[], patch: EquipmentBulkPatch) {
   const ids = [...new Set(equipmentIds.map((id) => id.trim().toUpperCase()).filter(Boolean))]
   if (!ids.length) throw new Error('Chưa chọn thiết bị.')
   if (!Object.keys(patch).length) throw new Error('Chưa chọn nội dung cần cập nhật.')
 
   const normalizedPatch = Object.fromEntries(Object.entries(patch).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value]))
-  const { data, error } = await supabase.rpc('rpc_bulk_update_equipment_master', {
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_bulk_update_equipment_master', {
     p_equipment_ids: ids,
     p_patch: normalizedPatch,
   })
-  if (error) throw new Error(`SUPABASE_EQUIPMENT_BULK_UPDATE_FAILED: ${error.message}`)
-  const result = (data || {}) as Record<string, unknown>
+  if (error) throw new Error(`SUPABASE_EQUIPMENT_BULK_UPDATE_FAILED: ${errorMessage(error)}`)
+  const result = data || {}
   patchEquipmentCacheAfterBulk(ids, normalizedPatch)
   return { updatedCount: Number(result.updatedCount || result.updated_count || 0) }
 }
@@ -102,9 +104,9 @@ export async function bulkUpdateEquipmentRows(changes: EquipmentRowChange[]) {
     .filter((change) => change.equipmentId && Object.keys(change).length > 1)
   if (!normalized.length) throw new Error('Chưa có ô nào thay đổi.')
 
-  const { data, error } = await supabase.rpc('rpc_bulk_update_equipment_rows', { p_changes: normalized })
-  if (error) throw new Error(`SUPABASE_EQUIPMENT_ROW_BATCH_UPDATE_FAILED: ${error.message}`)
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_bulk_update_equipment_rows', { p_changes: normalized })
+  if (error) throw new Error(`SUPABASE_EQUIPMENT_ROW_BATCH_UPDATE_FAILED: ${errorMessage(error)}`)
   for (const change of changes) patchEquipmentCacheAfterWrite(cachePatch(change))
-  const result = (data || {}) as Record<string, unknown>
+  const result = data || {}
   return { updatedCount: Number(result.updatedCount || result.updated_count || normalized.length) }
 }

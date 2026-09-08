@@ -1,5 +1,5 @@
+import { dataGateway } from './dataGateway'
 import { patchMaintenanceHandoverCache } from './liveMaintenance'
-import { supabase } from './supabaseClient'
 
 export type EquipmentHandoverInput = {
   workOrderId: string
@@ -27,9 +27,9 @@ export type EquipmentHandoverInput = {
 function text(value: unknown) { return value == null ? '' : String(value).trim() }
 
 export async function recordEquipmentHandover(input: EquipmentHandoverInput) {
-  const { data, error } = await supabase.rpc('rpc_record_equipment_handover', { p_input: input })
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_record_equipment_handover', { p_input: input })
   if (error) throw error
-  const result = (data || {}) as Record<string, unknown>
+  const result = data || {}
   const normalized = {
     handoverId: text(result.handoverId),
     equipmentId: text(result.equipmentId),

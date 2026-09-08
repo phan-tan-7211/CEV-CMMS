@@ -16,7 +16,7 @@ export const NEXT_MAINTENANCE_ACTION: Partial<Record<MaintenanceWorkflowStatus, 
   WAITING_APPROVAL: { action: 'APPROVE', label: 'Phê duyệt' },
   APPROVED: { action: 'START', label: 'Bắt đầu sửa chữa' },
   IN_PROGRESS: { action: 'COMPLETE', label: 'Hoàn tất sửa chữa' },
-  COMPLETED: { action: 'VERIFY', label: 'Xác nhận chạy thử' },
+  COMPLETED: { action: 'VERIFY', label: 'Xác nhận kết quả sửa chữa' },
   VERIFIED: { action: 'RELEASE', label: 'Bàn giao thiết bị' },
 }
 

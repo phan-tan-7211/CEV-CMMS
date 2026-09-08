@@ -22,7 +22,8 @@
           "cameraPermission": "Cho phép CEV CMMS sử dụng camera để chụp ảnh thiết bị.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "android": {
       "package": "com.cev.cmms",
