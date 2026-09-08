@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { SettingsRow } from './SettingsRow'
 import { SettingsScaffold } from './SettingsScaffold'
 import { WorkOrderSettingsScreen } from './WorkOrderSettingsScreen'
-import { loadSettingsBundle, saveModuleSettings, type ModuleSettings } from '../../features/settings/api/settingsService'
+import { loadSettingsBundle, saveModuleSettings, type ModuleSettings } from '../../features/settings'
 
 const defaults: ModuleSettings = { assetsEnabled: true, partsInventoryEnabled: true, requestsEnabled: true, workOrdersEnabled: true, purchaseOrdersEnabled: true, metersEnabled: true, tagsEnabled: true }
 
