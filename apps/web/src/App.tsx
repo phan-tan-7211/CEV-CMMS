@@ -25,17 +25,29 @@ const LiveSparePartsAutoPanel = lazy(() => import('./LiveSparePartsAutoPanel').t
 const LiveToolingPanel = lazy(() => import('./LiveToolingPanel').then((module) => ({ default: module.LiveToolingPanel })))
 const OrgManagementPanel = lazy(() => import('./OrgManagementPanel').then((module) => ({ default: module.OrgManagementPanel })))
 
-type View = 'dashboard' | 'qr' | 'equipment' | 'inventory' | 'inspection' | 'work-orders' | 'maintenance' | 'spare' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
+type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
 
 const NAV: Array<{ id: View; label: string; adminOnly?: boolean }> = [
   { id: 'dashboard', label: 'Tổng quan' },
   { id: 'qr', label: 'Quét QR' },
+  { id: 'work-orders', label: 'Lệnh công việc' },
+  { id: 'maintenance', label: 'Bảo trì phòng ngừa' },
+  { id: 'scheduler', label: 'Lịch trình' },
+  { id: 'requests', label: 'Yêu cầu' },
+  { id: 'analytics', label: 'Phân tích' },
+  { id: 'meters', label: 'Đồng hồ đo' },
+  { id: 'edge', label: 'Edge' },
   { id: 'equipment', label: 'Thiết bị' },
+  { id: 'locations', label: 'Địa điểm' },
+  { id: 'people', label: 'Nhân sự & Nhóm' },
+  { id: 'inspection', label: 'Danh sách kiểm tra' },
+  { id: 'files', label: 'Quản lý tệp' },
+  { id: 'import-export', label: 'Nhập & Xuất' },
   { id: 'inventory', label: 'Kiểm kê thiết bị' },
-  { id: 'inspection', label: 'Kiểm tra ngày' },
-  { id: 'work-orders', label: 'Work Orders' },
-  { id: 'maintenance', label: 'Bảo trì' },
-  { id: 'spare', label: 'Phụ tùng' },
+  { id: 'spare', label: 'Phụ tùng & Kho' },
+  { id: 'purchase-orders', label: 'Đơn đặt hàng' },
+  { id: 'customers', label: 'Khách hàng' },
+  { id: 'providers', label: 'Nhà cung cấp và Mạng lưới' },
   { id: 'tooling', label: 'Jig, gá & dụng cụ' },
   { id: 'calibration', label: 'Hiệu chuẩn' },
   { id: 'print', label: 'Hồ sơ A4' },
@@ -61,7 +73,7 @@ const ROLE_LABEL: Record<AppRole, string> = {
 
 function initialView(): View {
   const requested = new URLSearchParams(window.location.search).get('phase3')
-  if (requested === 'qr' || requested === 'equipment' || requested === 'inventory' || requested === 'dashboard' || requested === 'inspection' || requested === 'work-orders' || requested === 'maintenance' || requested === 'spare' || requested === 'tooling' || requested === 'calibration' || requested === 'print' || requested === 'organization') return requested
+  if (requested && NAV.some((item) => item.id === requested)) return requested as View
   if (requested === 'audit') return 'settings'
   return 'dashboard'
 }
@@ -100,7 +112,16 @@ function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, 
   if (view === 'calibration') return <div className="maintenance-workspace-stack"><LiveCalibrationPanel /><LiveCalibrationEvaluationPanel /><LiveCalibrationQuotePanel /></div>
   if (view === 'print') return <A4PrintCenter />
   if (view === 'organization') return <OrgManagementPanel />
-  return <LiveAuditPanel />
+  if (view === 'settings') return <LiveAuditPanel />
+  return <ModulePlaceholderPanel title={NAV.find((item) => item.id === view)?.label || view} />
+}
+
+function ModulePlaceholderPanel({ title }: { title: string }) {
+  return <div className="workspace-placeholder" aria-labelledby="workspace-placeholder-title">
+    <p className="eyebrow">CEV CMMS · UpKeep layout</p>
+    <h2 id="workspace-placeholder-title">{title}</h2>
+    <p>Khung màn hình đã được thêm vào điều hướng. Logic dữ liệu và thao tác chi tiết sẽ nối ở bước tiếp theo.</p>
+  </div>
 }
 
 export default function App() {
