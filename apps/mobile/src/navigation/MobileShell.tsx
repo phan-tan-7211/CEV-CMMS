@@ -134,6 +134,9 @@ export function MobileShell() {
 
   if (!session) return <LoginScreen onSignIn={handleSignIn} />
 
+  const operatorFlow = isOperatorSession(session)
+  const adminSession = isAdminSession(session)
+
   if (route === 'registration') return <EquipmentRegistrationScreen onBack={goBack} />
   if (route === 'equipment') {
     return (
@@ -180,12 +183,22 @@ export function MobileShell() {
     return <WorkOrderDetailScreen workOrderId={selectedWorkOrderId} onBack={goBack} />
   }
   if (route === 'requests') return <RequestsScreen onBack={goBack} />
-  if (route === 'more') return <MoreScreen onBack={goBack} />
+  if (route === 'more') {
+    return (
+      <MoreScreen
+        onHome={resetNavigation}
+        onOpenWorkOrders={() => navigate({ name: 'work-orders' })}
+        onOpenRequests={() => navigate({ name: 'requests' })}
+        onCreateEquipment={() => navigate({ name: 'registration' })}
+        onOpenOperatorScan={() => navigate({ name: 'scan', operatorFlow: true })}
+        isAdmin={adminSession}
+        isOperatorFlow={operatorFlow}
+      />
+    )
+  }
   if (route === 'settings') {
     return <AccountSettingsScreen session={session} onBack={goBack} onSignOut={handleSignOut} />
   }
-
-  const operatorFlow = isOperatorSession(session)
 
   return (
     <HomeScreen
@@ -197,7 +210,7 @@ export function MobileShell() {
       onOpenRequests={() => navigate({ name: 'requests' })}
       onOpenMore={() => navigate({ name: 'more' })}
       onOpenSettings={() => navigate({ name: 'settings' })}
-      isAdmin={isAdminSession(session)}
+      isAdmin={adminSession}
       isOperatorFlow={operatorFlow}
     />
   )
