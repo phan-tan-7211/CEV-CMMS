@@ -13,6 +13,7 @@ import { RequestsScreen } from '../screens/RequestsScreen'
 import { ScanAssetScreen } from '../screens/ScanAssetScreen'
 import { WorkOrderDetailScreen } from '../screens/WorkOrderDetailScreen'
 import { WorkOrdersScreen } from '../screens/WorkOrdersScreen'
+import { SimpleScannerScreen } from '../screens/SimpleScannerScreen'
 import { AccountSettingsScreen } from '../screens/settings/AccountSettingsScreen'
 import {
   getCurrentSession,
@@ -21,7 +22,7 @@ import {
   subscribeAuthState,
 } from '../features/auth'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'scan' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'scan' | 'simple-scan' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -29,6 +30,7 @@ type RouteEntry = {
   equipmentStatus?: string
   workOrderId?: string
   operatorFlow?: boolean
+  equipmentQuery?: string
 }
 
 const HOME_ENTRY: RouteEntry = { name: 'home' }
@@ -142,9 +144,29 @@ export function MobileShell() {
     return (
       <EquipmentListScreen
         onBack={goBack}
+        onScan={() => navigate({ name: 'simple-scan' })}
         onCreateEquipment={() => navigate({ name: 'registration' })}
         onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
         currentUserKeys={currentUserFilterKeys(session)}
+        initialQuery={currentEntry.equipmentQuery}
+      />
+    )
+  }
+  if (route === 'simple-scan') {
+    return (
+      <SimpleScannerScreen
+        title="Quét mã thiết bị"
+        onBack={goBack}
+        onResult={(code) => {
+          setRouteStack((current) => {
+            const previous = current.slice(0, -1)
+            const equipmentIndex = previous.map((entry) => entry.name).lastIndexOf('equipment')
+            if (equipmentIndex < 0) return previous
+            const next = previous.slice(0, equipmentIndex + 1)
+            next[equipmentIndex] = { ...next[equipmentIndex], equipmentQuery: code }
+            return next
+          })
+        }}
       />
     )
   }
