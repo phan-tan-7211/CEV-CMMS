@@ -165,10 +165,6 @@ export function HomeScreen({
             ))}
           </View>
 
-          <View style={styles.syncHint}>
-            <Ionicons name="flash-outline" size={15} color="#475467" />
-            <Text style={styles.syncHintText}>Home đã tách khỏi App.tsx; các module native giờ có screen route riêng để nối service/cache dần.</Text>
-          </View>
         </ScrollView>
 
         <AppBottomNav
@@ -176,7 +172,7 @@ export function HomeScreen({
           onHome={() => {}}
           onWorkOrders={onOpenWorkOrders}
           onCenterPress={handleCenterAction}
-          onRequests={onOpenRequests}
+          onEquipment={onOpenEquipment}
           onMore={onOpenMore}
           centerMode={isOperatorFlow ? 'scan' : 'create'}
         />
@@ -273,7 +269,5 @@ const styles = StyleSheet.create({
   statusAccent: { width: 4, height: 34, marginLeft: 11, marginRight: 11, borderRadius: 3 },
   statusLabel: { flex: 1, fontSize: 15.5, lineHeight: 20, fontWeight: '800', color: '#20242A' },
   statusCount: { minWidth: 26, marginHorizontal: 7, textAlign: 'right', fontSize: 16.5, lineHeight: 21, fontWeight: '500', color: '#667085' },
-  syncHint: { marginTop: 11, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
-  syncHintText: { flex: 1, fontSize: 10.5, lineHeight: 15, color: '#667085' },
   pressed: { opacity: 0.64 },
 })

@@ -259,6 +259,7 @@ export function MobileShell() {
         onHome={resetNavigation}
         onOpenWorkOrders={() => navigate({ name: 'work-orders' })}
         onOpenRequests={() => navigate({ name: 'requests' })}
+        onOpenEquipment={() => navigate({ name: 'equipment' })}
         onCreateEquipment={() => navigate({ name: 'registration' })}
         onOpenOperatorScan={() => navigate({ name: 'scan', operatorFlow: true })}
         onOpenParts={() => navigate({ name: 'part-list' })}

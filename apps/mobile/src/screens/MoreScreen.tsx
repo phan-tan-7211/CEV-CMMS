@@ -21,6 +21,7 @@ type MoreScreenProps = {
   onHome: () => void
   onOpenWorkOrders: () => void
   onOpenRequests: () => void
+  onOpenEquipment: () => void
   onCreateEquipment: () => void
   onOpenOperatorScan: () => void
   onOpenParts: () => void
@@ -31,6 +32,7 @@ type MoreScreenProps = {
 const MENU_ITEMS: MoreMenuItem[] = [
   { key: 'locations', label: 'Vị trí', icon: 'location', iconColor: '#2E90FA', backgroundColor: '#DCE5E9' },
   { key: 'assets', label: 'Tài sản', icon: 'cube-outline', iconColor: '#F79009', backgroundColor: '#F3EBD8' },
+  { key: 'requests', label: 'Yêu cầu', icon: 'clipboard-outline', iconColor: '#12B76A', backgroundColor: '#DDF7EA' },
   { key: 'parts', label: 'Phụ tùng', icon: 'archive-outline', iconColor: '#7F56D9', backgroundColor: '#E7DDEB' },
   { key: 'meters', label: 'Đồng hồ đo', icon: 'speedometer-outline', iconColor: '#E31B54', backgroundColor: '#E8DEDC' },
   { key: 'people-teams', label: 'Người & Nhóm', icon: 'person', iconColor: '#155EEF', backgroundColor: '#DCE5E9' },
@@ -45,6 +47,7 @@ export function MoreScreen({
   onHome,
   onOpenWorkOrders,
   onOpenRequests,
+  onOpenEquipment,
   onCreateEquipment,
   onOpenOperatorScan,
   onOpenParts,
@@ -79,7 +82,12 @@ export function MoreScreen({
               key={item.key}
               accessibilityRole="button"
               accessibilityLabel={item.label}
-              onPress={() => item.key === 'parts' ? onOpenParts() : showComingSoon(item.label)}
+              onPress={() => {
+                if (item.key === 'parts') return onOpenParts()
+                if (item.key === 'requests') return onOpenRequests()
+                if (item.key === 'assets') return onOpenEquipment()
+                return showComingSoon(item.label)
+              }}
               style={({ pressed }) => [
                 styles.menuCard,
                 { backgroundColor: item.backgroundColor },
@@ -97,7 +105,7 @@ export function MoreScreen({
           onHome={onHome}
           onWorkOrders={onOpenWorkOrders}
           onCenterPress={handleCenterAction}
-          onRequests={onOpenRequests}
+          onEquipment={onOpenEquipment}
           onMore={() => {}}
           centerMode={isOperatorFlow ? 'scan' : 'create'}
         />

@@ -1,14 +1,14 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 
-type BottomTab = 'home' | 'work-orders' | 'requests' | 'more'
+type BottomTab = 'home' | 'work-orders' | 'equipment' | 'more'
 
 type AppBottomNavProps = {
   activeTab: BottomTab
   onHome: () => void
   onWorkOrders: () => void
   onCenterPress: () => void
-  onRequests: () => void
+  onEquipment: () => void
   onMore: () => void
   centerMode?: 'create' | 'scan'
 }
@@ -21,7 +21,7 @@ export function AppBottomNav({
   onHome,
   onWorkOrders,
   onCenterPress,
-  onRequests,
+  onEquipment,
   onMore,
   centerMode = 'create',
 }: AppBottomNavProps) {
@@ -43,10 +43,10 @@ export function AppBottomNav({
         />
         <View style={styles.navCenterSpace} />
         <NavItem
-          label="Yêu cầu"
-          icon="briefcase-outline"
-          active={activeTab === 'requests'}
-          onPress={onRequests}
+          label="Thiết bị"
+          icon="cube-outline"
+          active={activeTab === 'equipment'}
+          onPress={onEquipment}
         />
         <NavItem
           label="Thêm"
