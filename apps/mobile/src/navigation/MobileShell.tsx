@@ -38,6 +38,15 @@ function isAdminSession(session: Session) {
   return role === 'admin' || role === 'administrator' || role === 'super_admin' || role === 'superadmin'
 }
 
+function currentUserFilterKeys(session: Session) {
+  const metadata = session.user.user_metadata || {}
+  return [
+    session.user.id,
+    session.user.email || '',
+    String(metadata.display_name || metadata.full_name || metadata.name || ''),
+  ].map((value) => String(value || '').trim()).filter(Boolean)
+}
+
 export function MobileShell() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [routeStack, setRouteStack] = useState<RouteEntry[]>([HOME_ENTRY])
@@ -122,6 +131,7 @@ export function MobileShell() {
         onBack={goBack}
         onCreateEquipment={() => navigate({ name: 'registration' })}
         onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
+        currentUserKeys={currentUserFilterKeys(session)}
       />
     )
   }

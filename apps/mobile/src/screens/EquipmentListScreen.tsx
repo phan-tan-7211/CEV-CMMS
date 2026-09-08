@@ -5,14 +5,19 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import {
+  applyEquipmentFilter,
+  EMPTY_EQUIPMENT_FILTER,
   EquipmentPhoto,
   getEquipmentListSnapshot,
+  hasEquipmentFilter,
   listEquipmentStatuses,
   revalidateEquipmentList,
   subscribeEquipmentList,
+  type EquipmentFilter,
   type EquipmentListItem,
   type EquipmentStatusMaster,
 } from '../features/equipment'
+import { EquipmentFilterScreen } from './EquipmentFilterScreen'
 
 type SortMode = 'name-asc' | 'name-desc' | 'location-asc' | 'location-desc'
 
@@ -31,7 +36,29 @@ function locationText(item: EquipmentListItem) {
   return [item.area, item.line].filter(Boolean).join(' · ')
 }
 
-export function EquipmentListScreen({ onBack, onCreateEquipment, onOpenEquipment }: { onBack: () => void; onCreateEquipment: () => void; onOpenEquipment: (equipmentId: string) => void }) {
+function emptyAdvancedFilter(): EquipmentFilter {
+  return {
+    ...EMPTY_EQUIPMENT_FILTER,
+    locations: [],
+    primaryUsers: [],
+    assignedUsers: [],
+    assignedTeams: [],
+    assignedVendors: [],
+    assignedCustomers: [],
+  }
+}
+
+export function EquipmentListScreen({
+  onBack,
+  onCreateEquipment,
+  onOpenEquipment,
+  currentUserKeys = [],
+}: {
+  onBack: () => void
+  onCreateEquipment: () => void
+  onOpenEquipment: (equipmentId: string) => void
+  currentUserKeys?: string[]
+}) {
   const [items, setItems] = useState<EquipmentListItem[]>([])
   const [statuses, setStatuses] = useState<EquipmentStatusMaster[]>([])
   const [query, setQuery] = useState('')
@@ -39,6 +66,8 @@ export function EquipmentListScreen({ onBack, onCreateEquipment, onOpenEquipment
   const [sortOpen, setSortOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [statusOpen, setStatusOpen] = useState(false)
+  const [advancedFilter, setAdvancedFilter] = useState<EquipmentFilter>(() => emptyAdvancedFilter())
+  const [filterOpen, setFilterOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
@@ -113,7 +142,8 @@ export function EquipmentListScreen({ onBack, onCreateEquipment, onOpenEquipment
 
   const filteredItems = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase('vi')
-    const nextItems = items.filter((item) => {
+    const advancedItems = applyEquipmentFilter(items, advancedFilter, currentUserKeys)
+    const nextItems = advancedItems.filter((item) => {
       if (statusFilter && item.status.trim().toUpperCase() !== statusFilter) return false
       if (!needle) return true
       return [item.equipmentId, item.equipmentName, item.model, item.manufacturer, item.area, item.line, item.category]
@@ -126,13 +156,31 @@ export function EquipmentListScreen({ onBack, onCreateEquipment, onOpenEquipment
       return compareText(locationText(b), locationText(a)) || compareText(a.equipmentName, b.equipmentName)
     })
     return nextItems
-  }, [items, query, sortMode, statusFilter])
+  }, [advancedFilter, currentUserKeys, items, query, sortMode, statusFilter])
 
   const sortLabel = SORT_OPTIONS.find((option) => option.value === sortMode)?.label || 'Tên (A đến Z)'
   const selectedStatus = statuses.find((status) => status.statusCode === statusFilter)
   const statusLabel = selectedStatus?.displayName || 'Trạng thái'
-  const hasActiveFilter = Boolean(statusFilter)
-  const resetFilters = () => setStatusFilter(null)
+  const advancedActive = hasEquipmentFilter(advancedFilter)
+  const hasActiveFilter = Boolean(statusFilter) || advancedActive
+  const resetFilters = () => {
+    setStatusFilter(null)
+    setAdvancedFilter(emptyAdvancedFilter())
+  }
+
+  if (filterOpen) {
+    return (
+      <EquipmentFilterScreen
+        items={items}
+        value={advancedFilter}
+        onCancel={() => setFilterOpen(false)}
+        onApply={(nextFilter) => {
+          setAdvancedFilter(nextFilter)
+          setFilterOpen(false)
+        }}
+      />
+    )
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -150,11 +198,14 @@ export function EquipmentListScreen({ onBack, onCreateEquipment, onOpenEquipment
       </View>
 
       <View style={styles.filterToolsRow}>
-        <Pressable style={styles.filterIconButton}><Ionicons name="options-outline" size={20} color="#101828" /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Chọn bộ lọc thiết bị" onPress={() => setFilterOpen(true)} style={[styles.filterIconButton, advancedActive && styles.filterIconButtonActive]}>
+          <Ionicons name="options-outline" size={20} color={advancedActive ? '#FFFFFF' : '#101828'} />
+          {advancedActive ? <View style={styles.filterActiveDot} /> : null}
+        </Pressable>
         <View style={styles.toolDivider} />
-        <Pressable onPress={() => setStatusOpen(true)} style={[styles.statusFilterButton, hasActiveFilter && styles.statusFilterButtonActive]}>
-          <Text style={[styles.statusFilterText, hasActiveFilter && styles.statusFilterTextActive]} numberOfLines={1}>{statusLabel}</Text>
-          <Ionicons name="chevron-down" size={17} color={hasActiveFilter ? '#FFFFFF' : '#101828'} />
+        <Pressable onPress={() => setStatusOpen(true)} style={[styles.statusFilterButton, Boolean(statusFilter) && styles.statusFilterButtonActive]}>
+          <Text style={[styles.statusFilterText, Boolean(statusFilter) && styles.statusFilterTextActive]} numberOfLines={1}>{statusLabel}</Text>
+          <Ionicons name="chevron-down" size={17} color={statusFilter ? '#FFFFFF' : '#101828'} />
         </Pressable>
         <View style={styles.toolDivider} />
         <Pressable onPress={resetFilters} disabled={!hasActiveFilter} style={[styles.resetButton, !hasActiveFilter && styles.resetHidden]}><Text style={styles.resetText}>Đặt lại tất cả</Text></Pressable>
@@ -225,7 +276,9 @@ const styles = StyleSheet.create({
   searchWrap: { minHeight: 46, marginHorizontal: 12, marginTop: 12, marginBottom: 9, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 23, borderWidth: 1, borderColor: '#E4E7EC', backgroundColor: '#FFFFFF' },
   searchInput: { flex: 1, minHeight: 44, fontSize: 14, color: '#101828' },
   filterToolsRow: { minHeight: 47, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF' },
-  filterIconButton: { width: 43, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2F4F7' },
+  filterIconButton: { position: 'relative', width: 43, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F2F4F7' },
+  filterIconButtonActive: { backgroundColor: '#2D2D2D' },
+  filterActiveDot: { position: 'absolute', right: 7, top: 6, width: 7, height: 7, borderRadius: 4, borderWidth: 1.5, borderColor: '#2D2D2D', backgroundColor: '#84ADFF' },
   toolDivider: { width: StyleSheet.hairlineWidth, height: 30, backgroundColor: '#D0D5DD' },
   statusFilterButton: { maxWidth: 190, minHeight: 36, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 18, backgroundColor: '#F2F4F7' },
   statusFilterButtonActive: { backgroundColor: '#2D2D2D' },
