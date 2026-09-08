@@ -9,6 +9,7 @@ type Props = {
   onDismiss: () => void
   onRescan: () => void
   onCreateAsset: (code: string) => void
+  onCreateWorkOrder: (equipmentId: string) => void
   onOpenAsset: (equipmentId: string) => void
   onOpenHierarchy: (equipmentId: string) => void
   onOpenPendingWorkOrders: (equipmentId: string) => void
@@ -47,7 +48,7 @@ function ActionRow({
   )
 }
 
-export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCreateAsset, onOpenAsset, onOpenHierarchy, onOpenPendingWorkOrders, onOpenPendingRequests, onOpenCompletedWorkOrders, onSelectMultiple }: Props) {
+export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCreateAsset, onCreateWorkOrder, onOpenAsset, onOpenHierarchy, onOpenPendingWorkOrders, onOpenPendingRequests, onOpenCompletedWorkOrders, onSelectMultiple }: Props) {
   if (!loading && !result) return null
 
   return (
@@ -86,6 +87,7 @@ export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCr
             </View>
 
             <View style={styles.actionGroup}>
+              <ActionRow icon="add-circle-outline" label="Tạo Work Order" onPress={() => onCreateWorkOrder(result.asset.equipmentId)} />
               <ActionRow icon="information-circle-outline" label="Chi tiết thiết bị" onPress={() => onOpenAsset(result.asset.equipmentId)} />
               <ActionRow icon="git-network-outline" label="Phân cấp thiết bị" onPress={() => onOpenHierarchy(result.asset.equipmentId)} />
               <ActionRow icon="time-outline" label="Work Order đang chờ" onPress={() => onOpenPendingWorkOrders(result.asset.equipmentId)} />

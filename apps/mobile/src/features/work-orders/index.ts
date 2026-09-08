@@ -1,4 +1,5 @@
 export type { WorkOrderDetail, WorkOrderListItem } from './api/workOrderService'
+export { createMaintenanceWorkOrder } from './api/workOrderMutationService'
 
 export {
   getWorkOrderDetailSnapshot,
