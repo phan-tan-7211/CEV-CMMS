@@ -105,7 +105,7 @@ export function MoreScreen({
           onHome={onHome}
           onWorkOrders={onOpenWorkOrders}
           onCenterPress={handleCenterAction}
-          onEquipment={onOpenEquipment}
+          onRequests={onOpenRequests}
           onMore={() => {}}
           centerMode={isOperatorFlow ? 'scan' : 'create'}
         />
