@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { SettingsRow } from './SettingsRow'
 import { SettingsScaffold } from './SettingsScaffold'
-import { loadSettingsBundle, saveWorkOrderSettings, type WorkOrderSettings } from '../../features/settings/api/settingsService'
+import { loadSettingsBundle, saveWorkOrderSettings, type WorkOrderSettings } from '../../features/settings'
 
 const defaults: WorkOrderSettings = { feedbackEnabled: true, completionNoteRequired: false, numberStartCount: 1, formsEnabled: true, customStatusesEnabled: true, customFieldsEnabled: true, categoriesEnabled: true }
 
