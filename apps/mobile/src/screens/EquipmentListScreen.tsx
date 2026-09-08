@@ -54,16 +54,18 @@ export function EquipmentListScreen({
   onCreateEquipment,
   onOpenEquipment,
   currentUserKeys = [],
+  initialQuery,
 }: {
   onBack: () => void
   onScan: () => void
   onCreateEquipment: () => void
   onOpenEquipment: (equipmentId: string) => void
   currentUserKeys?: string[]
+  initialQuery?: string
 }) {
   const [items, setItems] = useState<EquipmentListItem[]>([])
   const [statuses, setStatuses] = useState<EquipmentStatusMaster[]>([])
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery ?? '')
   const [sortMode, setSortMode] = useState<SortMode>('name-asc')
   const [sortOpen, setSortOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
@@ -73,6 +75,10 @@ export function EquipmentListScreen({
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (initialQuery !== undefined) setQuery(initialQuery)
+  }, [initialQuery])
 
   useEffect(() => {
     let active = true
