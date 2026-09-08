@@ -88,6 +88,14 @@ Database lưu path/metadata, không lưu binary image trong table.
 
 ## Frontend
 
+Web và Mobile là hai ứng dụng độc lập trong cùng một Git repository:
+
+```text
+apps/web/       React + Vite + TypeScript
+apps/mobile/    React Native + Expo
+supabase/       Database, Auth, RLS, Storage và RPC
+```
+
 Các workspace production:
 
 - Tổng quan
@@ -109,6 +117,7 @@ Không tự tạo dữ liệu giao dịch production từ template/ví dụ nế
 ## Development
 
 ```bash
+cd apps/web
 npm install
 npm run dev
 npm test
@@ -116,7 +125,7 @@ npm run build
 npm run lint
 ```
 
-Supabase env xem `.env.example`. Không commit service-role key hoặc secret vào client/GitHub.
+Supabase env xem `apps/web/.env.example`. Không commit service-role key hoặc secret vào client/GitHub.
 
 ## Tài liệu chính
 
