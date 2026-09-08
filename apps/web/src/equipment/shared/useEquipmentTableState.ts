@@ -12,7 +12,7 @@ import {
 } from './equipmentColumns'
 
 const COLUMN_WIDTH_STORAGE_KEY = 'cev-equipment-column-widths-v1'
-const MIN_COLUMN_WIDTH = 90
+const MIN_COLUMN_WIDTH = 42
 const MAX_COLUMN_WIDTH = 480
 
 function loadColumnWidths(): Partial<Record<ColumnKey, number>> {
