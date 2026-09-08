@@ -32,19 +32,6 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(() => loadColumnWidths() as ColumnSizingState)
   const columnWidths = columnSizing as Partial<Record<ColumnKey, number>>
   const columnWidthsRef = useRef(columnSizing)
-  const tableColumns = useMemo<TanStackColumnDef<LiveEquipment>[]>(() => COLUMNS.map((column) => ({
-    id: column.key,
-    header: column.label,
-    accessorFn: (row) => columnValue(row, column.key),
-  })), [])
-  const table = useReactTable({
-    data: rows,
-    columns: tableColumns,
-    state: { columnSizing },
-    onColumnSizingChange: setColumnSizing,
-    columnResizeMode: 'onChange',
-    getCoreRowModel: getCoreRowModel(),
-  })
   const [columnPickerOpen, setColumnPickerOpen] = useState(false)
   const [filterColumn, setFilterColumn] = useState<ColumnKey | null>(null)
   const [filterSearch, setFilterSearch] = useState('')
@@ -92,6 +79,22 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
     const result = columnValue(a, sortKey).localeCompare(columnValue(b, sortKey), 'vi', { numeric: true, sensitivity: 'base' })
     return sortDirection === 'asc' ? result : -result
   }), [filteredRows, sortKey, sortDirection])
+
+  const tableColumns = useMemo<TanStackColumnDef<LiveEquipment>[]>(() => COLUMNS
+    .filter((column) => visibleColumns.includes(column.key))
+    .map((column) => ({
+      id: column.key,
+      header: column.label,
+      accessorFn: (row) => columnValue(row, column.key),
+    })), [visibleColumns])
+  const table = useReactTable({
+    data: sortedRows,
+    columns: tableColumns,
+    state: { columnSizing },
+    onColumnSizingChange: setColumnSizing,
+    columnResizeMode: 'onChange',
+    getCoreRowModel: getCoreRowModel(),
+  })
 
   function toggleSort(key: ColumnKey) {
     if (sortKey === key) setSortDirection((value) => value === 'asc' ? 'desc' : 'asc')
@@ -175,7 +178,7 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
     columnFilters, setColumnFilters,
     photoHover, setPhotoHover,
     activeFilterCount,
-    sortedRows,
+    sortedRows, table,
     toggleSort,
     toggleColumn,
     filterOptions,
