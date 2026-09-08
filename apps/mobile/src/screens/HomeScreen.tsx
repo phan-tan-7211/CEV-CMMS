@@ -11,12 +11,14 @@ type IconName = keyof typeof Ionicons.glyphMap
 type HomeScreenProps = {
   onCreateEquipment: () => void
   onOpenScan: () => void
+  onOpenOperatorScan: () => void
   onOpenWorkOrders: () => void
   onOpenEquipment: () => void
   onOpenRequests: () => void
   onOpenMore: () => void
   onOpenSettings: () => void
   isAdmin?: boolean
+  isOperatorFlow?: boolean
 }
 
 const QUICK_ACTIONS: Array<{ label: string; icon: IconName; primary?: boolean }> = [
@@ -44,12 +46,14 @@ function showComingSoon(label: string) {
 export function HomeScreen({
   onCreateEquipment,
   onOpenScan,
+  onOpenOperatorScan,
   onOpenWorkOrders,
   onOpenEquipment,
   onOpenRequests,
   onOpenMore,
   onOpenSettings,
   isAdmin = false,
+  isOperatorFlow = false,
 }: HomeScreenProps) {
   const [assignedOnly, setAssignedOnly] = useState(true)
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
@@ -59,6 +63,14 @@ export function HomeScreen({
     if (label === 'Công việc') return onOpenWorkOrders()
     if (label === 'Thiết bị') return onOpenEquipment()
     showComingSoon(label)
+  }
+
+  function handleCenterAction() {
+    if (isOperatorFlow) {
+      onOpenOperatorScan()
+      return
+    }
+    setCreateMenuOpen(true)
   }
 
   return (
@@ -181,17 +193,17 @@ export function HomeScreen({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Tạo mới"
-            onPress={() => setCreateMenuOpen(true)}
+            accessibilityLabel={isOperatorFlow ? 'Quét mã' : 'Tạo mới'}
+            onPress={handleCenterAction}
             style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
           >
-            <Ionicons name="add" size={34} color="#FFFFFF" />
+            <Ionicons name={isOperatorFlow ? 'scan-outline' : 'add'} size={isOperatorFlow ? 29 : 34} color="#FFFFFF" />
           </Pressable>
         </View>
       </View>
 
       <GlobalCreateSheet
-        visible={createMenuOpen}
+        visible={createMenuOpen && !isOperatorFlow}
         isAdmin={isAdmin}
         onClose={() => setCreateMenuOpen(false)}
         onCreateEquipment={onCreateEquipment}
