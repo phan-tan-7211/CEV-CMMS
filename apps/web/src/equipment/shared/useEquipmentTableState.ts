@@ -87,6 +87,8 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
       header: column.label,
       accessorFn: (row) => columnValue(row, column.key),
     })), [visibleColumns])
+  // TanStack Table returns mutable callback objects that React Compiler intentionally does not memoize.
+  // oxlint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data: sortedRows,
     columns: tableColumns,
