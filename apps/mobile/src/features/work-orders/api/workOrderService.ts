@@ -9,6 +9,7 @@ export type WorkOrderListItem = {
   priority: string
   reason: string
   sourceType: string
+  dueDate: string
   createdBy: string
   createdAt: string
   updatedAt: string
@@ -43,6 +44,11 @@ function text(value: unknown) {
   return String(value ?? '').trim()
 }
 
+function dueDateFromSourceData(sourceData: Record<string, unknown> | null) {
+  if (!sourceData) return ''
+  return text(sourceData.dueDate || sourceData.due_date || sourceData.dueAt || sourceData.due_at || sourceData.due)
+}
+
 async function loadEquipmentMap(equipmentIds: string[]) {
   const ids = Array.from(new Set(equipmentIds.map(text).filter(Boolean)))
   if (ids.length === 0) return new Map<string, EquipmentRow>()
@@ -73,6 +79,7 @@ function mapRow(row: WorkOrderRow, equipmentMap: Map<string, EquipmentRow>): Wor
     priority: text(row.priority),
     reason: text(row.reason),
     sourceType: text(row.source_type),
+    dueDate: dueDateFromSourceData(row.source_data),
     sourceId: text(row.source_id),
     createdBy: text(row.created_by),
     sourceData: row.source_data || {},
