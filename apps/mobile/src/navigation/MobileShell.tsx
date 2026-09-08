@@ -28,14 +28,24 @@ type RouteEntry = {
   equipmentId?: string
   equipmentStatus?: string
   workOrderId?: string
+  operatorFlow?: boolean
 }
 
 const HOME_ENTRY: RouteEntry = { name: 'home' }
 
-function isAdminSession(session: Session) {
+function sessionRole(session: Session) {
   const metadata = session.user.user_metadata || {}
-  const role = String(metadata.role || metadata.app_role || '').trim().toLowerCase()
+  return String(metadata.role || metadata.app_role || '').trim().toLowerCase()
+}
+
+function isAdminSession(session: Session) {
+  const role = sessionRole(session)
   return role === 'admin' || role === 'administrator' || role === 'super_admin' || role === 'superadmin'
+}
+
+function isOperatorSession(session: Session) {
+  const role = sessionRole(session)
+  return role === 'operator' || role === 'production_operator' || role === 'machine_operator'
 }
 
 function currentUserFilterKeys(session: Session) {
@@ -159,6 +169,7 @@ export function MobileShell() {
       <ScanAssetScreen
         onBack={goBack}
         onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
+        isOperatorFlow={Boolean(currentEntry.operatorFlow)}
       />
     )
   }
@@ -174,16 +185,20 @@ export function MobileShell() {
     return <AccountSettingsScreen session={session} onBack={goBack} onSignOut={handleSignOut} />
   }
 
+  const operatorFlow = isOperatorSession(session)
+
   return (
     <HomeScreen
       onCreateEquipment={() => navigate({ name: 'registration' })}
       onOpenScan={() => navigate({ name: 'scan' })}
+      onOpenOperatorScan={() => navigate({ name: 'scan', operatorFlow: true })}
       onOpenWorkOrders={() => navigate({ name: 'work-orders' })}
       onOpenEquipment={() => navigate({ name: 'equipment' })}
       onOpenRequests={() => navigate({ name: 'requests' })}
       onOpenMore={() => navigate({ name: 'more' })}
       onOpenSettings={() => navigate({ name: 'settings' })}
       isAdmin={isAdminSession(session)}
+      isOperatorFlow={operatorFlow}
     />
   )
 }
