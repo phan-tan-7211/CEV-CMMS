@@ -1,0 +1,2 @@
+import { MasterDataFormScreen } from './MasterDataFormScreen'
+export function LocationFormScreen({ onBack }: { onBack: () => void }) { return <MasterDataFormScreen title="Thêm vị trí" onBack={onBack} fields={[{label:'Tên vị trí *',placeholder:'Nhập tên vị trí'},{label:'Vị trí cha',placeholder:'Chọn vị trí cha'},{label:'Địa chỉ',placeholder:'Nhập địa chỉ'},{label:'Mô tả',placeholder:'Nhập mô tả',multiline:true}]} /> }
