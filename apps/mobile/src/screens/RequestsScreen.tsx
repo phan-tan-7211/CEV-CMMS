@@ -1,35 +1,16 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useMemo, useState } from 'react'
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { listMaintenanceRequests, type MaintenanceRequest } from '../features/requests/requestService'
 
-export function RequestsScreen({ onBack, equipmentId }: { onBack: () => void; equipmentId?: string }) {
-  return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
-      <View style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Quay lại" onPress={onBack} hitSlop={8} style={styles.iconButton}>
-          <Ionicons name="chevron-back" size={26} color="#101828" />
-        </Pressable>
-        <Text style={styles.title}>Yêu cầu</Text>
-        <View style={styles.iconButton} />
-      </View>
-      <View style={styles.center}>
-        <View style={styles.iconWrap}><Ionicons name="briefcase-outline" size={30} color="#155EEF" /></View>
-        <Text style={styles.heading}>Yêu cầu bảo trì</Text>
-        <Text style={styles.caption}>{equipmentId ? `Yêu cầu đang chờ của ${equipmentId} sẽ hiển thị tại đây khi backend có dữ liệu Request.` : 'Route native đã sẵn sàng. Dữ liệu yêu cầu sẽ được nối ở batch Work Request.'}</Text>
-      </View>
-    </SafeAreaView>
-  )
+function statusLabel(value: string) { const v=value.toUpperCase(); if(v==='OPEN') return 'Mở'; if(v==='IN_PROGRESS') return 'Đang xử lý'; if(v==='COMPLETED') return 'Hoàn thành'; return value||'Chưa có trạng thái' }
+function dateLabel(value: string) { const d=new Date(value); return Number.isNaN(d.getTime())?'—':new Intl.DateTimeFormat('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'}).format(d) }
+export function RequestsScreen({ onBack, equipmentId }: { onBack:()=>void; equipmentId?:string }) {
+ const [items,setItems]=useState<MaintenanceRequest[]>([]); const [query,setQuery]=useState(''); const [loading,setLoading]=useState(true); const [refreshing,setRefreshing]=useState(false); const [error,setError]=useState('')
+ async function load(force=false){if(force)setRefreshing(true);setError('');try{setItems(await listMaintenanceRequests())}catch(reason){setError(reason instanceof Error?reason.message:'Không tải được yêu cầu.')}finally{setLoading(false);setRefreshing(false)}}
+ useEffect(()=>{void load()},[])
+ const filtered=useMemo(()=>{const q=query.trim().toLocaleLowerCase('vi');return items.filter(i=>(!equipmentId||i.equipmentId===equipmentId)&&(!q||[i.requestId,i.equipmentId,i.reason,i.createdBy].some(v=>v.toLocaleLowerCase('vi').includes(q))))},[equipmentId,items,query])
+ return <SafeAreaView style={styles.safe} edges={['top','bottom']}><View style={styles.header}><Pressable onPress={onBack} style={styles.icon}><Ionicons name="chevron-back" size={26} color="#101828"/></Pressable><Text style={styles.title}>{equipmentId?'Yêu cầu của thiết bị':'Yêu cầu'}</Text><View style={styles.icon}/></View><View style={styles.search}><Ionicons name="search-outline" size={19} color="#98A2B3"/><TextInput value={query} onChangeText={setQuery} placeholder="Tìm mã yêu cầu, thiết bị..." placeholderTextColor="#98A2B3" style={styles.input}/></View>{error?<View style={styles.errorBox}><Text style={styles.error}>{error}</Text></View>:null}{loading?<View style={styles.center}><ActivityIndicator color="#155EEF"/></View>:<FlatList data={filtered} keyExtractor={i=>i.requestId} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void load(true)} tintColor="#155EEF"/>} contentContainerStyle={filtered.length?styles.list:styles.emptyList} renderItem={({item})=><View style={styles.card}><View style={styles.cardTop}><Text style={styles.id}>{item.requestId}</Text><Text style={styles.status}>{statusLabel(item.status)}</Text></View><Text style={styles.reason}>{item.reason}</Text><View style={styles.meta}><Text>{item.equipmentId}</Text><Text>{dateLabel(item.createdAt)}</Text></View></View>} ListEmptyComponent={<View style={styles.center}><Ionicons name="chatbox-ellipses-outline" size={38} color="#98A2B3"/><Text style={styles.empty}>Chưa có yêu cầu nào.</Text></View>}/>}</SafeAreaView>
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
-  header: { minHeight: 60, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0' },
-  iconButton: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '900', color: '#101828' },
-  center: { flex: 1, paddingHorizontal: 32, alignItems: 'center', justifyContent: 'center' },
-  iconWrap: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF4FF' },
-  heading: { marginTop: 16, fontSize: 20, fontWeight: '900', color: '#101828' },
-  caption: { marginTop: 8, textAlign: 'center', fontSize: 13, lineHeight: 19, color: '#667085' },
-})
+const styles=StyleSheet.create({safe:{flex:1,backgroundColor:'#F8F9FB'},header:{minHeight:60,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:'#FFF',borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:'#EAECF0'},icon:{width:46,height:46,alignItems:'center',justifyContent:'center'},title:{fontSize:20,fontWeight:'900',color:'#101828'},search:{margin:12,paddingHorizontal:12,minHeight:46,flexDirection:'row',alignItems:'center',gap:8,borderRadius:12,borderWidth:1,borderColor:'#D0D5DD',backgroundColor:'#FFF'},input:{flex:1,fontSize:14,color:'#101828'},errorBox:{marginHorizontal:12,padding:12,borderRadius:10,backgroundColor:'#FEF3F2'},error:{color:'#B42318',fontSize:13},list:{padding:12,gap:9},emptyList:{flexGrow:1},card:{padding:14,borderRadius:14,backgroundColor:'#FFF',borderWidth:StyleSheet.hairlineWidth,borderColor:'#DDE1E7'},cardTop:{flexDirection:'row',justifyContent:'space-between',gap:8},id:{flex:1,fontSize:13,fontWeight:'900',color:'#155EEF'},status:{fontSize:12,fontWeight:'800',color:'#475467'},reason:{marginTop:9,fontSize:15,fontWeight:'800',color:'#344054'},meta:{marginTop:11,paddingTop:9,flexDirection:'row',justifyContent:'space-between',borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:'#EAECF0',color:'#667085'},center:{flex:1,alignItems:'center',justifyContent:'center',padding:24},empty:{marginTop:9,fontSize:14,color:'#667085'}})
