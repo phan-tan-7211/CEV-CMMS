@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, BackHandler, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Alert, BackHandler, StyleSheet, View } from 'react-native'
 import type { Session } from '@supabase/supabase-js'
 
 import { EquipmentDetailScreen } from '../screens/EquipmentDetailScreen'
@@ -33,6 +33,7 @@ type RouteEntry = {
   workOrderId?: string
   operatorFlow?: boolean
   workOrderScope?: 'pending' | 'completed'
+  barcode?: string
 }
 
 const HOME_ENTRY: RouteEntry = { name: 'home' }
@@ -142,7 +143,7 @@ export function MobileShell() {
   const operatorFlow = isOperatorSession(session)
   const adminSession = isAdminSession(session)
 
-  if (route === 'registration') return <EquipmentRegistrationScreen onBack={goBack} />
+  if (route === 'registration') return <EquipmentRegistrationScreen onBack={goBack} initialBarcode={currentEntry.barcode} onCreated={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })} />
   if (route === 'equipment') {
     return (
       <EquipmentListScreen
@@ -184,6 +185,7 @@ export function MobileShell() {
         onOpenPendingWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'pending' })}
         onOpenPendingRequests={(equipmentId) => navigate({ name: 'requests', equipmentId })}
         onOpenCompletedWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'completed' })}
+        onCreateAsset={(code) => navigate({ name: 'registration', barcode: code })}
         isOperatorFlow={Boolean(currentEntry.operatorFlow)}
       />
     )
@@ -193,10 +195,18 @@ export function MobileShell() {
       <SimpleScannerScreen
         title="Quét mã thiết bị"
         onBack={goBack}
-        onResult={(code) => {
-          void revalidateEquipmentDetail(code, { force: true })
-            .then((asset) => navigate({ name: 'equipment-detail', equipmentId: asset.equipmentId }))
-            .catch(() => goBack())
+        onResult={async (code) => {
+          try {
+            const asset = await revalidateEquipmentDetail(code, { force: true })
+            navigate({ name: 'equipment-detail', equipmentId: asset.equipmentId })
+            return true
+          } catch {
+            Alert.alert('Không tìm thấy tài sản', `Chưa có tài sản nào có mã “${code}”.`, [
+              { text: 'Quét lại', style: 'cancel' },
+              { text: 'Tạo tài sản', onPress: () => navigate({ name: 'registration', barcode: code }) },
+            ])
+            return false
+          }
         }}
       />
     )
