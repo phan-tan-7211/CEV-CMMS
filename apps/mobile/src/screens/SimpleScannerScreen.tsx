@@ -12,7 +12,7 @@ export function SimpleScannerScreen({
 }: {
   title?: string
   onBack: () => void
-  onResult: (code: string) => void
+  onResult: (code: string) => void | boolean | Promise<boolean | void>
 }) {
   const [manualCode, setManualCode] = useState('')
   const [locked, setLocked] = useState(false)
@@ -22,7 +22,9 @@ export function SimpleScannerScreen({
     const code = normalizeScanCode(rawCode)
     if (!code) return
     setLocked(true)
-    onResult(code)
+    Promise.resolve(onResult(code)).then((handled) => {
+      if (handled === false) setLocked(false)
+    })
   }
 
   return (
