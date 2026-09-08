@@ -1,5 +1,7 @@
 import type { EquipmentListItem } from '../api/equipmentService'
 
+export const NO_ASSIGNEES_FILTER_VALUE = '__NO_ASSIGNEES__'
+
 export type EquipmentFilter = {
   name: string
   model: string
@@ -94,7 +96,16 @@ export function applyEquipmentFilter(items: EquipmentListItem[], filter: Equipme
 
     if (!intersects(filter.locations, [equipmentLocation(item)])) return false
     if (!intersects(filter.primaryUsers, [item.responsiblePrimary || ''])) return false
-    if (!intersects(filter.assignedUsers, item.assignedUsers || [])) return false
+
+    if (filter.assignedUsers.length) {
+      const wantsNoAssignees = filter.assignedUsers.includes(NO_ASSIGNEES_FILTER_VALUE)
+      const namedUsers = filter.assignedUsers.filter((value) => value !== NO_ASSIGNEES_FILTER_VALUE)
+      const currentUsers = item.assignedUsers || []
+      const matchesNamed = namedUsers.length > 0 && intersects(namedUsers, currentUsers)
+      const matchesEmpty = wantsNoAssignees && currentUsers.length === 0
+      if (!matchesNamed && !matchesEmpty) return false
+    }
+
     if (!intersects(filter.assignedTeams, item.assignedTeams || [])) return false
     if (!intersects(filter.assignedVendors, item.assignedVendors || [])) return false
     if (!intersects(filter.assignedCustomers, item.assignedCustomers || [])) return false

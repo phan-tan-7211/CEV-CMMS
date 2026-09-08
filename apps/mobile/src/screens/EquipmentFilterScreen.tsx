@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { FlatList, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
+import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -10,24 +10,22 @@ import {
   type EquipmentListItem,
   uniqueEquipmentFilterValues,
 } from '../features/equipment'
-
-type PickerKey = 'locations' | 'primaryUsers' | 'assignedUsers' | 'assignedTeams' | 'assignedVendors' | 'assignedCustomers'
+import { EquipmentFilterPickerScreen, type EquipmentFilterPickerKey } from './equipment-filter/EquipmentFilterPickerScreen'
 
 type PickerConfig = {
-  key: PickerKey
+  key: EquipmentFilterPickerKey
   title: string
-  searchPlaceholder: string
 }
 
 type DateKey = 'createdStart' | 'createdEnd'
 
-const PICKERS: Record<PickerKey, Omit<PickerConfig, 'key'>> = {
-  locations: { title: 'Vị trí', searchPlaceholder: 'Tìm kiếm vị trí' },
-  primaryUsers: { title: 'Người dùng chính', searchPlaceholder: 'Tìm kiếm người' },
-  assignedUsers: { title: 'Người dùng được giao', searchPlaceholder: 'Tìm kiếm người' },
-  assignedTeams: { title: 'Nhóm được giao', searchPlaceholder: 'Tìm kiếm nhóm' },
-  assignedVendors: { title: 'Nhà cung cấp được giao', searchPlaceholder: 'Tìm kiếm nhà cung cấp' },
-  assignedCustomers: { title: 'Khách hàng được giao', searchPlaceholder: 'Tìm kiếm khách hàng' },
+const PICKERS: Record<EquipmentFilterPickerKey, Omit<PickerConfig, 'key'>> = {
+  locations: { title: 'Vị trí' },
+  primaryUsers: { title: 'Người dùng chính' },
+  assignedUsers: { title: 'Người dùng được giao' },
+  assignedTeams: { title: 'Nhóm được giao' },
+  assignedVendors: { title: 'Chọn Nhà cung cấp' },
+  assignedCustomers: { title: 'Chọn Khách hàng' },
 }
 
 function cloneEmptyFilter(): EquipmentFilter {
@@ -141,7 +139,6 @@ export function EquipmentFilterScreen({
     assignedCustomers: [...value.assignedCustomers],
   })
   const [picker, setPicker] = useState<PickerConfig | null>(null)
-  const [pickerQuery, setPickerQuery] = useState('')
   const [dateTarget, setDateTarget] = useState<DateKey | null>(null)
   const options = useMemo(() => uniqueEquipmentFilterValues(items), [items])
 
@@ -149,9 +146,8 @@ export function EquipmentFilterScreen({
     setDraft((current) => ({ ...current, ...next }))
   }
 
-  function openPicker(key: PickerKey) {
+  function openPicker(key: EquipmentFilterPickerKey) {
     setPicker({ key, ...PICKERS[key] })
-    setPickerQuery('')
   }
 
   function togglePickerValue(valueToToggle: string) {
@@ -167,44 +163,15 @@ export function EquipmentFilterScreen({
   }
 
   if (picker) {
-    const selected = draft[picker.key]
-    const pickerOptions = options[picker.key].filter((option) => option.toLocaleLowerCase('vi').includes(pickerQuery.trim().toLocaleLowerCase('vi')))
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        <View style={styles.pickerHeader}>
-          <Pressable onPress={() => setPicker(null)} hitSlop={8} style={styles.headerIcon}><Ionicons name="arrow-back" size={27} color="#101828" /></Pressable>
-          <Text style={styles.headerTitle}>{picker.title}</Text>
-          <Pressable onPress={() => setPicker(null)} style={styles.doneHeaderButton}><Text style={styles.doneHeaderText}>HOÀN THÀNH ({selected.length})</Text></Pressable>
-        </View>
-        <View style={styles.pickerSearchWrap}>
-          <Ionicons name="search-outline" size={24} color="#667085" />
-          <TextInput value={pickerQuery} onChangeText={setPickerQuery} placeholder={picker.searchPlaceholder} placeholderTextColor="#C0C5CC" autoCorrect={false} style={styles.pickerSearchInput} />
-        </View>
-        <FlatList
-          data={pickerOptions}
-          keyExtractor={(item) => item}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={pickerOptions.length ? undefined : styles.pickerEmptyContent}
-          renderItem={({ item }) => {
-            const checked = selected.includes(item)
-            return (
-              <Pressable onPress={() => togglePickerValue(item)} style={styles.pickerOptionRow}>
-                <View style={styles.pickerAvatar}><Text style={styles.pickerAvatarText}>{item.slice(0, 2).toUpperCase()}</Text></View>
-                <Text style={styles.pickerOptionText} numberOfLines={2}>{item}</Text>
-                <View style={[styles.checkbox, checked && styles.checkboxChecked]}>{checked ? <Ionicons name="checkmark" size={17} color="#FFFFFF" /> : null}</View>
-              </Pressable>
-            )
-          }}
-          ListEmptyComponent={
-            <View style={styles.emptyPicker}>
-              <Ionicons name={picker.key === 'locations' ? 'location-outline' : 'people-outline'} size={48} color="#D0D5DD" />
-              <Text style={styles.emptyPickerTitle}>Chưa có dữ liệu</Text>
-              <Text style={styles.emptyPickerText}>Danh sách này sẽ tự xuất hiện khi thiết bị có dữ liệu tương ứng.</Text>
-            </View>
-          }
-        />
-        <View style={styles.pickerFooter}><Pressable onPress={() => setPicker(null)} style={styles.pickerDoneButton}><Text style={styles.pickerDoneText}>Xong</Text></Pressable></View>
-      </SafeAreaView>
+      <EquipmentFilterPickerScreen
+        pickerKey={picker.key}
+        title={picker.title}
+        values={options[picker.key]}
+        selected={draft[picker.key]}
+        onToggle={togglePickerValue}
+        onDone={() => setPicker(null)}
+      />
     )
   }
 
@@ -310,20 +277,4 @@ const styles = StyleSheet.create({
   applyButton: { minHeight: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
   applyText: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
   pressed: { opacity: 0.82 },
-  pickerHeader: { minHeight: 62, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0' },
-  doneHeaderButton: { minHeight: 44, justifyContent: 'center', paddingLeft: 8 },
-  doneHeaderText: { fontSize: 13.5, fontWeight: '800', color: '#344054' },
-  pickerSearchWrap: { minHeight: 48, marginHorizontal: 16, marginVertical: 11, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 24, borderWidth: 1, borderColor: '#E4E7EC', backgroundColor: '#F9FAFB' },
-  pickerSearchInput: { flex: 1, minHeight: 46, fontSize: 17, color: '#101828' },
-  pickerOptionRow: { minHeight: 68, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EAECF0', backgroundColor: '#FFFFFF' },
-  pickerAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EAF2FF' },
-  pickerAvatarText: { fontSize: 14, fontWeight: '900', color: '#155EEF' },
-  pickerOptionText: { flex: 1, fontSize: 16, color: '#1D2939' },
-  pickerEmptyContent: { flexGrow: 1 },
-  emptyPicker: { flex: 1, minHeight: 360, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36 },
-  emptyPickerTitle: { marginTop: 14, fontSize: 18, fontWeight: '900', color: '#475467' },
-  emptyPickerText: { marginTop: 7, textAlign: 'center', fontSize: 14, lineHeight: 20, color: '#98A2B3' },
-  pickerFooter: { paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EAECF0' },
-  pickerDoneButton: { minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
-  pickerDoneText: { fontSize: 17, fontWeight: '900', color: '#FFFFFF' },
 })
