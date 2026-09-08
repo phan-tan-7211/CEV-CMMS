@@ -14,3 +14,9 @@ export async function listMaintenanceRequests() {
   if (error) throw error
   return ((data || []) as Array<Record<string, unknown>>).map((row) => ({ requestId: String(row.request_id || ''), equipmentId: String(row.equipment_id || ''), reason: String(row.reason || ''), status: String(row.status || ''), sourceType: String(row.source_type || ''), createdBy: String(row.created_by || ''), createdAt: String(row.created_at || '') }))
 }
+export async function getMaintenanceRequest(requestId: string) {
+  const { data, error } = await supabase.from('maintenance_request').select('request_id,equipment_id,reason,status,source_type,source_id,created_by,created_at').eq('request_id', requestId.trim()).single()
+  if (error) throw error
+  const row = data as Record<string, unknown>
+  return { requestId: String(row.request_id || ''), equipmentId: String(row.equipment_id || ''), reason: String(row.reason || ''), status: String(row.status || ''), sourceType: String(row.source_type || ''), sourceId: String(row.source_id || ''), createdBy: String(row.created_by || ''), createdAt: String(row.created_at || '') }
+}
