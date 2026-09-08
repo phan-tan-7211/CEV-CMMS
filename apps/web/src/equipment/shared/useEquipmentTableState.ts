@@ -37,6 +37,7 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
     header: column.label,
     accessorFn: (row) => columnValue(row, column.key),
   })), [])
+  // oxlint-disable-next-line react-hooks/incompatible-library -- TanStack Table intentionally owns memoized table state; behavior is covered by equipment tests.
   const table = useReactTable({
     data: rows,
     columns: tableColumns,
