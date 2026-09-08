@@ -108,7 +108,9 @@ export function HomeScreen({
               style={({ pressed }) => [styles.quickAction, pressed && styles.quickActionPressed]}
             >
               <View style={[styles.quickIcon, action.primary && styles.quickIconPrimary]}>
-                <Ionicons name={action.icon} size={23} color={action.primary ? '#FFFFFF' : '#344054'} />
+                <Ionicons name={action.icon} size={action.primary ? 25 : 26} color={action.primary ? '#FFFFFF' : '#344054'} />
+                {action.label === 'Apps' && <View style={styles.newBadge}><Text style={styles.newBadgeText}>New</Text></View>}
+                {action.label === 'Thông báo' && <View style={styles.notificationDot} />}
               </View>
               <Text style={styles.quickLabel} numberOfLines={2}>{action.label}</Text>
             </Pressable>
@@ -125,7 +127,6 @@ export function HomeScreen({
           <View style={styles.assignedCard}>
             <View style={styles.assignedCopy}>
               <Text style={styles.assignedTitle}>Chỉ công việc giao cho tôi</Text>
-              <Text style={styles.assignedCaption}>Bộ lọc mặc định của dashboard</Text>
             </View>
             <Switch
               value={assignedOnly}
@@ -190,9 +191,9 @@ export function HomeScreen({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
-  shell: { flex: 1, backgroundColor: '#F8F9FB' },
+  shell: { flex: 1, backgroundColor: '#F2F1FB' },
   header: {
-    minHeight: 64,
+    minHeight: 70,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -212,10 +213,10 @@ const styles = StyleSheet.create({
   brandSub: { marginTop: 1, fontSize: 10, lineHeight: 13, fontWeight: '600', color: '#98A2B3' },
   settingsButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   quickStrip: {
-    minHeight: 98,
-    paddingHorizontal: 6,
-    paddingTop: 6,
-    paddingBottom: 8,
+    minHeight: 112,
+    paddingHorizontal: 5,
+    paddingTop: 10,
+    paddingBottom: 11,
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: '#FFFFFF',
@@ -223,20 +224,23 @@ const styles = StyleSheet.create({
   quickAction: { flex: 1, minWidth: 0, alignItems: 'center' },
   quickActionPressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
   quickIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F2F4F7',
   },
   quickIconPrimary: { backgroundColor: '#155EEF' },
-  quickLabel: { marginTop: 5, paddingHorizontal: 2, textAlign: 'center', fontSize: 11, lineHeight: 13, fontWeight: '600', color: '#344054' },
-  separator: { height: 7, backgroundColor: '#F2F4F7' },
+  newBadge: { position: 'absolute', top: -7, right: -13, minWidth: 45, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 14, backgroundColor: '#2E90FA' },
+  newBadgeText: { textAlign: 'center', fontSize: 11, lineHeight: 15, fontWeight: '700', color: '#FFFFFF' },
+  notificationDot: { position: 'absolute', top: 3, right: 3, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: '#FFFFFF', backgroundColor: '#2E90FA' },
+  quickLabel: { marginTop: 6, paddingHorizontal: 2, textAlign: 'center', fontSize: 11.5, lineHeight: 14, fontWeight: '600', color: '#344054' },
+  separator: { height: 8, backgroundColor: '#E6E5F0' },
   content: { flex: 1 },
-  contentContainer: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 18 },
+  contentContainer: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 18 },
   assignedCard: {
-    minHeight: 58,
+    minHeight: 62,
     marginBottom: 12,
     paddingHorizontal: 14,
     flexDirection: 'row',
@@ -249,13 +253,12 @@ const styles = StyleSheet.create({
   },
   assignedCopy: { flex: 1, paddingRight: 12 },
   assignedTitle: { fontSize: 13.5, lineHeight: 18, fontWeight: '800', color: '#344054' },
-  assignedCaption: { marginTop: 1, fontSize: 10.5, lineHeight: 14, color: '#98A2B3' },
   sectionHeadingRow: { minHeight: 32, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   sectionTitle: { flex: 1, fontSize: 19, lineHeight: 24, fontWeight: '900', color: '#1D2939', letterSpacing: -0.4 },
   editText: { fontSize: 12.5, lineHeight: 17, fontWeight: '800', color: '#155EEF' },
   dashboardList: { gap: 7 },
   statusRow: {
-    minHeight: 58,
+    minHeight: 68,
     paddingRight: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -265,8 +268,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   statusRowPressed: { backgroundColor: '#F9FAFB' },
-  statusAccent: { width: 4, height: 34, marginLeft: 11, marginRight: 11, borderRadius: 3 },
-  statusLabel: { flex: 1, fontSize: 15.5, lineHeight: 20, fontWeight: '800', color: '#20242A' },
-  statusCount: { minWidth: 26, marginHorizontal: 7, textAlign: 'right', fontSize: 16.5, lineHeight: 21, fontWeight: '500', color: '#667085' },
+  statusAccent: { width: 4, height: 42, marginLeft: 11, marginRight: 11, borderRadius: 3 },
+  statusLabel: { flex: 1, fontSize: 16, lineHeight: 21, fontWeight: '800', color: '#20242A' },
+  statusCount: { minWidth: 26, marginHorizontal: 7, textAlign: 'right', fontSize: 18, lineHeight: 22, fontWeight: '500', color: '#667085' },
   pressed: { opacity: 0.64 },
 })
