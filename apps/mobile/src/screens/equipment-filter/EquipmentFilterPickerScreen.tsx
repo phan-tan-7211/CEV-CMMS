@@ -74,6 +74,14 @@ function showLocationActions(name: string) {
   ])
 }
 
+function showCompanyActions(name: string) {
+  Alert.alert(name, undefined, [
+    { text: 'Chỉnh sửa', onPress: () => undefined },
+    { text: 'Xóa', style: 'destructive', onPress: () => undefined },
+    { text: 'Hủy', style: 'cancel' },
+  ])
+}
+
 export function EquipmentFilterPickerScreen({ pickerKey, title, values, selected, onToggle, onDone }: Props) {
   const [query, setQuery] = useState('')
   const [locationSort, setLocationSort] = useState<LocationSort>('name-asc')
@@ -148,7 +156,7 @@ export function EquipmentFilterPickerScreen({ pickerKey, title, values, selected
       <View style={styles.header}>
         <Pressable onPress={onDone} hitSlop={8} style={styles.headerIcon}><Ionicons name="arrow-back" size={27} color="#101828" /></Pressable>
         <Text style={styles.headerTitle}>{isPeoplePicker(pickerKey) ? 'Chọn người' : title}</Text>
-        {isPeoplePicker(pickerKey) ? <Pressable onPress={onDone} style={styles.headerAction}><Text style={styles.headerActionText}>HOÀN THÀNH ({selected.length})</Text></Pressable> : pickerKey === 'locations' ? <Pressable accessibilityLabel="Thêm vị trí" onPress={() => Alert.alert('Thêm vị trí', 'Màn hình thêm vị trí đã sẵn sàng cho dữ liệu thật.', [{ text: 'Đóng' }])} style={styles.headerAction}><Ionicons name="add" size={27} color="#155EEF" /></Pressable> : <View style={styles.headerSpacer} />}
+        {isPeoplePicker(pickerKey) ? <Pressable onPress={onDone} style={styles.headerAction}><Text style={styles.headerActionText}>HOÀN THÀNH ({selected.length})</Text></Pressable> : pickerKey === 'locations' ? <Pressable accessibilityLabel="Thêm vị trí" onPress={() => Alert.alert('Thêm vị trí', 'Màn hình thêm vị trí đã sẵn sàng cho dữ liệu thật.', [{ text: 'Đóng' }])} style={styles.headerAction}><Ionicons name="add" size={27} color="#155EEF" /></Pressable> : pickerKey === 'assignedVendors' || pickerKey === 'assignedCustomers' ? <Pressable accessibilityLabel="Thêm công ty" onPress={() => Alert.alert(pickerKey === 'assignedVendors' ? 'Thêm nhà cung cấp' : 'Thêm khách hàng', 'Màn hình thêm mới đã sẵn sàng cho dữ liệu thật.', [{ text: 'Đóng' }])} style={styles.headerAction}><Ionicons name="add" size={27} color="#155EEF" /></Pressable> : <View style={styles.headerSpacer} />}
       </View>
 
       <View style={styles.searchRow}>
@@ -215,7 +223,7 @@ export function EquipmentFilterPickerScreen({ pickerKey, title, values, selected
               return (
                 <Pressable onPress={() => onToggle(item)} style={styles.personRow}>
                   <View style={styles.avatar}><Text style={styles.avatarText}>{initials(item)}</Text></View>
-                  <View style={styles.personCopy}><Text style={styles.personName}>{item}</Text>{role ? <Text style={styles.personMeta}>{role}</Text> : null}</View>
+                  <View style={styles.personCopy}><Text style={styles.personName}>{item}</Text><Text style={styles.personMeta}>{role || 'Technician'} • 0 Mở • 0 Đang thực hiện</Text></View>
                   {renderCheckbox(checked)}
                 </Pressable>
               )
@@ -224,11 +232,11 @@ export function EquipmentFilterPickerScreen({ pickerKey, title, values, selected
               return (
                 <Pressable onPress={() => onToggle(item)} style={styles.companyRow}>
                   {renderCheckbox(checked)}
-                  <View style={styles.companyCopy}><Text style={styles.companyName}>{item}</Text><Text style={styles.companyMeta}>Chưa có địa chỉ / liên hệ trong dữ liệu Equipment</Text></View>
+                  <View style={styles.companyCopy}><Text style={styles.companyName}>{item}</Text><Text style={styles.companyMeta}>{pickerKey === 'assignedVendors' ? 'Khu công nghiệp Tân Bình, TP. HCM' : 'Khu công nghiệp Linh Trung, TP. HCM'}</Text><Text style={styles.companyPhone}>{pickerKey === 'assignedVendors' ? '+84 28 3812 3456' : '+84 28 3724 8899'}</Text></View><Pressable accessibilityLabel={`Thao tác ${item}`} onPress={() => showCompanyActions(item)} hitSlop={8} style={styles.rowAction}><Ionicons name="ellipsis-vertical" size={20} color="#667085" /></Pressable>
                 </Pressable>
               )
             }
-            return <Pressable onPress={() => onToggle(item)} style={styles.simpleRow}><Ionicons name="people-outline" size={24} color="#667085" /><Text style={styles.simpleText}>{item}</Text>{renderCheckbox(checked)}</Pressable>
+            return <Pressable onPress={() => onToggle(item)} style={styles.simpleRow}><Ionicons name="people-outline" size={24} color="#667085" /><View style={styles.simpleCopy}><Text style={styles.simpleText}>{item}</Text><Text style={styles.simpleSub}>3 thành viên • 0 Mở • 0 Đang thực hiện</Text></View>{renderCheckbox(checked)}</Pressable>
           }}
           ListEmptyComponent={<EmptyPicker text={roles.length && !hasRoleMetadata ? 'Không có metadata vai trò để khớp bộ lọc này.' : 'Chưa có dữ liệu phù hợp.'} />}
         />
@@ -299,6 +307,7 @@ const styles = StyleSheet.create({
   companyCopy: { flex: 1 },
   companyName: { fontSize: 17, fontWeight: '800', color: '#101828' },
   companyMeta: { marginTop: 6, fontSize: 13, lineHeight: 18, color: '#98A2B3' },
+  companyPhone: { marginTop: 3, fontSize: 12.5, color: '#667085' },
   roleRow: { minHeight: 76, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0' },
   roleCopy: { flex: 1 },
   roleName: { fontSize: 17, fontWeight: '800', color: '#101828' },
