@@ -1,0 +1,2 @@
+import { ModulePreviewScreen } from './ModulePreviewScreen'
+export function PeopleScreen({ onBack }: { onBack: () => void }) { return <ModulePreviewScreen title="Người & Nhóm" hint="Tìm người hoặc nhóm..." onBack={onBack} items={[{title:'Tan Phan',subtitle:'Administrator • 0 Mở • 0 Đang thực hiện',icon:'person-outline',color:'#155EEF'},{title:'Nhóm bảo trì',subtitle:'Nhóm • 3 thành viên',icon:'people-outline',color:'#7F56D9'},{title:'Technician',subtitle:'Technician • 0 Mở • 0 Đang thực hiện',icon:'person-outline',color:'#12B76A'}]} /> }

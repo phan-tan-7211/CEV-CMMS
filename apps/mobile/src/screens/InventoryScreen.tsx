@@ -1,0 +1,2 @@
+import { ModulePreviewScreen } from './ModulePreviewScreen'
+export function InventoryScreen({ onBack }: { onBack: () => void }) { return <ModulePreviewScreen title="Kho & Phụ tùng" hint="Tìm phụ tùng..." onBack={onBack} items={[{title:'NÚT NHẤN PHI 16',subtitle:'SP-00003 • Tồn kho 0',icon:'cube-outline',color:'#7F56D9'},{title:'Dây curoa',subtitle:'SP-00008 • Tồn kho 35',icon:'cube-outline',color:'#12B76A'},{title:'Thanh gia nhiệt lò thiếc',subtitle:'SP-00009 • Tồn kho 7',icon:'cube-outline',color:'#F79009'}]} /> }
