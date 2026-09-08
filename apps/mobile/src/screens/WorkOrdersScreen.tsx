@@ -27,7 +27,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
 }
 
-export function WorkOrdersScreen({ onBack, onOpenWorkOrder }: { onBack: () => void; onOpenWorkOrder: (workOrderId: string) => void }) {
+export function WorkOrdersScreen({ onBack, onOpenWorkOrder, equipmentId, scope }: { onBack: () => void; onOpenWorkOrder: (workOrderId: string) => void; equipmentId?: string; scope?: 'pending' | 'completed' }) {
   const [items, setItems] = useState<WorkOrderListItem[]>([])
   const [query, setQuery] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('ALL')
@@ -58,12 +58,15 @@ export function WorkOrdersScreen({ onBack, onOpenWorkOrder }: { onBack: () => vo
   const filtered = useMemo(() => {
     const keyword = query.trim().toLocaleLowerCase('vi')
     return items.filter((item) => {
+      if (equipmentId && item.equipmentId !== equipmentId) return false
+      if (scope === 'completed' && !['COMPLETED', 'VERIFIED'].includes(item.status.trim().toUpperCase())) return false
+      if (scope === 'pending' && ['COMPLETED', 'VERIFIED'].includes(item.status.trim().toUpperCase())) return false
       if (selectedStatus !== 'ALL' && item.status !== selectedStatus) return false
       if (!keyword) return true
       return [item.workOrderId, item.equipmentId, item.equipmentName, item.reason, item.createdBy]
         .some((value) => value.toLocaleLowerCase('vi').includes(keyword))
     })
-  }, [items, query, selectedStatus])
+  }, [equipmentId, items, query, scope, selectedStatus])
 
   async function refresh() {
     setRefreshing(true)
