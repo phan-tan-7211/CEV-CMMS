@@ -17,7 +17,7 @@ export function EquipmentTableHeaderCell({ controller: c, column }: { controller
   const options = c.filterOptions(column.key).filter((value) => value.toLocaleLowerCase().includes(c.filterSearch.toLocaleLowerCase()))
   const active = c.sortKey === column.key
 
-  return <th className="equipment-sheet-head" aria-sort={active ? (c.sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
+  return <th className="equipment-sheet-head" style={{ width: c.columnWidths[column.key] }} aria-sort={active ? (c.sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}>
     <div className="equipment-sheet-head-main">
       <button className={`equipment-sort${active ? ' active' : ''}`} type="button" onClick={() => c.toggleSort(column.key)}>
         {column.label}<span aria-hidden="true">{active ? (c.sortDirection === 'asc' ? '▲' : '▼') : '↕'}</span>
@@ -25,6 +25,7 @@ export function EquipmentTableHeaderCell({ controller: c, column }: { controller
       <button className={`equipment-filter-button${selected.length ? ' active' : ''}`} type="button" aria-label={`Lọc ${column.label}`} onClick={() => { c.setColumnPickerOpen(false); c.setFilterColumn((current) => current === column.key ? null : column.key); c.setFilterSearch('') }}>
         ▼{selected.length ? <span className="equipment-filter-count">{selected.length}</span> : null}
       </button>
+      <span className="equipment-column-resizer" role="separator" aria-label={`Điều chỉnh độ rộng cột ${column.label}`} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); c.resizeColumn(column.key, event.clientX) }} />
     </div>
     {c.filterColumn === column.key ? <div className="equipment-filter-popover">
       <input type="search" value={c.filterSearch} onChange={(event) => c.setFilterSearch(event.target.value)} placeholder={`Tìm trong ${column.label.toLocaleLowerCase()}…`} />
