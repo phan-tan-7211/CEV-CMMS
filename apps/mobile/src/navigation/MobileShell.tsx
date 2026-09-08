@@ -142,7 +142,7 @@ export function MobileShell() {
     return (
       <EquipmentListScreen
         onBack={goBack}
-        onCreateEquipment={() => navigate({ name: 'registration' })}
+        onOpenScan={() => navigate({ name: 'scan' })}
         onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
         currentUserKeys={currentUserFilterKeys(session)}
       />
