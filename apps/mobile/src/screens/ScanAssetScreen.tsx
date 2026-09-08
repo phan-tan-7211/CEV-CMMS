@@ -19,6 +19,8 @@ export function ScanAssetScreen({
   onCreateWorkOrder,
   onOpenPart,
   onOpenPartInventory,
+  onCreatePortalWorkOrder,
+  onCreatePortalRequest,
   isOperatorFlow = false,
 }: {
   onBack: () => void
@@ -31,6 +33,8 @@ export function ScanAssetScreen({
   onCreateWorkOrder: (equipmentId: string) => void
   onOpenPart: (partId: string) => void
   onOpenPartInventory: (partId: string) => void
+  onCreatePortalWorkOrder: (equipmentId: string) => void
+  onCreatePortalRequest: (equipmentId: string, sourceId?: string) => void
   isOperatorFlow?: boolean
 }) {
   const [manualCode, setManualCode] = useState('')
@@ -166,6 +170,8 @@ export function ScanAssetScreen({
           onCreateWorkOrder={onCreateWorkOrder}
           onOpenPart={onOpenPart}
           onOpenPartInventory={onOpenPartInventory}
+          onCreatePortalWorkOrder={onCreatePortalWorkOrder}
+          onCreatePortalRequest={onCreatePortalRequest}
           onOpenAsset={onOpenEquipment}
           onOpenHierarchy={onOpenHierarchy}
           onOpenPendingWorkOrders={onOpenPendingWorkOrders}
