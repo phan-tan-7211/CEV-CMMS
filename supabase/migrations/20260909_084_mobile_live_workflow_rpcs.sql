@@ -32,10 +32,10 @@ begin
     raise exception 'PRODUCTION_EQUIPMENT_NOT_FOUND';
   end if;
 
-  select coalesce(array_agg(distinct x::uuid),array[]::uuid[]) into v_people
-  from jsonb_array_elements_text(coalesce(p_input->'personIds','[]'::jsonb)) x;
-  select coalesce(array_agg(distinct x::uuid),array[]::uuid[]) into v_teams
-  from jsonb_array_elements_text(coalesce(p_input->'teamIds','[]'::jsonb)) x;
+  select coalesce(array_agg(distinct e.value::uuid),array[]::uuid[]) into v_people
+  from jsonb_array_elements_text(coalesce(p_input->'personIds','[]'::jsonb)) as e(value);
+  select coalesce(array_agg(distinct e.value::uuid),array[]::uuid[]) into v_teams
+  from jsonb_array_elements_text(coalesce(p_input->'teamIds','[]'::jsonb)) as e(value);
 
   if (cardinality(v_people)>0 or cardinality(v_teams)>0) and v_role not in ('SUPERVISOR','MANAGER','ADMIN') then
     raise exception 'WORK_ORDER_ASSIGN_ROLE_DENIED';
