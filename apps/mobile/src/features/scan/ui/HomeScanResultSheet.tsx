@@ -9,6 +9,10 @@ type Props = {
   onDismiss: () => void
   onRescan: () => void
   onOpenAsset: (equipmentId: string) => void
+  onOpenHierarchy: (equipmentId: string) => void
+  onOpenPendingWorkOrders: (equipmentId: string) => void
+  onOpenPendingRequests: (equipmentId: string) => void
+  onOpenCompletedWorkOrders: (equipmentId: string) => void
   onSelectMultiple: (type: 'asset' | 'part', id: string) => void
 }
 
@@ -42,7 +46,7 @@ function ActionRow({
   )
 }
 
-export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onOpenAsset, onSelectMultiple }: Props) {
+export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onOpenAsset, onOpenHierarchy, onOpenPendingWorkOrders, onOpenPendingRequests, onOpenCompletedWorkOrders, onSelectMultiple }: Props) {
   if (!loading && !result) return null
 
   return (
@@ -79,10 +83,10 @@ export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onOp
 
             <View style={styles.actionGroup}>
               <ActionRow icon="information-circle-outline" label="Chi tiết thiết bị" onPress={() => onOpenAsset(result.asset.equipmentId)} />
-              <ActionRow icon="git-network-outline" label="Phân cấp thiết bị" detail="Sẽ nối ở phase Asset actions" disabled />
-              <ActionRow icon="time-outline" label="Work Order đang chờ" detail="Sẽ nối theo dữ liệu Work Order" disabled />
-              <ActionRow icon="chatbox-ellipses-outline" label="Yêu cầu đang chờ" detail="Sẽ nối theo Request backend" disabled />
-              <ActionRow icon="checkmark-done-outline" label="Work Order đã hoàn thành" detail="Sẽ nối tối đa 5 kết quả gần nhất" disabled />
+              <ActionRow icon="git-network-outline" label="Phân cấp thiết bị" onPress={() => onOpenHierarchy(result.asset.equipmentId)} />
+              <ActionRow icon="time-outline" label="Work Order đang chờ" onPress={() => onOpenPendingWorkOrders(result.asset.equipmentId)} />
+              <ActionRow icon="chatbox-ellipses-outline" label="Yêu cầu đang chờ" onPress={() => onOpenPendingRequests(result.asset.equipmentId)} />
+              <ActionRow icon="checkmark-done-outline" label="Work Order đã hoàn thành" onPress={() => onOpenCompletedWorkOrders(result.asset.equipmentId)} />
             </View>
             <Pressable onPress={onRescan} style={styles.secondaryButton}><Text style={styles.secondaryText}>Quét mã khác</Text></Pressable>
           </>

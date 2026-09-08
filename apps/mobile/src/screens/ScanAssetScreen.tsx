@@ -11,10 +11,18 @@ const UNSUPPORTED_RESULT_RESCAN_DELAY_MS = 1000
 export function ScanAssetScreen({
   onBack,
   onOpenEquipment,
+  onOpenHierarchy,
+  onOpenPendingWorkOrders,
+  onOpenPendingRequests,
+  onOpenCompletedWorkOrders,
   isOperatorFlow = false,
 }: {
   onBack: () => void
   onOpenEquipment: (equipmentId: string) => void
+  onOpenHierarchy: (equipmentId: string) => void
+  onOpenPendingWorkOrders: (equipmentId: string) => void
+  onOpenPendingRequests: (equipmentId: string) => void
+  onOpenCompletedWorkOrders: (equipmentId: string) => void
   isOperatorFlow?: boolean
 }) {
   const [manualCode, setManualCode] = useState('')
@@ -147,6 +155,10 @@ export function ScanAssetScreen({
           onDismiss={closeResult}
           onRescan={rescan}
           onOpenAsset={onOpenEquipment}
+          onOpenHierarchy={onOpenHierarchy}
+          onOpenPendingWorkOrders={onOpenPendingWorkOrders}
+          onOpenPendingRequests={onOpenPendingRequests}
+          onOpenCompletedWorkOrders={onOpenCompletedWorkOrders}
           onSelectMultiple={selectMultiple}
         />
       ) : null}
