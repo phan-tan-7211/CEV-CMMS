@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
@@ -63,6 +63,15 @@ function pickerSearchPlaceholder(key: EquipmentFilterPickerKey) {
   if (key === 'assignedTeams') return 'Tìm kiếm nhóm'
   if (key === 'assignedVendors') return 'Tìm kiếm nhà cung cấp'
   return 'Tìm kiếm khách hàng'
+}
+
+function showLocationActions(name: string) {
+  Alert.alert(name, undefined, [
+    { text: 'Chỉnh sửa', onPress: () => undefined },
+    { text: 'Thêm vị trí con', onPress: () => undefined },
+    { text: 'Xóa', style: 'destructive', onPress: () => undefined },
+    { text: 'Hủy', style: 'cancel' },
+  ])
 }
 
 export function EquipmentFilterPickerScreen({ pickerKey, title, values, selected, onToggle, onDone }: Props) {
@@ -139,7 +148,7 @@ export function EquipmentFilterPickerScreen({ pickerKey, title, values, selected
       <View style={styles.header}>
         <Pressable onPress={onDone} hitSlop={8} style={styles.headerIcon}><Ionicons name="arrow-back" size={27} color="#101828" /></Pressable>
         <Text style={styles.headerTitle}>{isPeoplePicker(pickerKey) ? 'Chọn người' : title}</Text>
-        {isPeoplePicker(pickerKey) ? <Pressable onPress={onDone} style={styles.headerAction}><Text style={styles.headerActionText}>HOÀN THÀNH ({selected.length})</Text></Pressable> : <View style={styles.headerSpacer} />}
+        {isPeoplePicker(pickerKey) ? <Pressable onPress={onDone} style={styles.headerAction}><Text style={styles.headerActionText}>HOÀN THÀNH ({selected.length})</Text></Pressable> : pickerKey === 'locations' ? <Pressable accessibilityLabel="Thêm vị trí" onPress={() => Alert.alert('Thêm vị trí', 'Màn hình thêm vị trí đã sẵn sàng cho dữ liệu thật.', [{ text: 'Đóng' }])} style={styles.headerAction}><Ionicons name="add" size={27} color="#155EEF" /></Pressable> : <View style={styles.headerSpacer} />}
       </View>
 
       <View style={styles.searchRow}>
@@ -173,16 +182,16 @@ export function EquipmentFilterPickerScreen({ pickerKey, title, values, selected
                 const childCount = values.filter((value) => value.startsWith(`${item} · `)).length
                 if (!childCount) {
                   const checked = selected.includes(item)
-                  return <Pressable onPress={() => onToggle(item)} style={styles.simpleRow}><Ionicons name="location-outline" size={24} color="#667085" /><Text style={styles.simpleText}>{item}</Text>{renderCheckbox(checked)}</Pressable>
+                  return <Pressable onPress={() => onToggle(item)} style={styles.simpleRow}><Ionicons name="location-outline" size={24} color="#667085" /><Text style={styles.simpleText}>{item}</Text><Pressable accessibilityLabel={`Thao tác ${item}`} onPress={() => showLocationActions(item)} hitSlop={8} style={styles.rowAction}><Ionicons name="ellipsis-vertical" size={20} color="#667085" /></Pressable>{renderCheckbox(checked)}</Pressable>
                 }
-                return <Pressable onPress={() => setLocationRoot(item)} style={styles.simpleRow}><Ionicons name="location-outline" size={24} color="#667085" /><View style={styles.simpleCopy}><Text style={styles.simpleText}>{item}</Text><Text style={styles.simpleSub}>{childCount} vị trí con</Text></View><Ionicons name="chevron-forward" size={22} color="#98A2B3" /></Pressable>
+                return <Pressable onPress={() => setLocationRoot(item)} style={styles.simpleRow}><Ionicons name="location-outline" size={24} color="#667085" /><View style={styles.simpleCopy}><Text style={styles.simpleText}>{item}</Text><Text style={styles.simpleSub}>{childCount} vị trí con</Text></View><Pressable accessibilityLabel={`Thao tác ${item}`} onPress={() => showLocationActions(item)} hitSlop={8} style={styles.rowAction}><Ionicons name="ellipsis-vertical" size={20} color="#667085" /></Pressable><Ionicons name="chevron-forward" size={22} color="#98A2B3" /></Pressable>
               }}
             />
           ) : (
             <FlatList
               data={filtered}
               keyExtractor={(item) => item}
-              renderItem={({ item }) => <Pressable onPress={() => onToggle(item)} style={styles.simpleRow}><Ionicons name="location-outline" size={24} color="#667085" /><Text style={styles.simpleText}>{item}</Text>{renderCheckbox(selected.includes(item))}</Pressable>}
+              renderItem={({ item }) => <Pressable onPress={() => onToggle(item)} style={styles.simpleRow}><Ionicons name="location-outline" size={24} color="#667085" /><Text style={styles.simpleText}>{item}</Text><Pressable accessibilityLabel={`Thao tác ${item}`} onPress={() => showLocationActions(item)} hitSlop={8} style={styles.rowAction}><Ionicons name="ellipsis-vertical" size={20} color="#667085" /></Pressable>{renderCheckbox(selected.includes(item))}</Pressable>}
               ListEmptyComponent={<EmptyPicker text="Chưa có dữ liệu vị trí phù hợp." />}
             />
           )}
@@ -234,11 +243,10 @@ export function EquipmentFilterPickerScreen({ pickerKey, title, values, selected
             {LOCATION_SORTS.map((item) => (
               <Pressable
                 key={item.key}
-                disabled={item.requiresMetadata}
                 onPress={() => { setLocationSort(item.key); setLocationSortOpen(false) }}
-                style={[styles.dialogRow, item.requiresMetadata && styles.dialogRowDisabled]}
+                style={styles.dialogRow}
               >
-                <View style={styles.dialogCopy}><Text style={styles.dialogText}>{item.label}</Text>{item.requiresMetadata ? <Text style={styles.dialogHint}>Cần metadata vị trí</Text> : null}</View>
+                <View style={styles.dialogCopy}><Text style={styles.dialogText}>{item.label}</Text>{item.requiresMetadata ? <Text style={styles.dialogHint}>Bản mẫu UI — dùng dữ liệu địa chỉ/ngày tạo khi kết nối server</Text> : null}</View>
                 {locationSort === item.key ? <Ionicons name="checkmark" size={23} color="#1570EF" /> : null}
               </Pressable>
             ))}
@@ -277,6 +285,7 @@ const styles = StyleSheet.create({
   simpleCopy: { flex: 1 },
   simpleText: { flex: 1, fontSize: 16, color: '#101828' },
   simpleSub: { marginTop: 3, fontSize: 12.5, color: '#667085' },
+  rowAction: { width: 30, height: 36, alignItems: 'center', justifyContent: 'center' },
   checkbox: { width: 22, height: 22, borderRadius: 3, borderWidth: 2, borderColor: '#98A2B3', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   checkboxChecked: { borderColor: '#155EEF', backgroundColor: '#155EEF' },
   personRow: { minHeight: 74, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0' },
