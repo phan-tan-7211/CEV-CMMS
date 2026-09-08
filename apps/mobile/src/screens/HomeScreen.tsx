@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useState } from 'react'
 
+import { AppBottomNav } from '../components/AppBottomNav'
 import { GlobalCreateSheet } from '../components/GlobalCreateSheet'
 
 type IconName = keyof typeof Ionicons.glyphMap
@@ -170,36 +171,15 @@ export function HomeScreen({
           </View>
         </ScrollView>
 
-        <View style={styles.bottomNavWrap}>
-          <View style={styles.bottomNav}>
-            <Pressable style={styles.navItem} accessibilityRole="button" accessibilityLabel="Trang chủ">
-              <Ionicons name="home" size={23} color="#155EEF" />
-              <Text style={[styles.navLabel, styles.navLabelActive]}>Trang chủ</Text>
-            </Pressable>
-            <Pressable onPress={onOpenWorkOrders} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Công việc">
-              <Ionicons name="clipboard-outline" size={23} color="#667085" />
-              <Text style={styles.navLabel}>Công việc</Text>
-            </Pressable>
-            <View style={styles.navCenterSpace} />
-            <Pressable onPress={onOpenRequests} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Yêu cầu">
-              <Ionicons name="briefcase-outline" size={23} color="#667085" />
-              <Text style={styles.navLabel}>Yêu cầu</Text>
-            </Pressable>
-            <Pressable onPress={onOpenMore} style={styles.navItem} accessibilityRole="button" accessibilityLabel="Thêm">
-              <Ionicons name="menu-outline" size={25} color="#667085" />
-              <Text style={styles.navLabel}>Thêm</Text>
-            </Pressable>
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isOperatorFlow ? 'Quét mã' : 'Tạo mới'}
-            onPress={handleCenterAction}
-            style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-          >
-            <Ionicons name={isOperatorFlow ? 'scan-outline' : 'add'} size={isOperatorFlow ? 29 : 34} color="#FFFFFF" />
-          </Pressable>
-        </View>
+        <AppBottomNav
+          activeTab="home"
+          onHome={() => {}}
+          onWorkOrders={onOpenWorkOrders}
+          onCenterPress={handleCenterAction}
+          onRequests={onOpenRequests}
+          onMore={onOpenMore}
+          centerMode={isOperatorFlow ? 'scan' : 'create'}
+        />
       </View>
 
       <GlobalCreateSheet
@@ -295,39 +275,5 @@ const styles = StyleSheet.create({
   statusCount: { minWidth: 26, marginHorizontal: 7, textAlign: 'right', fontSize: 16.5, lineHeight: 21, fontWeight: '500', color: '#667085' },
   syncHint: { marginTop: 11, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
   syncHintText: { flex: 1, fontSize: 10.5, lineHeight: 15, color: '#667085' },
-  bottomNavWrap: { position: 'relative', backgroundColor: '#FFFFFF' },
-  bottomNav: {
-    minHeight: 66,
-    paddingHorizontal: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#DDE1E7',
-    backgroundColor: '#FFFFFF',
-  },
-  navItem: { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  navCenterSpace: { flex: 1 },
-  navLabel: { fontSize: 10.5, lineHeight: 13, fontWeight: '600', color: '#667085' },
-  navLabelActive: { color: '#155EEF', fontWeight: '800' },
-  fab: {
-    position: 'absolute',
-    left: '50%',
-    top: -20,
-    width: 56,
-    height: 56,
-    marginLeft: -28,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 5,
-    borderColor: '#FFFFFF',
-    backgroundColor: '#155EEF',
-    shadowColor: '#101828',
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  fabPressed: { transform: [{ scale: 0.95 }], backgroundColor: '#004EEB' },
   pressed: { opacity: 0.64 },
 })
