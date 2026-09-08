@@ -40,7 +40,7 @@ import {
 } from '../features/auth'
 import { revalidateEquipmentDetail } from '../features/equipment'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'part-work-order' | 'work-orders' | 'work-order-detail' | 'requests' | 'request-detail' | 'more' | 'locations' | 'location-form' | 'inventory' | 'meters' | 'vendors' | 'company-form' | 'people' | 'preventive-maintenance' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'part-work-order' | 'work-orders' | 'work-order-detail' | 'requests' | 'request-detail' | 'more' | 'locations' | 'location-form' | 'inventory' | 'meters' | 'vendors' | 'company-form' | 'customer-form' | 'people' | 'preventive-maintenance' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -265,8 +265,9 @@ export function MobileShell() {
   if (route === 'location-form') return <LocationFormScreen onBack={goBack} />
   if (route === 'inventory') return <InventoryScreen onBack={goBack} />
   if (route === 'meters') return <MetersScreen onBack={goBack} />
-  if (route === 'vendors') return <VendorsScreen onBack={goBack} onAdd={() => navigate({ name: 'company-form' })} />
+  if (route === 'vendors') return <VendorsScreen onBack={goBack} onAddVendor={() => navigate({ name: 'company-form' })} onAddCustomer={() => navigate({ name: 'customer-form' })} />
   if (route === 'company-form') return <CompanyFormScreen onBack={goBack} />
+  if (route === 'customer-form') return <CompanyFormScreen onBack={goBack} customer />
   if (route === 'people') return <PeopleScreen onBack={goBack} />
   if (route === 'preventive-maintenance') return <PreventiveMaintenanceScreen onBack={goBack} />
   if (route === 'more') {
