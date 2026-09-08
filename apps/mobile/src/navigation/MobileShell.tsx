@@ -12,6 +12,7 @@ import { LoginScreen } from '../screens/LoginScreen'
 import { MoreScreen } from '../screens/MoreScreen'
 import { RequestsScreen } from '../screens/RequestsScreen'
 import { ScanAssetScreen } from '../screens/ScanAssetScreen'
+import { SimpleScannerScreen } from '../screens/SimpleScannerScreen'
 import { WorkOrderDetailScreen } from '../screens/WorkOrderDetailScreen'
 import { WorkOrdersScreen } from '../screens/WorkOrdersScreen'
 import { AccountSettingsScreen } from '../screens/settings/AccountSettingsScreen'
@@ -21,8 +22,9 @@ import {
   signOutCurrentSession,
   subscribeAuthState,
 } from '../features/auth'
+import { revalidateEquipmentDetail } from '../features/equipment'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -145,7 +147,7 @@ export function MobileShell() {
     return (
       <EquipmentListScreen
         onBack={goBack}
-        onOpenScan={() => navigate({ name: 'scan' })}
+        onOpenScan={() => navigate({ name: 'simple-scan' })}
         onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
         currentUserKeys={currentUserFilterKeys(session)}
       />
@@ -183,6 +185,19 @@ export function MobileShell() {
         onOpenPendingRequests={(equipmentId) => navigate({ name: 'requests', equipmentId })}
         onOpenCompletedWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'completed' })}
         isOperatorFlow={Boolean(currentEntry.operatorFlow)}
+      />
+    )
+  }
+  if (route === 'simple-scan') {
+    return (
+      <SimpleScannerScreen
+        title="Quét mã thiết bị"
+        onBack={goBack}
+        onResult={(code) => {
+          void revalidateEquipmentDetail(code, { force: true })
+            .then((asset) => navigate({ name: 'equipment-detail', equipmentId: asset.equipmentId }))
+            .catch(() => goBack())
+        }}
       />
     )
   }
