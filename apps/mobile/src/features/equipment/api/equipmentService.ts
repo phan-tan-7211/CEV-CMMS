@@ -13,6 +13,15 @@ export type EquipmentListItem = {
   category: string
   updatedAt: string
   imageUrl: string
+  archived?: boolean
+  createdAt?: string
+  createdBy?: string
+  responsiblePrimary?: string
+  responsibleSecondary?: string
+  assignedUsers?: string[]
+  assignedTeams?: string[]
+  assignedVendors?: string[]
+  assignedCustomers?: string[]
 }
 
 export type EquipmentDetail = EquipmentListItem & {
@@ -44,8 +53,38 @@ function readSourceText(source: Record<string, unknown> | null, ...keys: string[
   return ''
 }
 
+function readSourceBoolean(source: Record<string, unknown> | null, ...keys: string[]) {
+  if (!source) return false
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === 'boolean') return value
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase()
+      if (['true', '1', 'yes', 'archived'].includes(normalized)) return true
+      if (['false', '0', 'no', 'active'].includes(normalized)) return false
+    }
+  }
+  return false
+}
+
+function readSourceList(source: Record<string, unknown> | null, ...keys: string[]) {
+  if (!source) return []
+  for (const key of keys) {
+    const value = source[key]
+    if (Array.isArray(value)) {
+      return value.map((item) => typeof item === 'string' ? item.trim() : '').filter(Boolean)
+    }
+    if (typeof value === 'string' && value.trim()) {
+      return value.split(/[,;|]/).map((item) => item.trim()).filter(Boolean)
+    }
+  }
+  return []
+}
+
 function mapRow(row: EquipmentMasterRow, imageUrl = ''): EquipmentDetail {
   const source = row.source_data || {}
+  const responsiblePrimary = readSourceText(source, 'managementResponsiblePrimary', 'responsiblePrimary')
+  const responsibleSecondary = readSourceText(source, 'managementResponsibleSecondary', 'responsibleSecondary')
   return {
     equipmentId: String(row.equipment_id || ''),
     equipmentName: String(row.equipment_name || '').trim(),
@@ -57,11 +96,18 @@ function mapRow(row: EquipmentMasterRow, imageUrl = ''): EquipmentDetail {
     category: readSourceText(source, 'equipmentCategory', 'category'),
     updatedAt: String(row.updated_at || ''),
     imageUrl,
+    archived: readSourceBoolean(source, 'archived', 'isArchived'),
+    createdAt: readSourceText(source, 'createdAt', 'created_at', 'dateCreated', 'createdDate'),
+    createdBy: readSourceText(source, 'createdBy', 'created_by', 'creator', 'createdByEmail'),
+    responsiblePrimary,
+    responsibleSecondary,
+    assignedUsers: readSourceList(source, 'assignedUsers', 'assigned_users'),
+    assignedTeams: readSourceList(source, 'assignedTeams', 'assigned_teams'),
+    assignedVendors: readSourceList(source, 'assignedVendors', 'assigned_vendors'),
+    assignedCustomers: readSourceList(source, 'assignedCustomers', 'assigned_customers'),
     serialNumber: readSourceText(source, 'serialNumber', 'serial_number'),
     origin: readSourceText(source, 'origin'),
     managingDepartment: readSourceText(source, 'managingDepartment', 'department'),
-    responsiblePrimary: readSourceText(source, 'managementResponsiblePrimary', 'responsiblePrimary'),
-    responsibleSecondary: readSourceText(source, 'managementResponsibleSecondary', 'responsibleSecondary'),
     description: readSourceText(source, 'description'),
     technicalSpecification: readSourceText(source, 'technicalSpecification', 'specification'),
   }
