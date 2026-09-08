@@ -69,11 +69,11 @@ export function DesktopSidebar<T extends string>({ items, currentView, roleLabel
   const filteredItems = useMemo(() => normalizedQuery ? items.filter((item) => item.label.toLocaleLowerCase('vi').includes(normalizedQuery)) : items, [items, normalizedQuery])
 
   return <aside className={`desktop-sidebar${collapsed ? ' is-collapsed' : ''}`} aria-label="Điều hướng trên máy tính">
-    <span hidden>Hệ thống quản lý thiết bị CEV</span>
+    <span hidden>CEV CMMS</span>
     <div className="sidebar-brand-row">
-      <div className="sidebar-brand" title={collapsed ? 'CEV Equipment Management' : undefined}>
+      <div className="sidebar-brand" title={collapsed ? 'CEV CMMS' : undefined}>
         <span className="sidebar-brand-mark">CEV</span>
-        <div className="sidebar-brand-copy"><strong>Equipment CMMS</strong><small>IATF 16949 · Vietnam</small></div>
+        <div className="sidebar-brand-copy"><strong>Equipment CMMS</strong><small>Maintenance & Asset Management</small></div>
       </div>
       <button className="sidebar-collapse" type="button" title={collapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'} aria-label={collapsed ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'} onClick={() => setCollapsed((value) => !value)}><NavIcon name="collapse" /></button>
     </div>
