@@ -20,3 +20,8 @@ export async function getMaintenanceRequest(requestId: string) {
   const row = data as Record<string, unknown>
   return { requestId: String(row.request_id || ''), equipmentId: String(row.equipment_id || ''), reason: String(row.reason || ''), status: String(row.status || ''), sourceType: String(row.source_type || ''), sourceId: String(row.source_id || ''), createdBy: String(row.created_by || ''), createdAt: String(row.created_at || '') }
 }
+export async function transitionMaintenanceRequest(requestId: string, status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED') {
+  const { data, error } = await supabase.rpc('rpc_transition_maintenance_request', { p_request_id: requestId.trim(), p_status: status })
+  if (error) throw error
+  return data
+}
