@@ -8,6 +8,7 @@ type Props = {
   result: HomeScanResult | null
   onDismiss: () => void
   onRescan: () => void
+  onCreateAsset: (code: string) => void
   onOpenAsset: (equipmentId: string) => void
   onOpenHierarchy: (equipmentId: string) => void
   onOpenPendingWorkOrders: (equipmentId: string) => void
@@ -46,7 +47,7 @@ function ActionRow({
   )
 }
 
-export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onOpenAsset, onOpenHierarchy, onOpenPendingWorkOrders, onOpenPendingRequests, onOpenCompletedWorkOrders, onSelectMultiple }: Props) {
+export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCreateAsset, onOpenAsset, onOpenHierarchy, onOpenPendingWorkOrders, onOpenPendingRequests, onOpenCompletedWorkOrders, onSelectMultiple }: Props) {
   if (!loading && !result) return null
 
   return (
@@ -68,7 +69,10 @@ export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onOp
               <Text style={styles.title}>Không tìm thấy kết quả</Text>
               <Text style={styles.body}>Không có dữ liệu phù hợp với mã “{result.code}”.</Text>
             </View>
-            <Pressable onPress={onRescan} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryText}>Quét lại</Text></Pressable>
+            <View style={styles.notFoundActions}>
+              <Pressable onPress={() => onCreateAsset(result.code)} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Ionicons name="add-circle-outline" size={20} color="#FFFFFF" /><Text style={styles.primaryText}>Tạo tài sản</Text></Pressable>
+              <Pressable onPress={onRescan} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Ionicons name="scan-outline" size={19} color="#475467" /><Text style={styles.secondaryText}>Quét lại</Text></Pressable>
+            </View>
           </>
         ) : result?.type === 'asset' ? (
           <>
@@ -196,6 +200,7 @@ const styles = StyleSheet.create({
   actionLabelDisabled: { color: '#98A2B3' },
   actionDetail: { marginTop: 2, fontSize: 10.5, lineHeight: 14, color: '#98A2B3' },
   primaryButton: { minHeight: 52, marginTop: 14, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
+  notFoundActions: { gap: 2 },
   primaryText: { fontSize: 16, fontWeight: '900', color: '#FFFFFF' },
   secondaryButton: { minHeight: 46, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { fontSize: 14.5, fontWeight: '800', color: '#475467' },
