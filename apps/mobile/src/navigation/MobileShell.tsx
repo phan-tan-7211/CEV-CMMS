@@ -23,6 +23,8 @@ import { ScanAssetScreen } from '../screens/ScanAssetScreen'
 import { SimpleScannerScreen } from '../screens/SimpleScannerScreen'
 import { WorkOrderDetailScreen } from '../screens/WorkOrderDetailScreen'
 import { WorkOrdersScreen } from '../screens/WorkOrdersScreen'
+import { WorkOrderDashboardScreen, type WorkOrderDashboardFilter } from '../screens/WorkOrderDashboardScreen'
+import { WorkOrderDashboardListScreen } from '../screens/WorkOrderDashboardListScreen'
 import { LocationsScreen } from '../screens/LocationsScreen'
 import { InventoryScreen } from '../screens/InventoryScreen'
 import { MetersScreen } from '../screens/MetersScreen'
@@ -40,7 +42,7 @@ import {
 } from '../features/auth'
 import { revalidateEquipmentDetail } from '../features/equipment'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'part-work-order' | 'work-orders' | 'work-order-detail' | 'requests' | 'request-detail' | 'more' | 'locations' | 'location-form' | 'inventory' | 'meters' | 'vendors' | 'company-form' | 'customer-form' | 'people' | 'preventive-maintenance' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'part-work-order' | 'work-order-dashboard' | 'work-order-dashboard-list' | 'work-orders' | 'work-order-detail' | 'requests' | 'request-detail' | 'more' | 'locations' | 'location-form' | 'inventory' | 'meters' | 'vendors' | 'company-form' | 'customer-form' | 'people' | 'preventive-maintenance' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -50,6 +52,7 @@ type RouteEntry = {
   requestId?: string
   operatorFlow?: boolean
   workOrderScope?: 'pending' | 'completed'
+  dashboardFilter?: WorkOrderDashboardFilter
   barcode?: string
   partId?: string
 }
@@ -253,6 +256,12 @@ export function MobileShell() {
       />
     )
   }
+  if (route === 'work-order-dashboard') {
+    return <WorkOrderDashboardScreen onBack={goBack} onOpenList={(dashboardFilter) => navigate({ name: 'work-order-dashboard-list', dashboardFilter })} />
+  }
+  if (route === 'work-order-dashboard-list') {
+    return <WorkOrderDashboardListScreen filter={currentEntry.dashboardFilter || 'all'} onBack={goBack} onOpenWorkOrder={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
+  }
   if (route === 'work-orders') {
     return <WorkOrdersScreen onBack={goBack} equipmentId={scopedEquipmentId || undefined} scope={currentEntry.workOrderScope} onOpenWorkOrder={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
   }
@@ -274,7 +283,7 @@ export function MobileShell() {
     return (
       <MoreScreen
         onHome={resetNavigation}
-        onOpenWorkOrders={() => navigate({ name: 'work-orders' })}
+        onOpenWorkOrders={() => navigate({ name: 'work-order-dashboard' })}
         onOpenRequests={() => navigate({ name: 'requests' })}
         onOpenEquipment={() => navigate({ name: 'equipment' })}
         onCreateEquipment={() => navigate({ name: 'registration' })}
@@ -300,7 +309,7 @@ export function MobileShell() {
       onCreateEquipment={() => navigate({ name: 'registration' })}
       onOpenScan={() => navigate({ name: 'scan' })}
       onOpenOperatorScan={() => navigate({ name: 'scan', operatorFlow: true })}
-      onOpenWorkOrders={() => navigate({ name: 'work-orders' })}
+      onOpenWorkOrders={() => navigate({ name: 'work-order-dashboard' })}
       onOpenEquipment={() => navigate({ name: 'equipment' })}
       onOpenRequests={() => navigate({ name: 'requests' })}
       onOpenMore={() => navigate({ name: 'more' })}
