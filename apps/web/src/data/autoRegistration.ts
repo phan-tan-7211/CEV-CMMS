@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { dataGateway } from './dataGateway'
 import type { EquipmentMasterTextFields } from './equipmentMasterFields'
 
 export type EquipmentCriticality = 'A' | 'B' | 'C' | 'D'
@@ -23,6 +23,15 @@ export type EquipmentRegistrationResult = {
   equipmentType: 'PRODUCTION' | 'MEASUREMENT'
   equipmentName: string
   criticality: EquipmentCriticality
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string' && message) return message
+  }
+  return fallback
 }
 
 export function deriveEquipmentCriticality(facts: EquipmentCriticalityFacts): EquipmentCriticality | '' {
@@ -54,18 +63,18 @@ export async function createEquipmentAuto(input: EquipmentRegistrationInput): Pr
   if (!criticality) throw new Error('Vui lòng trả lời đủ 5 câu để hệ thống tự xác định mức độ quan trọng của thiết bị.')
   if (!input.managementResponsiblePrimary?.trim()) throw new Error('Vui lòng nhập người phụ trách quản lý chính.')
 
-  const { data, error } = await supabase.rpc('rpc_create_equipment_auto', { p_input: input })
-  if (error) throw new Error(error.message || 'Không thể đăng ký thiết bị')
+  const { data, error } = await dataGateway.rpc('rpc_create_equipment_auto', { p_input: input })
+  if (error) throw new Error(errorMessage(error, 'Không thể đăng ký thiết bị'))
   const row = (data || {}) as Record<string, unknown>
   const equipmentId = String(row.equipmentId || row.equipment_id || '')
   if (!equipmentId) throw new Error('Đăng ký thiết bị không trả về mã thiết bị. Vui lòng kiểm tra RPC rpc_create_equipment_auto.')
 
   if (input.distributor?.trim()) {
-    const { error: distributorError } = await supabase.rpc('rpc_set_equipment_distributor', {
+    const { error: distributorError } = await dataGateway.rpc('rpc_set_equipment_distributor', {
       p_equipment_id: equipmentId,
       p_distributor: input.distributor.trim(),
     })
-    if (distributorError) throw new Error(`Thiết bị đã tạo nhưng chưa lưu được nhà phân phối: ${distributorError.message}`)
+    if (distributorError) throw new Error(`Thiết bị đã tạo nhưng chưa lưu được nhà phân phối: ${errorMessage(distributorError, 'lỗi không xác định')}`)
   }
 
   return {

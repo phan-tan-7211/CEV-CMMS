@@ -4,6 +4,18 @@ React + Vite + TypeScript frontend with Supabase PostgreSQL, Auth/RLS, Storage a
 Current development and verification workflow is LOCAL. Deployment visibility is not a substitute for local build/test/UI verification.
 Apps Script, Google Sheets and Google Drive are not runtime dependencies.
 
+## Independent application layout
+
+This repository is one Git repository with independent applications. Web and Mobile
+must keep separate package manifests, lockfiles, node_modules and scripts. Do not add
+workspace hoisting or Turborepo configuration.
+
+- Web: `apps/web/` (React + Vite + TypeScript)
+- Mobile: `apps/mobile/` (React Native + Expo)
+- Backend authority: `supabase/`
+
+Run Web commands from `apps/web`; run Mobile commands from `apps/mobile`.
+
 One equipment → one canonical equipment_id → one equipment_master root record.
 Production IDs: CEV-PR-NNN. Measurement IDs: CEV-ME-NNN.
 Every workflow references the same ID. Never create parallel equipment identities.
@@ -57,8 +69,8 @@ For Equipment and any future feature where desktop/mobile task flow differs mate
 6. Shared UI primitives may be reused, but they must not own platform page composition or call Supabase directly.
 7. If one DOM requires repeated breakpoint overrides or `!important` chains to behave as two different products, split the renderer instead of adding more patches.
 8. Current Equipment platform boundary is explicit: mobile/tablet `< 901px`; desktop `>= 901px`.
-9. `src/equipment/EquipmentWorkspace.tsx` is the platform selector. Platform selection must not be scattered through feature components.
-10. `src/LiveEquipmentPanel.tsx` is a retired mixed-renderer pattern and must not return.
+9. `apps/web/src/equipment/EquipmentWorkspace.tsx` is the platform selector. Platform selection must not be scattered through feature components.
+10. `apps/web/src/LiveEquipmentPanel.tsx` is a retired mixed-renderer pattern and must not return.
 11. Architecture guard tests are mandatory: run `npm run test:architecture` after Equipment architecture/layout refactors.
 
 Reference principles are adapted for CEV from Cal.com, create-t3-turbo, Dify, shadcn/ui, Solito and Tamagui. CEV project rules and business requirements take precedence over external examples.
@@ -129,7 +141,7 @@ Path:
 `C:\Users\T\Documents\Inventor\zinitek\WEB\IATF-16949-Equipment-Management`
 
 Required branch:
-`feat/cmms-workflow-next-web`
+`main`
 
 Standard Web startup:
 
@@ -138,10 +150,11 @@ cd C:\Users\T\Documents\Inventor\zinitek\WEB\IATF-16949-Equipment-Management
 git status
 git branch --show-current
 git pull --ff-only
+cd apps\web
 npm run dev -- --port 3000
 ```
 
-Before `git pull`, `git branch --show-current` must equal `feat/cmms-workflow-next-web`. If it does not, stop. Do not switch to Mobile or integration in this worktree.
+Before `git pull`, `git branch --show-current` must equal `main`. If it does not, stop. Do not switch to Mobile or integration in this worktree.
 
 ### Mobile worktree
 
@@ -149,7 +162,7 @@ Path:
 `C:\Users\T\Documents\Inventor\zinitek\MOBILE\IATF-16949-Equipment-Management`
 
 Required branch:
-`feat/cmms-workflow-next-mobile`
+`main`
 
 Standard Mobile startup:
 
@@ -162,7 +175,7 @@ cd apps\mobile
 npm run start -- --clear
 ```
 
-Before `git pull`, `git branch --show-current` must equal `feat/cmms-workflow-next-mobile`. If it does not, stop. Do not switch to Web or integration in this worktree.
+Before `git pull`, `git branch --show-current` must equal `main`. If it does not, stop. Do not switch to Web or integration in this worktree.
 
 ### Integration branch
 
@@ -171,8 +184,8 @@ Before `git pull`, `git branch --show-current` must equal `feat/cmms-workflow-ne
 ### Non-negotiable worktree rules
 
 1. Never use one working directory for both Web and Mobile development.
-2. Never run `git switch feat/cmms-workflow-next-mobile` inside the Web worktree.
-3. Never run `git switch feat/cmms-workflow-next-web` inside the Mobile worktree.
+2. Never run Mobile commands from the Web app directory.
+3. Never run Web commands from the Mobile app directory.
 4. Never switch either permanent development worktree to `feat/cmms-workflow-next` for normal testing.
 5. Always verify path, `git status`, and `git branch --show-current` before pulling or starting a server.
 6. Web local testing uses `http://localhost:3000` from the Web worktree only.

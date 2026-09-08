@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const root = process.cwd()
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8')
+const readRepoFile = (path: string) => readFileSync(resolve(root, '../..', path), 'utf8')
 
 function filesUnder(path: string): string[] {
   const absolute = resolve(root, path)
@@ -109,7 +110,7 @@ describe('Equipment platform architecture', () => {
   })
 
   it('documents the same platform contract in project rules', () => {
-    for (const content of [read('AGENTS.md'), read('docs/FRONTEND_PLATFORM_ARCHITECTURE.md'), read('.agents/skills/platform-ui-architecture/SKILL.md')]) {
+    for (const content of [readRepoFile('AGENTS.md'), readRepoFile('docs/FRONTEND_PLATFORM_ARCHITECTURE.md'), readRepoFile('.agents/skills/platform-ui-architecture/SKILL.md')]) {
       expect(content).toContain('901px')
       expect(content).toContain('desktop')
       expect(content).toContain('mobile')
