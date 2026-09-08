@@ -26,6 +26,15 @@ export async function assignWorkOrder(workOrderId: string, personIds: string[], 
   return rpc('rpc_cmms_assign_work_order', { p_work_order_id: workOrderId.trim(), p_person_ids: personIds, p_team_ids: teamIds }, 'Không thể cập nhật người/nhóm được giao.')
 }
 
+export async function setWorkOrderReviewAssignments(input: { workOrderId: string; watcherPersonIds: string[]; approverPersonIds: string[]; verifierPersonIds: string[] }) {
+  return rpc('rpc_cmms_set_work_order_review_assignments', {
+    p_work_order_id: input.workOrderId.trim(),
+    p_watcher_person_ids: input.watcherPersonIds,
+    p_approver_person_ids: input.approverPersonIds,
+    p_verifier_person_ids: input.verifierPersonIds,
+  }, 'Không thể cập nhật người theo dõi/duyệt/xác nhận.')
+}
+
 export async function addWorkOrderChecklistItem(workOrderId: string, title: string, required = false) {
   if (!title.trim()) throw new Error('Tên checklist là bắt buộc.')
   return rpc('rpc_cmms_add_checklist_item', { p_work_order_id: workOrderId.trim(), p_title: title.trim(), p_description: null, p_response_type: 'CHECK', p_required: required, p_sequence_no: 0 }, 'Không thể thêm checklist.')
