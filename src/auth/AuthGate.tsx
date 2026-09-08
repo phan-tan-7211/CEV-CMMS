@@ -63,9 +63,11 @@ export function AuthGate({ children }: { children: (session: LiveSession, signOu
         return
       }
       if (event === 'TOKEN_REFRESHED') {
+        // Token refresh is background auth maintenance. Never unmount the workspace for it.
         return
       }
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        // Refresh role/session metadata without replacing the current ready workspace with a loading screen.
         void resolveSession(false)
       }
     })
