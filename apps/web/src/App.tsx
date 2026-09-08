@@ -11,6 +11,7 @@ import { DesktopSidebar } from './DesktopSidebar'
 import { AccountMenu } from './AccountMenu'
 import { AccountPreferences } from './AccountPreferences'
 import { NotificationCenter } from './NotificationCenter'
+import { GeneralSettingsMenu } from './GeneralSettingsMenu'
 
 const A4PrintCenter = lazy(() => import('./A4PrintCenter').then((module) => ({ default: module.A4PrintCenter })))
 const LiveAuditPanel = lazy(() => import('./LiveAuditPanel').then((module) => ({ default: module.LiveAuditPanel })))
@@ -238,6 +239,7 @@ function AppWorkspace({ session, signOut }: { session: LiveSession; signOut: () 
         <header className="workspace-topbar">
           <div><p className="eyebrow">CEV CMMS · UpKeep workspace</p><h1>{NAV.find((item) => item.id === view)?.label || 'Tổng quan'}</h1></div>
           <div className="workspace-topbar-actions">
+            <GeneralSettingsMenu onOpenCompanyProfile={() => openView('organization')} onOpenOrganization={() => openView('organization')} onOpenAudit={() => openView('settings')} />
             <NotificationCenter />
             <AccountMenu email={sessionEmail || ''} role={role} signOut={signOut} onProfile={() => openView('settings')} onCompanyProfile={() => openView('organization')} onCookieSettings={() => setPreferenceMode('cookie')} onNotificationSettings={() => setPreferenceMode('notifications')} />
           </div>
