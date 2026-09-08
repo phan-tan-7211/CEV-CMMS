@@ -8,6 +8,8 @@ import { EquipmentRegistrationScreen } from '../screens/EquipmentRegistrationScr
 import { EquipmentStatusScreen } from '../screens/EquipmentStatusScreen'
 import { EquipmentHierarchyScreen } from '../screens/EquipmentHierarchyScreen'
 import { CreateWorkOrderScreen } from '../screens/CreateWorkOrderScreen'
+import { PartDetailsScreen } from '../screens/PartDetailsScreen'
+import { PartInventoryScreen } from '../screens/PartInventoryScreen'
 import { HomeScreen } from '../screens/HomeScreen'
 import { LoginScreen } from '../screens/LoginScreen'
 import { MoreScreen } from '../screens/MoreScreen'
@@ -25,7 +27,7 @@ import {
 } from '../features/auth'
 import { revalidateEquipmentDetail } from '../features/equipment'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'part-detail' | 'part-inventory' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -35,6 +37,7 @@ type RouteEntry = {
   operatorFlow?: boolean
   workOrderScope?: 'pending' | 'completed'
   barcode?: string
+  partId?: string
 }
 
 const HOME_ENTRY: RouteEntry = { name: 'home' }
@@ -129,6 +132,7 @@ export function MobileShell() {
     [currentEntry.equipmentId, route],
   )
   const selectedWorkOrderId = route === 'work-order-detail' ? String(currentEntry.workOrderId || '') : ''
+  const selectedPartId = String(currentEntry.partId || '')
   const scopedEquipmentId = String(currentEntry.equipmentId || '')
 
   if (session === undefined) {
@@ -180,6 +184,8 @@ export function MobileShell() {
   if (route === 'create-work-order' && scopedEquipmentId) {
     return <CreateWorkOrderScreen equipmentId={scopedEquipmentId} onBack={goBack} onCreated={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
   }
+  if (route === 'part-detail' && selectedPartId) return <PartDetailsScreen partId={selectedPartId} onBack={goBack} />
+  if (route === 'part-inventory' && selectedPartId) return <PartInventoryScreen partId={selectedPartId} onBack={goBack} />
   if (route === 'scan') {
     return (
       <ScanAssetScreen
@@ -191,6 +197,8 @@ export function MobileShell() {
         onOpenCompletedWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'completed' })}
         onCreateAsset={(code) => navigate({ name: 'registration', barcode: code })}
         onCreateWorkOrder={(equipmentId) => navigate({ name: 'create-work-order', equipmentId })}
+        onOpenPart={(partId) => navigate({ name: 'part-detail', partId })}
+        onOpenPartInventory={(partId) => navigate({ name: 'part-inventory', partId })}
         isOperatorFlow={Boolean(currentEntry.operatorFlow)}
       />
     )
