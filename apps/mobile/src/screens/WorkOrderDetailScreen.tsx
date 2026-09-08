@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -94,7 +94,7 @@ export function WorkOrderDetailScreen({ workOrderId, onBack }: { workOrderId: st
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return <View style={styles.section}><Text style={styles.sectionLabel}>{title}</Text><View style={styles.card}>{children}</View></View>
 }
 
