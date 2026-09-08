@@ -12,6 +12,7 @@ import { PartDetailsScreen } from '../screens/PartDetailsScreen'
 import { PartInventoryScreen } from '../screens/PartInventoryScreen'
 import { PartsListScreen } from '../screens/PartsListScreen'
 import { PartFormScreen } from '../screens/PartFormScreen'
+import { PartWorkOrderScreen } from '../screens/PartWorkOrderScreen'
 import { CreateRequestScreen } from '../screens/CreateRequestScreen'
 import { RequestDetailScreen } from '../screens/RequestDetailScreen'
 import { HomeScreen } from '../screens/HomeScreen'
@@ -31,7 +32,7 @@ import {
 } from '../features/auth'
 import { revalidateEquipmentDetail } from '../features/equipment'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'work-orders' | 'work-order-detail' | 'requests' | 'request-detail' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'part-work-order' | 'work-orders' | 'work-order-detail' | 'requests' | 'request-detail' | 'more' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -192,6 +193,7 @@ export function MobileShell() {
   }
   if (route === 'part-detail' && selectedPartId) return <PartDetailsScreen partId={selectedPartId} onBack={goBack} />
   if (route === 'part-inventory' && selectedPartId) return <PartInventoryScreen partId={selectedPartId} onBack={goBack} />
+  if (route === 'part-work-order' && selectedPartId) return <PartWorkOrderScreen partId={selectedPartId} onBack={goBack} onCreated={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
   if (route === 'part-form') return <PartFormScreen partId={selectedPartId} onBack={goBack} onSaved={(partId) => navigate({ name: 'part-detail', partId })} />
   if (route === 'part-list') return <PartsListScreen onBack={goBack} onScan={() => navigate({ name: 'part-scan' })} onCreate={() => navigate({ name: 'part-form' })} onOpenPart={(partId) => navigate({ name: 'part-detail', partId })} />
   if (route === 'part-scan') return <SimpleScannerScreen title="Quét mã phụ tùng" onBack={goBack} onResult={async (code) => {
@@ -215,6 +217,7 @@ export function MobileShell() {
         onCreateWorkOrder={(equipmentId) => navigate({ name: 'create-work-order', equipmentId })}
         onOpenPart={(partId) => navigate({ name: 'part-detail', partId })}
         onOpenPartInventory={(partId) => navigate({ name: 'part-inventory', partId })}
+        onCreatePartWorkOrder={(partId) => navigate({ name: 'part-work-order', partId })}
         onCreatePortalWorkOrder={(equipmentId) => navigate({ name: 'create-work-order', equipmentId })}
         onCreatePortalRequest={(equipmentId, sourceId) => navigate({ name: 'create-request', equipmentId, barcode: sourceId })}
         isOperatorFlow={Boolean(currentEntry.operatorFlow)}
