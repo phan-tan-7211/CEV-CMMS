@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { SettingsRow } from './SettingsRow'
 import { SettingsScaffold } from './SettingsScaffold'
-import { loadSettingsBundle, saveOrganizationSettings } from '../../features/settings/api/settingsService'
+import { loadSettingsBundle, saveOrganizationSettings } from '../../features/settings'
 
 export function OrganizationSettingsScreen({ onBack }: { onBack: () => void }) {
   const [automationEnabled, setAutomationEnabled] = useState(true)
