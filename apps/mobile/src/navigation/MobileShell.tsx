@@ -29,6 +29,8 @@ import { MetersScreen } from '../screens/MetersScreen'
 import { VendorsScreen } from '../screens/VendorsScreen'
 import { PeopleScreen } from '../screens/PeopleScreen'
 import { PreventiveMaintenanceScreen } from '../screens/PreventiveMaintenanceScreen'
+import { LocationFormScreen } from '../screens/LocationFormScreen'
+import { CompanyFormScreen } from '../screens/CompanyFormScreen'
 import { AccountSettingsScreen } from '../screens/settings/AccountSettingsScreen'
 import {
   getCurrentSession,
@@ -38,7 +40,7 @@ import {
 } from '../features/auth'
 import { revalidateEquipmentDetail } from '../features/equipment'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'part-work-order' | 'work-orders' | 'work-order-detail' | 'requests' | 'request-detail' | 'more' | 'locations' | 'inventory' | 'meters' | 'vendors' | 'people' | 'preventive-maintenance' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'part-work-order' | 'work-orders' | 'work-order-detail' | 'requests' | 'request-detail' | 'more' | 'locations' | 'location-form' | 'inventory' | 'meters' | 'vendors' | 'company-form' | 'people' | 'preventive-maintenance' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -259,10 +261,12 @@ export function MobileShell() {
   }
   if (route === 'requests') return <RequestsScreen onBack={goBack} equipmentId={scopedEquipmentId || undefined} onOpenRequest={(requestId) => navigate({ name: 'request-detail', requestId })} />
   if (route === 'request-detail' && selectedRequestId) return <RequestDetailScreen requestId={selectedRequestId} onBack={goBack} />
-  if (route === 'locations') return <LocationsScreen onBack={goBack} />
+  if (route === 'locations') return <LocationsScreen onBack={goBack} onAdd={() => navigate({ name: 'location-form' })} />
+  if (route === 'location-form') return <LocationFormScreen onBack={goBack} />
   if (route === 'inventory') return <InventoryScreen onBack={goBack} />
   if (route === 'meters') return <MetersScreen onBack={goBack} />
-  if (route === 'vendors') return <VendorsScreen onBack={goBack} />
+  if (route === 'vendors') return <VendorsScreen onBack={goBack} onAdd={() => navigate({ name: 'company-form' })} />
+  if (route === 'company-form') return <CompanyFormScreen onBack={goBack} />
   if (route === 'people') return <PeopleScreen onBack={goBack} />
   if (route === 'preventive-maintenance') return <PreventiveMaintenanceScreen onBack={goBack} />
   if (route === 'more') {

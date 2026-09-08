@@ -4,9 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 export type ModulePreviewItem = { title: string; subtitle: string; icon: keyof typeof Ionicons.glyphMap; color: string }
 
-export function ModulePreviewScreen({ title, hint, items, onBack, actionLabel = 'Thêm' }: { title: string; hint: string; items: ModulePreviewItem[]; onBack: () => void; actionLabel?: string }) {
+export function ModulePreviewScreen({ title, hint, items, onBack, onAdd, actionLabel = 'Thêm' }: { title: string; hint: string; items: ModulePreviewItem[]; onBack: () => void; onAdd?: () => void; actionLabel?: string }) {
   return <SafeAreaView style={styles.safe} edges={['top','bottom']}>
-    <View style={styles.header}><Pressable onPress={onBack} style={styles.icon}><Ionicons name="chevron-back" size={26} color="#101828" /></Pressable><Text style={styles.title}>{title}</Text><Pressable accessibilityLabel={actionLabel} style={styles.icon}><Ionicons name="add" size={25} color="#155EEF" /></Pressable></View>
+    <View style={styles.header}><Pressable onPress={onBack} style={styles.icon}><Ionicons name="chevron-back" size={26} color="#101828" /></Pressable><Text style={styles.title}>{title}</Text><Pressable accessibilityLabel={actionLabel} onPress={onAdd} style={styles.icon}><Ionicons name="add" size={25} color="#155EEF" /></Pressable></View>
     <ScrollView style={styles.body} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.search}><Ionicons name="search-outline" size={19} color="#98A2B3" /><TextInput placeholder={hint} placeholderTextColor="#98A2B3" style={styles.input} /></View>
       <View style={styles.toolbar}><Text style={styles.count}>{items.length} mục</Text><Pressable style={styles.sort}><Ionicons name="swap-vertical-outline" size={16} color="#667085" /><Text style={styles.sortText}>Mới nhất</Text></Pressable></View>
