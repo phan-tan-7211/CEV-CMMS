@@ -56,7 +56,7 @@ function iconFor(id: string): IconName {
     print: 'print',
     organization: 'organization',
     settings: 'settings',
-    work-orders: 'maintenance',
+    'work-orders': 'maintenance',
     scheduler: 'calibration',
     requests: 'inspection',
     analytics: 'dashboard',
