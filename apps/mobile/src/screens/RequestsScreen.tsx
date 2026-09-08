@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-export function RequestsScreen({ onBack }: { onBack: () => void }) {
+export function RequestsScreen({ onBack, equipmentId }: { onBack: () => void; equipmentId?: string }) {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
@@ -17,7 +17,7 @@ export function RequestsScreen({ onBack }: { onBack: () => void }) {
       <View style={styles.center}>
         <View style={styles.iconWrap}><Ionicons name="briefcase-outline" size={30} color="#155EEF" /></View>
         <Text style={styles.heading}>Yêu cầu bảo trì</Text>
-        <Text style={styles.caption}>Route native đã sẵn sàng. Dữ liệu yêu cầu sẽ được nối ở batch Work Request.</Text>
+        <Text style={styles.caption}>{equipmentId ? `Yêu cầu đang chờ của ${equipmentId} sẽ hiển thị tại đây khi backend có dữ liệu Request.` : 'Route native đã sẵn sàng. Dữ liệu yêu cầu sẽ được nối ở batch Work Request.'}</Text>
       </View>
     </SafeAreaView>
   )
