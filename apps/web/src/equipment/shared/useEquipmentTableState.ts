@@ -18,7 +18,7 @@ const MAX_COLUMN_WIDTH = 480
 function loadColumnWidths(): Partial<Record<ColumnKey, number>> {
   try {
     const parsed = JSON.parse(localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY) || '{}')
-    return Object.fromEntries(Object.entries(parsed).filter(([key, value]) => typeof value === 'number' && value >= MIN_COLUMN_WIDTH && value <= MAX_COLUMN_WIDTH)) as Partial<Record<ColumnKey, number>>
+    return Object.fromEntries(Object.entries(parsed).filter(([, value]) => typeof value === 'number' && value >= MIN_COLUMN_WIDTH && value <= MAX_COLUMN_WIDTH)) as Partial<Record<ColumnKey, number>>
   } catch { return {} }
 }
 
