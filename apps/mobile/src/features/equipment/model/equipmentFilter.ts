@@ -83,6 +83,7 @@ export function applyEquipmentFilter(items: EquipmentListItem[], filter: Equipme
     if (!includesText(item.area, filter.area)) return false
     if (!includesText(item.category, filter.category)) return false
 
+    if (!filter.archived && !filter.unarchived && item.archived) return false
     if (filter.archived && !filter.unarchived && !item.archived) return false
     if (filter.unarchived && !filter.archived && item.archived) return false
 
