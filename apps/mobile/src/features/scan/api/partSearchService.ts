@@ -42,3 +42,17 @@ export async function listSparePartUsage(partId: string) {
   if (error) throw error
   return (data || []) as Array<Record<string, unknown>>
 }
+
+export async function listSpareParts() {
+  const { data, error } = await supabase.from('spare_part_overview').select('part_id,part_name,barcode,part_number,maker,stock_qty,min_qty,location,spare_classification').eq('active', true).order('part_id').limit(500)
+  if (error) throw error
+  return ((data || []) as Record<string, unknown>[]).map(mapPart)
+}
+
+export async function saveSparePart(input: Partial<SparePart> & { partName: string }) {
+  const { data, error } = await supabase.rpc('rpc_save_spare_part', { p_input: {
+    partId: input.partId || '', partName: input.partName.trim(), barcode: input.barcode || '', partNumber: input.partNumber || '', maker: input.maker || '', stockQty: input.stockQty || 0, minQty: input.minQty || 0, location: input.location || '', equipmentIds: [],
+  } })
+  if (error) throw error
+  return mapPart((data || {}) as Record<string, unknown>)
+}

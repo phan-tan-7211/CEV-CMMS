@@ -23,6 +23,7 @@ type MoreScreenProps = {
   onOpenRequests: () => void
   onCreateEquipment: () => void
   onOpenOperatorScan: () => void
+  onOpenParts: () => void
   isAdmin?: boolean
   isOperatorFlow?: boolean
 }
@@ -46,6 +47,7 @@ export function MoreScreen({
   onOpenRequests,
   onCreateEquipment,
   onOpenOperatorScan,
+  onOpenParts,
   isAdmin = false,
   isOperatorFlow = false,
 }: MoreScreenProps) {
@@ -77,7 +79,7 @@ export function MoreScreen({
               key={item.key}
               accessibilityRole="button"
               accessibilityLabel={item.label}
-              onPress={() => showComingSoon(item.label)}
+              onPress={() => item.key === 'parts' ? onOpenParts() : showComingSoon(item.label)}
               style={({ pressed }) => [
                 styles.menuCard,
                 { backgroundColor: item.backgroundColor },

@@ -10,6 +10,8 @@ import { EquipmentHierarchyScreen } from '../screens/EquipmentHierarchyScreen'
 import { CreateWorkOrderScreen } from '../screens/CreateWorkOrderScreen'
 import { PartDetailsScreen } from '../screens/PartDetailsScreen'
 import { PartInventoryScreen } from '../screens/PartInventoryScreen'
+import { PartsListScreen } from '../screens/PartsListScreen'
+import { PartFormScreen } from '../screens/PartFormScreen'
 import { HomeScreen } from '../screens/HomeScreen'
 import { LoginScreen } from '../screens/LoginScreen'
 import { MoreScreen } from '../screens/MoreScreen'
@@ -27,7 +29,7 @@ import {
 } from '../features/auth'
 import { revalidateEquipmentDetail } from '../features/equipment'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'part-detail' | 'part-inventory' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -186,6 +188,15 @@ export function MobileShell() {
   }
   if (route === 'part-detail' && selectedPartId) return <PartDetailsScreen partId={selectedPartId} onBack={goBack} />
   if (route === 'part-inventory' && selectedPartId) return <PartInventoryScreen partId={selectedPartId} onBack={goBack} />
+  if (route === 'part-form') return <PartFormScreen partId={selectedPartId} onBack={goBack} onSaved={(partId) => navigate({ name: 'part-detail', partId })} />
+  if (route === 'part-list') return <PartsListScreen onBack={goBack} onScan={() => navigate({ name: 'part-scan' })} onCreate={() => navigate({ name: 'part-form' })} onOpenPart={(partId) => navigate({ name: 'part-detail', partId })} />
+  if (route === 'part-scan') return <SimpleScannerScreen title="Quét mã phụ tùng" onBack={goBack} onResult={async (code) => {
+    const { searchSparePartsByBarcode } = await import('../features/scan/api/partSearchService')
+    const matches = await searchSparePartsByBarcode(code)
+    if (matches.length === 1 && matches[0]) { navigate({ name: 'part-detail', partId: matches[0].partId }); return true }
+    Alert.alert(matches.length ? 'Có nhiều kết quả' : 'Không tìm thấy phụ tùng', matches.length ? 'Hãy dùng tìm kiếm trong danh sách Phụ tùng.' : `Chưa có phụ tùng có mã “${code}”.`)
+    return false
+  }} />
   if (route === 'scan') {
     return (
       <ScanAssetScreen
@@ -239,6 +250,7 @@ export function MobileShell() {
         onOpenRequests={() => navigate({ name: 'requests' })}
         onCreateEquipment={() => navigate({ name: 'registration' })}
         onOpenOperatorScan={() => navigate({ name: 'scan', operatorFlow: true })}
+        onOpenParts={() => navigate({ name: 'part-list' })}
         isAdmin={adminSession}
         isOperatorFlow={operatorFlow}
       />
