@@ -50,22 +50,18 @@ function emptyAdvancedFilter(): EquipmentFilter {
 
 export function EquipmentListScreen({
   onBack,
-  onScan,
   onCreateEquipment,
   onOpenEquipment,
   currentUserKeys = [],
-  initialQuery,
 }: {
   onBack: () => void
-  onScan: () => void
   onCreateEquipment: () => void
   onOpenEquipment: (equipmentId: string) => void
   currentUserKeys?: string[]
-  initialQuery?: string
 }) {
   const [items, setItems] = useState<EquipmentListItem[]>([])
   const [statuses, setStatuses] = useState<EquipmentStatusMaster[]>([])
-  const [query, setQuery] = useState(initialQuery ?? '')
+  const [query, setQuery] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>('name-asc')
   const [sortOpen, setSortOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
@@ -76,9 +72,6 @@ export function EquipmentListScreen({
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (initialQuery !== undefined) setQuery(initialQuery)
-  }, [initialQuery])
 
   useEffect(() => {
     let active = true
@@ -196,10 +189,7 @@ export function EquipmentListScreen({
       <View style={styles.header}>
         <Pressable onPress={onBack} hitSlop={8} style={styles.iconButton}><Ionicons name="chevron-back" size={25} color="#101828" /></Pressable>
         <Text style={styles.headerTitle}>Thiết bị</Text>
-        <View style={styles.headerActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Quét mã thiết bị" onPress={onScan} hitSlop={8} style={styles.iconButton}><Ionicons name="scan-outline" size={23} color="#155EEF" /></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Thêm thiết bị" onPress={onCreateEquipment} hitSlop={8} style={styles.iconButton}><Ionicons name="add" size={27} color="#155EEF" /></Pressable>
-        </View>
+        <Pressable onPress={onCreateEquipment} hitSlop={8} style={styles.iconButton}><Ionicons name="add" size={27} color="#155EEF" /></Pressable>
       </View>
 
       <View style={styles.searchWrap}>
@@ -284,7 +274,6 @@ const styles = StyleSheet.create({
   header: { minHeight: 58, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF' },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '900', color: '#101828' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   searchWrap: { minHeight: 46, marginHorizontal: 12, marginTop: 12, marginBottom: 9, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 23, borderWidth: 1, borderColor: '#E4E7EC', backgroundColor: '#FFFFFF' },
   searchInput: { flex: 1, minHeight: 44, fontSize: 14, color: '#101828' },
   filterToolsRow: { minHeight: 47, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF' },
