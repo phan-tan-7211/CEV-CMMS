@@ -52,7 +52,7 @@ async function openView(page: Page, label: string) {
     await page.locator('.desktop-sidebar-nav').getByRole('button', { name: label, exact: true }).click()
   } else if (label === 'Quét QR' || label === 'Thiết bị') {
     await page.locator('.bottom-nav').getByRole('button', { name: label, exact: true }).click()
-  } else if (label === 'Bảo trì') {
+  } else if (label === 'Bảo trì phòng ngừa') {
     await page.locator('.bottom-nav').getByRole('button', { name: 'Công việc', exact: true }).click()
   }
   await expect(page.locator('.fatal-screen')).toHaveCount(0)
@@ -76,8 +76,8 @@ async function expectNoPageHorizontalOverflow(page: Page) {
 test('current navigation surfaces open without browser crash', async ({ page }) => {
   await openApp(page)
   const labels = mobile(page)
-    ? ['Quét QR', 'Thiết bị', 'Bảo trì']
-    : ['Quét QR', 'Thiết bị', 'Kiểm tra ngày', 'Bảo trì', 'Jig, gá & dụng cụ', 'Hiệu chuẩn', 'Hồ sơ A4', 'Nhật ký & cấu hình']
+    ? ['Quét QR', 'Thiết bị', 'Bảo trì phòng ngừa']
+    : ['Quét QR', 'Thiết bị', 'Danh sách kiểm tra', 'Bảo trì phòng ngừa', 'Jig, gá & dụng cụ', 'Hiệu chuẩn', 'Hồ sơ A4', 'Nhật ký & cấu hình']
   for (const label of labels) {
     await openView(page, label)
     await expect(page.locator('main')).toBeVisible()
@@ -87,7 +87,7 @@ test('current navigation surfaces open without browser crash', async ({ page }) 
 
 test('maintenance opens work orders first and can switch record tabs', async ({ page }) => {
   await openApp(page)
-  await openView(page, 'Bảo trì')
+  await openView(page, 'Bảo trì phòng ngừa')
   const workspace = page.locator('.maintenance-workspace')
   await expect(workspace.getByRole('heading', { name: 'Bảo trì thiết bị' })).toBeVisible()
   const workOrdersTab = workspace.locator('button[aria-controls="maintenance-tab-work-orders"]')
@@ -159,8 +159,8 @@ test('key routes do not create page-level horizontal overflow at target responsi
     await expectNoPageHorizontalOverflow(page)
 
     const labels = width <= 900
-      ? ['Quét QR', 'Thiết bị', 'Bảo trì']
-      : ['Thiết bị', 'Kiểm tra ngày', 'Bảo trì', 'Jig, gá & dụng cụ', 'Hiệu chuẩn', 'Hồ sơ A4', 'Nhật ký & cấu hình']
+      ? ['Quét QR', 'Thiết bị', 'Bảo trì phòng ngừa']
+      : ['Thiết bị', 'Danh sách kiểm tra', 'Bảo trì phòng ngừa', 'Jig, gá & dụng cụ', 'Hiệu chuẩn', 'Hồ sơ A4', 'Nhật ký & cấu hình']
 
     for (const label of labels) {
       await openView(page, label)
