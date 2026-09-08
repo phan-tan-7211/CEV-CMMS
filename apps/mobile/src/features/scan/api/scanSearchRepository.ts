@@ -1,4 +1,5 @@
 import { revalidateEquipmentDetail, type EquipmentDetail } from '../../equipment'
+import { searchSparePartsByBarcode } from './partSearchService'
 
 export type ScanSearchCandidate =
   | { type: 'asset'; id: string; label: string; asset: EquipmentDetail }
@@ -20,17 +21,19 @@ export async function barcodeSearch(code: string): Promise<ScanSearchCandidate[]
   // Current production Mobile contract can resolve canonical Equipment IDs only.
   // Keep this repository as the single server-search boundary so Part and mixed
   // results can be added without changing scanner screens.
-  try {
-    const asset = await revalidateEquipmentDetail(code, { force: true })
-    return [{
+  const [assetResult, partResult] = await Promise.allSettled([
+    revalidateEquipmentDetail(code, { force: true }),
+    searchSparePartsByBarcode(code),
+  ])
+  const candidates: ScanSearchCandidate[] = []
+  if (assetResult.status === 'fulfilled') candidates.push({
       type: 'asset',
-      id: asset.equipmentId,
-      label: asset.equipmentName || asset.equipmentId,
-      asset,
-    }]
-  } catch {
-    return []
-  }
+      id: assetResult.value.equipmentId,
+      label: assetResult.value.equipmentName || assetResult.value.equipmentId,
+      asset: assetResult.value,
+    })
+  if (partResult.status === 'fulfilled') candidates.push(...partResult.value.map((part) => ({ type: 'part' as const, id: part.partId, label: part.partName || part.partId })))
+  return candidates
 }
 
 export async function loadRequestPortalSettings(): Promise<RequestPortalSettings> {
