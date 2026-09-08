@@ -52,3 +52,11 @@ export {
   type EquipmentSuggestionKey,
   type EquipmentSuggestionMap,
 } from './model/equipmentSuggestions'
+
+export {
+  applyEquipmentFilter,
+  EMPTY_EQUIPMENT_FILTER,
+  hasEquipmentFilter,
+  uniqueEquipmentFilterValues,
+  type EquipmentFilter,
+} from './model/equipmentFilter'
