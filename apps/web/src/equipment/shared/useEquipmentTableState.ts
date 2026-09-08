@@ -11,11 +11,23 @@ import {
   type SortDirection,
 } from './equipmentColumns'
 
+const COLUMN_WIDTH_STORAGE_KEY = 'cev-equipment-column-widths-v1'
+const MIN_COLUMN_WIDTH = 90
+const MAX_COLUMN_WIDTH = 480
+
+function loadColumnWidths(): Partial<Record<ColumnKey, number>> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY) || '{}')
+    return Object.fromEntries(Object.entries(parsed).filter(([key, value]) => typeof value === 'number' && value >= MIN_COLUMN_WIDTH && value <= MAX_COLUMN_WIDTH)) as Partial<Record<ColumnKey, number>>
+  } catch { return {} }
+}
+
 export function useEquipmentTableState(rows: LiveEquipment[]) {
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState<ColumnKey>('equipmentId')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(loadVisibleColumns)
+  const [columnWidths, setColumnWidths] = useState<Partial<Record<ColumnKey, number>>>(loadColumnWidths)
   const [columnPickerOpen, setColumnPickerOpen] = useState(false)
   const [filterColumn, setFilterColumn] = useState<ColumnKey | null>(null)
   const [filterSearch, setFilterSearch] = useState('')
@@ -25,6 +37,10 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
   useEffect(() => {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(visibleColumns))
   }, [visibleColumns])
+
+  useEffect(() => {
+    localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(columnWidths))
+  }, [columnWidths])
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
@@ -72,6 +88,22 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
     }
   }
 
+  function resizeColumn(key: ColumnKey, startX: number) {
+    const startWidth = columnWidths[key] || 150
+    const onMove = (event: PointerEvent) => {
+      const nextWidth = Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, startWidth + event.clientX - startX))
+      setColumnWidths((current) => ({ ...current, [key]: nextWidth }))
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp, { once: true })
+  }
+
+  function resetColumnWidths() { setColumnWidths({}) }
+
   function toggleColumn(key: ColumnKey) {
     setVisibleColumns((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])
   }
@@ -103,6 +135,7 @@ export function useEquipmentTableState(rows: LiveEquipment[]) {
     query, setQuery,
     sortKey, sortDirection,
     visibleColumns, setVisibleColumns,
+    columnWidths, resizeColumn, resetColumnWidths,
     columnPickerOpen, setColumnPickerOpen,
     filterColumn, setFilterColumn,
     filterSearch, setFilterSearch,
