@@ -43,6 +43,11 @@ for (const file of filesToCheck) {
   if (directSettingsImplementation) {
     violations.push(`${relative}: import Settings capabilities from features/settings public API only`)
   }
+
+  const directWorkOrderImplementation = /from\s+['"][^'"]*features\/work-orders\/(?:api|model|ui)\/[^'"]*['"]/.test(source)
+  if (directWorkOrderImplementation) {
+    violations.push(`${relative}: import Work Order capabilities from features/work-orders public API only`)
+  }
 }
 
 if (violations.length) {
