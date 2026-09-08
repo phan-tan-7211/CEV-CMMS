@@ -123,14 +123,45 @@ export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onOp
             </View>
             <Pressable onPress={onRescan} style={styles.secondaryButton}><Text style={styles.secondaryText}>Quét mã khác</Text></Pressable>
           </>
-        ) : result?.type === 'request-portal' ? (
+        ) : result?.type === 'request-portal-asset' ? (
           <>
-            <View style={styles.centerState}>
-              <View style={styles.stateIcon}><Ionicons name="globe-outline" size={26} color="#155EEF" /></View>
-              <Text style={styles.title}>Request Portal</Text>
-              <Text style={styles.body}>Kết quả đã được định tuyến vào Request Portal. Các nút Tạo Work Order / Tạo yêu cầu sẽ bật khi có RequestPortalSettings thật.</Text>
+            <View style={styles.resultHeading}>
+              <View style={styles.stateIcon}><Ionicons name="globe-outline" size={24} color="#155EEF" /></View>
+              <View style={styles.headingCopy}>
+                <Text style={styles.eyebrow}>Request Portal</Text>
+                <Text style={styles.resultName}>{result.asset.equipmentName || result.asset.equipmentId}</Text>
+                <Text style={styles.resultCode}>{result.asset.equipmentId}</Text>
+              </View>
             </View>
-            <Pressable onPress={onRescan} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryText}>Quét lại</Text></Pressable>
+            <View style={styles.actionGroup}>
+              <ActionRow icon="add-circle-outline" label="Tạo Work Order" detail="Theo Request Portal Settings" disabled={!result.canCreateWorkOrder} />
+              <ActionRow icon="chatbox-ellipses-outline" label="Tạo yêu cầu" detail="Theo Request Portal Settings" disabled={!result.canCreateRequest} />
+            </View>
+            <Pressable onPress={onRescan} style={styles.secondaryButton}><Text style={styles.secondaryText}>Quét mã khác</Text></Pressable>
+          </>
+        ) : result?.type === 'request-portal-multiple' ? (
+          <>
+            <View style={styles.resultHeading}>
+              <View style={styles.stateIcon}><Ionicons name="globe-outline" size={24} color="#155EEF" /></View>
+              <View style={styles.headingCopy}>
+                <Text style={styles.eyebrow}>Request Portal</Text>
+                <Text style={styles.resultName}>Chọn thiết bị</Text>
+                <Text style={styles.resultCode}>{result.items.length} thiết bị cho “{result.code}”</Text>
+              </View>
+            </View>
+            <FlatList
+              data={result.items}
+              keyExtractor={(item) => item.id}
+              style={styles.multiList}
+              renderItem={({ item }) => (
+                <Pressable onPress={() => onSelectMultiple('asset', item.id)} style={({ pressed }) => [styles.multiRow, pressed && styles.pressed]}>
+                  <View style={styles.multiIcon}><Ionicons name="cube-outline" size={21} color="#475467" /></View>
+                  <View style={styles.multiCopy}><Text style={styles.multiType}>Thiết bị</Text><Text style={styles.multiLabel}>{item.label || item.id}</Text></View>
+                  <Ionicons name="chevron-forward" size={21} color="#98A2B3" />
+                </Pressable>
+              )}
+            />
+            <Pressable onPress={onRescan} style={styles.secondaryButton}><Text style={styles.secondaryText}>Quét mã khác</Text></Pressable>
           </>
         ) : null}
       </View>
