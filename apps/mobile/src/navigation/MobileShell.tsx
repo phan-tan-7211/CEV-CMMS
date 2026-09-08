@@ -6,6 +6,7 @@ import { EquipmentDetailScreen } from '../screens/EquipmentDetailScreen'
 import { EquipmentListScreen } from '../screens/EquipmentListScreen'
 import { EquipmentRegistrationScreen } from '../screens/EquipmentRegistrationScreen'
 import { EquipmentStatusScreen } from '../screens/EquipmentStatusScreen'
+import { EquipmentHierarchyScreen } from '../screens/EquipmentHierarchyScreen'
 import { HomeScreen } from '../screens/HomeScreen'
 import { LoginScreen } from '../screens/LoginScreen'
 import { MoreScreen } from '../screens/MoreScreen'
@@ -21,7 +22,7 @@ import {
   subscribeAuthState,
 } from '../features/auth'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'scan' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'work-orders' | 'work-order-detail' | 'requests' | 'more' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -29,6 +30,7 @@ type RouteEntry = {
   equipmentStatus?: string
   workOrderId?: string
   operatorFlow?: boolean
+  workOrderScope?: 'pending' | 'completed'
 }
 
 const HOME_ENTRY: RouteEntry = { name: 'home' }
@@ -119,10 +121,11 @@ export function MobileShell() {
   }
 
   const selectedEquipmentId = useMemo(
-    () => (route === 'equipment-detail' || route === 'equipment-status') ? String(currentEntry.equipmentId || '') : '',
+    () => (route === 'equipment-detail' || route === 'equipment-status' || route === 'equipment-hierarchy') ? String(currentEntry.equipmentId || '') : '',
     [currentEntry.equipmentId, route],
   )
   const selectedWorkOrderId = route === 'work-order-detail' ? String(currentEntry.workOrderId || '') : ''
+  const scopedEquipmentId = String(currentEntry.equipmentId || '')
 
   if (session === undefined) {
     return (
@@ -167,22 +170,29 @@ export function MobileShell() {
       />
     )
   }
+  if (route === 'equipment-hierarchy' && selectedEquipmentId) {
+    return <EquipmentHierarchyScreen equipmentId={selectedEquipmentId} onBack={goBack} />
+  }
   if (route === 'scan') {
     return (
       <ScanAssetScreen
         onBack={goBack}
         onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
+        onOpenHierarchy={(equipmentId) => navigate({ name: 'equipment-hierarchy', equipmentId })}
+        onOpenPendingWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'pending' })}
+        onOpenPendingRequests={(equipmentId) => navigate({ name: 'requests', equipmentId })}
+        onOpenCompletedWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'completed' })}
         isOperatorFlow={Boolean(currentEntry.operatorFlow)}
       />
     )
   }
   if (route === 'work-orders') {
-    return <WorkOrdersScreen onBack={goBack} onOpenWorkOrder={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
+    return <WorkOrdersScreen onBack={goBack} equipmentId={scopedEquipmentId || undefined} scope={currentEntry.workOrderScope} onOpenWorkOrder={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
   }
   if (route === 'work-order-detail' && selectedWorkOrderId) {
     return <WorkOrderDetailScreen workOrderId={selectedWorkOrderId} onBack={goBack} />
   }
-  if (route === 'requests') return <RequestsScreen onBack={goBack} />
+  if (route === 'requests') return <RequestsScreen onBack={goBack} equipmentId={scopedEquipmentId || undefined} />
   if (route === 'more') {
     return (
       <MoreScreen
