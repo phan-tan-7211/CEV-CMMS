@@ -12,6 +12,8 @@ type Props = {
   onCreateWorkOrder: (equipmentId: string) => void
   onOpenPart: (partId: string) => void
   onOpenPartInventory: (partId: string) => void
+  onCreatePortalWorkOrder: (equipmentId: string) => void
+  onCreatePortalRequest: (equipmentId: string, sourceId?: string) => void
   onOpenAsset: (equipmentId: string) => void
   onOpenHierarchy: (equipmentId: string) => void
   onOpenPendingWorkOrders: (equipmentId: string) => void
@@ -50,7 +52,7 @@ function ActionRow({
   )
 }
 
-export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCreateAsset, onCreateWorkOrder, onOpenPart, onOpenPartInventory, onOpenAsset, onOpenHierarchy, onOpenPendingWorkOrders, onOpenPendingRequests, onOpenCompletedWorkOrders, onSelectMultiple }: Props) {
+export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCreateAsset, onCreateWorkOrder, onOpenPart, onOpenPartInventory, onCreatePortalWorkOrder, onCreatePortalRequest, onOpenAsset, onOpenHierarchy, onOpenPendingWorkOrders, onOpenPendingRequests, onOpenCompletedWorkOrders, onSelectMultiple }: Props) {
   if (!loading && !result) return null
 
   return (
@@ -146,8 +148,8 @@ export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCr
               </View>
             </View>
             <View style={styles.actionGroup}>
-              <ActionRow icon="add-circle-outline" label="Tạo Work Order" detail="Theo Request Portal Settings" disabled={!result.canCreateWorkOrder} />
-              <ActionRow icon="chatbox-ellipses-outline" label="Tạo yêu cầu" detail="Theo Request Portal Settings" disabled={!result.canCreateRequest} />
+              <ActionRow icon="add-circle-outline" label="Tạo Work Order" detail={!result.canCreateWorkOrder ? 'Request Portal chưa cho phép' : undefined} disabled={!result.canCreateWorkOrder} onPress={() => onCreatePortalWorkOrder(result.asset.equipmentId)} />
+              <ActionRow icon="chatbox-ellipses-outline" label="Tạo yêu cầu" detail={!result.canCreateRequest ? 'Request Portal chưa cho phép' : undefined} disabled={!result.canCreateRequest} onPress={() => onCreatePortalRequest(result.asset.equipmentId, result.code)} />
             </View>
             <Pressable onPress={onRescan} style={styles.secondaryButton}><Text style={styles.secondaryText}>Quét mã khác</Text></Pressable>
           </>
