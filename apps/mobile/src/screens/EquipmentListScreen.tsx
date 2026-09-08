@@ -50,12 +50,12 @@ function emptyAdvancedFilter(): EquipmentFilter {
 
 export function EquipmentListScreen({
   onBack,
-  onCreateEquipment,
+  onOpenScan,
   onOpenEquipment,
   currentUserKeys = [],
 }: {
   onBack: () => void
-  onCreateEquipment: () => void
+  onOpenScan: () => void
   onOpenEquipment: (equipmentId: string) => void
   currentUserKeys?: string[]
 }) {
@@ -189,7 +189,7 @@ export function EquipmentListScreen({
       <View style={styles.header}>
         <Pressable onPress={onBack} hitSlop={8} style={styles.iconButton}><Ionicons name="chevron-back" size={25} color="#101828" /></Pressable>
         <Text style={styles.headerTitle}>Thiết bị</Text>
-        <Pressable onPress={onCreateEquipment} hitSlop={8} style={styles.iconButton}><Ionicons name="add" size={27} color="#155EEF" /></Pressable>
+        <Pressable onPress={onOpenScan} hitSlop={8} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Quét mã thiết bị"><Ionicons name="scan-outline" size={25} color="#155EEF" /></Pressable>
       </View>
 
       <View style={styles.searchWrap}>
