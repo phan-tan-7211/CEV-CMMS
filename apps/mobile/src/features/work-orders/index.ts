@@ -1,5 +1,26 @@
-export type { WorkOrderDetail, WorkOrderListItem } from './api/workOrderService'
-export { createMaintenanceWorkOrder } from './api/workOrderMutationService'
+export type {
+  WorkOrderDetail,
+  WorkOrderListItem,
+  WorkOrderPerson,
+  WorkOrderTeam,
+  WorkOrderChecklistItem,
+  WorkOrderPartUsage,
+  WorkOrderLabor,
+  WorkOrderAttachment,
+  WorkOrderDowntime,
+} from './api/workOrderService'
+export {
+  createMaintenanceWorkOrder,
+  assignWorkOrder,
+  addWorkOrderChecklistItem,
+  completeWorkOrderChecklistItem,
+  addWorkOrderPartUsage,
+  addWorkOrderLabor,
+  saveWorkOrderExecution,
+  transitionWorkOrder,
+  recordWorkOrderHandover,
+} from './api/workOrderMutationService'
+export type { WorkOrderTransitionAction } from './api/workOrderMutationService'
 
 export {
   getWorkOrderDetailSnapshot,
