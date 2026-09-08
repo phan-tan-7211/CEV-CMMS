@@ -2,8 +2,10 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useState } from 'react'
 
 import { AppBottomNav } from '../components/AppBottomNav'
+import { GlobalCreateSheet } from '../components/GlobalCreateSheet'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -19,8 +21,10 @@ type MoreScreenProps = {
   onHome: () => void
   onOpenWorkOrders: () => void
   onOpenRequests: () => void
-  onCenterPress: () => void
-  centerMode?: 'create' | 'scan'
+  onCreateEquipment: () => void
+  onOpenOperatorScan: () => void
+  isAdmin?: boolean
+  isOperatorFlow?: boolean
 }
 
 const MENU_ITEMS: MoreMenuItem[] = [
@@ -40,9 +44,21 @@ export function MoreScreen({
   onHome,
   onOpenWorkOrders,
   onOpenRequests,
-  onCenterPress,
-  centerMode = 'create',
+  onCreateEquipment,
+  onOpenOperatorScan,
+  isAdmin = false,
+  isOperatorFlow = false,
 }: MoreScreenProps) {
+  const [createMenuOpen, setCreateMenuOpen] = useState(false)
+
+  function handleCenterAction() {
+    if (isOperatorFlow) {
+      onOpenOperatorScan()
+      return
+    }
+    setCreateMenuOpen(true)
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
@@ -78,12 +94,20 @@ export function MoreScreen({
           activeTab="more"
           onHome={onHome}
           onWorkOrders={onOpenWorkOrders}
-          onCenterPress={onCenterPress}
+          onCenterPress={handleCenterAction}
           onRequests={onOpenRequests}
           onMore={() => {}}
-          centerMode={centerMode}
+          centerMode={isOperatorFlow ? 'scan' : 'create'}
         />
       </View>
+
+      <GlobalCreateSheet
+        visible={createMenuOpen && !isOperatorFlow}
+        isAdmin={isAdmin}
+        onClose={() => setCreateMenuOpen(false)}
+        onCreateEquipment={onCreateEquipment}
+        onComingSoon={showComingSoon}
+      />
     </SafeAreaView>
   )
 }
