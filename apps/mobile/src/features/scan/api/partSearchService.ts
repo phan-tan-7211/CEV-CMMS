@@ -10,6 +10,7 @@ export type SparePart = {
   minQty: number
   location: string
   classification: string
+  equipment: Array<{ equipmentId: string; equipmentName: string }>
 }
 
 function text(value: unknown) { return String(value ?? '').trim() }
@@ -20,19 +21,20 @@ function mapPart(row: Record<string, unknown>): SparePart {
     partId: text(row.part_id), partName: text(row.part_name), barcode: text(row.barcode),
     partNumber: text(row.part_number), maker: text(row.maker), stockQty: number(row.stock_qty),
     minQty: number(row.min_qty), location: text(row.location), classification: text(row.spare_classification) || 'NORMAL',
+    equipment: Array.isArray(row.equipment) ? row.equipment.map((value) => { const item = (value || {}) as Record<string, unknown>; return { equipmentId: text(item.equipmentId), equipmentName: text(item.equipmentName) || text(item.equipmentId) } }).filter((item) => item.equipmentId) : [],
   }
 }
 
 export async function searchSparePartsByBarcode(code: string) {
   const value = code.trim()
   if (!value) return []
-  const { data, error } = await supabase.from('spare_part_overview').select('part_id,part_name,barcode,part_number,maker,stock_qty,min_qty,location,spare_classification').or(`barcode.ilike.%${value}%,part_number.ilike.%${value}%`).eq('active', true).limit(20)
+  const { data, error } = await supabase.from('spare_part_overview').select('part_id,part_name,barcode,part_number,maker,stock_qty,min_qty,location,spare_classification,equipment').or(`barcode.ilike.%${value}%,part_number.ilike.%${value}%`).eq('active', true).limit(20)
   if (error) throw error
   return ((data || []) as Record<string, unknown>[]).map(mapPart)
 }
 
 export async function getSparePart(partId: string) {
-  const { data, error } = await supabase.from('spare_part_overview').select('part_id,part_name,barcode,part_number,maker,stock_qty,min_qty,location,spare_classification').eq('part_id', partId.trim()).single()
+  const { data, error } = await supabase.from('spare_part_overview').select('part_id,part_name,barcode,part_number,maker,stock_qty,min_qty,location,spare_classification,equipment').eq('part_id', partId.trim()).single()
   if (error) throw error
   return mapPart((data || {}) as Record<string, unknown>)
 }
@@ -44,7 +46,7 @@ export async function listSparePartUsage(partId: string) {
 }
 
 export async function listSpareParts() {
-  const { data, error } = await supabase.from('spare_part_overview').select('part_id,part_name,barcode,part_number,maker,stock_qty,min_qty,location,spare_classification').eq('active', true).order('part_id').limit(500)
+  const { data, error } = await supabase.from('spare_part_overview').select('part_id,part_name,barcode,part_number,maker,stock_qty,min_qty,location,spare_classification,equipment').eq('active', true).order('part_id').limit(500)
   if (error) throw error
   return ((data || []) as Record<string, unknown>[]).map(mapPart)
 }
