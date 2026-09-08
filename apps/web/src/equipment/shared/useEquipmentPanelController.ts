@@ -68,7 +68,7 @@ export function useEquipmentPanelController() {
     query, setQuery, sortKey, sortDirection, bulkMode, setBulkMode, bulkSaving, inlineChanges, setInlineChanges,
     visibleColumns, setVisibleColumns, columnWidths, resizeColumn, resetColumnWidths, columnPickerOpen, setColumnPickerOpen, filterColumn, setFilterColumn, filterSearch, setFilterSearch,
     columnFilters, setColumnFilters, photoHover, setPhotoHover, masterSuggestions, editCriticality, activeFilterCount,
-    sortedRows, productionCount, measurementCount, profileEquipment, dirtyCount, canBulkEdit,
+    sortedRows, table, productionCount, measurementCount, profileEquipment, dirtyCount, canBulkEdit,
     reloadEquipment, openPhotoHover, openEdit, toggleSort, toggleColumn, filterOptions, toggleFilterValue, clearFilter, setInlineCell,
     exitBulkMode, saveInlineChanges, handleSave, handleDelete, handlePhotoUpload, handlePhotoDelete, handleClipboardUpload, handleEmptyPhotoCellPaste,
   }
