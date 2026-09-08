@@ -111,17 +111,20 @@ The repository/cache convention established here is mandatory for upcoming data-
 
 ### Phase 4 - feature-by-feature migration
 
-Status: started.
+Status: in progress.
 
-Completed first slice:
+Completed slices:
 
-- Auth now has `src/features/auth/index.ts`; navigation consumes auth only through the public API.
-- Profile/Security account writes now live behind `src/features/settings/index.ts` instead of route screens calling Supabase directly.
-- The architecture checker now includes navigation and no longer needs direct-Supabase screen allowlists.
+- Auth has `src/features/auth/index.ts`; navigation consumes auth only through the public API.
+- Profile/Security account writes live behind `src/features/settings/index.ts` instead of route screens calling Supabase directly.
+- Work Orders now has `src/features/work-orders/index.ts`, a Supabase service and a snapshot-first repository with memory cache, persistent list/detail snapshots, request de-duplication, stale-while-revalidate and subscriptions.
+- Native Work Order List is connected to the real `maintenance_work_order` table, uses `FlatList`, search, status filters, pull-to-refresh and cached revisit behavior.
+- Native Work Order Detail is a real hierarchical route (`Work Orders -> Detail -> Back`) and joins equipment identity from `equipment_master` without querying Supabase from the screen.
+- Architecture guard blocks route/navigation imports from Work Order private implementation files.
 
 Next slices:
 
-- Work Orders
+- Home dashboard Work Order counters/filter routing
 - Requests
 - Notifications
 - remaining Settings data/preferences
@@ -133,7 +136,7 @@ Each feature receives a public API and route screens may import only from that A
 Status: in progress as migrations land.
 
 - Active route/entry/navigation UI is already blocked from direct Supabase imports.
-- Active Equipment/Auth/Settings UI is blocked from feature-private implementation imports.
+- Active Equipment/Auth/Settings/Work Order UI is blocked from feature-private implementation imports.
 - Remove compatibility shims once no legacy callers remain.
 
 ## Rules for new code from now on
