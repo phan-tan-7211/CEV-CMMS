@@ -40,7 +40,8 @@ describe('khung ứng dụng Vercel + Supabase', () => {
     expect(await screen.findByRole('heading', { name: 'Tổng quan trực tiếp' })).toBeInTheDocument()
     expect(screen.getByLabelText('Điều hướng trên máy tính')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Đăng xuất' })).toBeInTheDocument()
-    expect(screen.getByText(/Hệ thống quản lý thiết bị CEV/)).toBeInTheDocument()
+    expect(screen.getByText('CEV CMMS')).toBeInTheDocument()
+    expect(screen.queryByText(/IATF/i)).not.toBeInTheDocument()
     expect((await screen.findAllByText('Quản trị hệ thống')).length).toBeGreaterThan(0)
   })
 
