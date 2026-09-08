@@ -12,6 +12,7 @@ type Props = {
   onCreateWorkOrder: (equipmentId: string) => void
   onOpenPart: (partId: string) => void
   onOpenPartInventory: (partId: string) => void
+  onCreatePartWorkOrder: (partId: string) => void
   onCreatePortalWorkOrder: (equipmentId: string) => void
   onCreatePortalRequest: (equipmentId: string, sourceId?: string) => void
   onOpenAsset: (equipmentId: string) => void
@@ -52,7 +53,7 @@ function ActionRow({
   )
 }
 
-export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCreateAsset, onCreateWorkOrder, onOpenPart, onOpenPartInventory, onCreatePortalWorkOrder, onCreatePortalRequest, onOpenAsset, onOpenHierarchy, onOpenPendingWorkOrders, onOpenPendingRequests, onOpenCompletedWorkOrders, onSelectMultiple }: Props) {
+export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCreateAsset, onCreateWorkOrder, onOpenPart, onOpenPartInventory, onCreatePartWorkOrder, onCreatePortalWorkOrder, onCreatePortalRequest, onOpenAsset, onOpenHierarchy, onOpenPendingWorkOrders, onOpenPendingRequests, onOpenCompletedWorkOrders, onSelectMultiple }: Props) {
   if (!loading && !result) return null
 
   return (
@@ -131,7 +132,7 @@ export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCr
               <View style={styles.headingCopy}><Text style={styles.eyebrow}>Phụ tùng</Text><Text style={styles.resultName}>{result.label || result.partId}</Text><Text style={styles.resultCode}>{result.partId}</Text></View>
             </View>
             <View style={styles.actionGroup}>
-              <ActionRow icon="add-circle-outline" label="Tạo Work Order" detail="Cần gắn phụ tùng với thiết bị" disabled />
+              <ActionRow icon="add-circle-outline" label="Tạo Work Order" onPress={() => onCreatePartWorkOrder(result.partId)} />
               <ActionRow icon="eye-outline" label="Xem phụ tùng" onPress={() => onOpenPart(result.partId)} />
               <ActionRow icon="layers-outline" label="Tồn kho" onPress={() => onOpenPartInventory(result.partId)} />
             </View>
