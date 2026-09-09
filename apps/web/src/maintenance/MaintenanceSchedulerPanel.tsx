@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type DragEvent } from 'react'
 import { useAppRole } from '../auth/AppRoleContext'
 import {
   loadSchedulerConflicts,
@@ -18,7 +18,6 @@ type PendingMove = {
   conflicts: SchedulerConflict[]
 }
 
-const DAY_MS = 86_400_000
 const WEEKDAY = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
 const TERMINAL = new Set(['COMPLETED', 'COMPLETE', 'VERIFIED', 'RELEASED', 'CANCELLED', 'CLOSED'])
 
@@ -138,6 +137,8 @@ export function MaintenanceSchedulerPanel() {
     const start = startOfDay(cursor)
     return { start, end: addDays(start, 1) }
   }, [cursor, mode])
+  const periodStartMs = period.start.getTime()
+  const periodEndMs = period.end.getTime()
 
   async function refresh() {
     setLoading(true)
@@ -158,7 +159,7 @@ export function MaintenanceSchedulerPanel() {
 
   useEffect(() => {
     void refresh()
-  }, [period.start.getTime(), period.end.getTime()])
+  }, [periodStartMs, periodEndMs])
 
   const equipmentOptions = useMemo(() => Array.from(new Map(events.filter((event) => event.equipmentId).map((event) => [event.equipmentId, event.equipmentName || event.equipmentId])).entries()).sort((a, b) => a[0].localeCompare(b[0])), [events])
   const personOptions = useMemo(() => Array.from(new Map(events.filter((event) => event.primaryPersonId).map((event) => [event.primaryPersonId, event.primaryPersonName || event.primaryPersonId])).entries()).sort((a, b) => a[1].localeCompare(b[1])), [events])
@@ -245,7 +246,7 @@ export function MaintenanceSchedulerPanel() {
     await commitMove(event, new Date(startValue).toISOString(), new Date(endValue).toISOString(), false)
   }
 
-  function onDrop(event: React.DragEvent<HTMLDivElement>, day: Date) {
+  function onDrop(event: DragEvent<HTMLDivElement>, day: Date) {
     event.preventDefault()
     const eventId = event.dataTransfer.getData('text/cev-scheduler-event')
     const item = events.find((candidate) => candidate.eventId === eventId)
