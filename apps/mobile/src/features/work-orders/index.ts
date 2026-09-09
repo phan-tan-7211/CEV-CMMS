@@ -24,6 +24,21 @@ export {
 export type { WorkOrderTransitionAction } from './api/workOrderMutationService'
 export { listAvailablePartStock, issuePartToWorkOrder } from './api/workOrderInventoryService'
 export type { AvailablePartStock } from './api/workOrderInventoryService'
+export {
+  getLatestCreateDraftForEquipment,
+  isLikelyNetworkError,
+  listLocalWorkOrderDrafts,
+  removeLocalWorkOrderDraft,
+  saveWorkOrderCreateDraft,
+  submitWorkOrderDraft,
+  syncQueuedWorkOrderDrafts,
+} from './api/workOrderOfflineService'
+export type {
+  DraftSelection,
+  LocalWorkOrderDraft,
+  WorkOrderCreateDraftPayload,
+  WorkOrderDraftSyncState,
+} from './api/workOrderOfflineService'
 
 export {
   getWorkOrderDetailSnapshot,
