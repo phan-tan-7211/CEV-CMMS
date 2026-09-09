@@ -30,8 +30,8 @@ import {
   type LibraryFile,
 } from '../features/core-parity/api/coreParityService'
 
-type Tab = 'checklists' | 'fields' | 'files' | 'downtime' | 'floor'
-const TABS: Array<{ key: Tab; label: string }> = [
+export type CoreParityTab = 'checklists' | 'fields' | 'files' | 'downtime' | 'floor'
+const TABS: Array<{ key: CoreParityTab; label: string }> = [
   { key: 'checklists', label: 'Checklist' },
   { key: 'fields', label: 'Custom Fields' },
   { key: 'files', label: 'Files' },
@@ -49,9 +49,10 @@ function PickerRow({ items, selected, onSelect }: { items: Array<{ id: string; l
   return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pickerRow}>{items.map((item) => <Pressable key={item.id} onPress={() => onSelect(item.id)} style={[styles.pill, item.id === selected && styles.pillSelected]}><Text style={[styles.pillText, item.id === selected && styles.pillTextSelected]}>{item.label}</Text></Pressable>)}</ScrollView>
 }
 
-export function CoreParityScreen({ onBack }: { onBack: () => void }) {
-  const [tab, setTab] = useState<Tab>('checklists')
-  return <SafeAreaView style={styles.safe}><StatusBar style="dark"/><View style={styles.header}><Pressable onPress={onBack} style={styles.iconButton}><Ionicons name="chevron-back" size={26} color="#101828"/></Pressable><View style={styles.headerCopy}><Text style={styles.headerTitle}>Core CMMS nâng cao</Text><Text style={styles.headerSub}>Checklist · Fields · Files · Downtime · Floor Plan</Text></View></View><PickerRow items={TABS.map((item) => ({ id: item.key, label: item.label }))} selected={tab} onSelect={(key) => setTab(key as Tab)}/>{tab === 'checklists' ? <ChecklistsPanel/> : null}{tab === 'fields' ? <CustomFieldsPanel/> : null}{tab === 'files' ? <FilesPanel/> : null}{tab === 'downtime' ? <DowntimePanel/> : null}{tab === 'floor' ? <FloorPlanPanel/> : null}</SafeAreaView>
+export function CoreParityScreen({ onBack, initialTab = 'checklists' }: { onBack: () => void; initialTab?: CoreParityTab }) {
+  const [tab, setTab] = useState<CoreParityTab>(initialTab)
+  useEffect(() => { setTab(initialTab) }, [initialTab])
+  return <SafeAreaView style={styles.safe}><StatusBar style="dark"/><View style={styles.header}><Pressable onPress={onBack} style={styles.iconButton}><Ionicons name="chevron-back" size={26} color="#101828"/></Pressable><View style={styles.headerCopy}><Text style={styles.headerTitle}>Core CMMS nâng cao</Text><Text style={styles.headerSub}>Checklist · Fields · Files · Downtime · Floor Plan</Text></View></View><PickerRow items={TABS.map((item) => ({ id: item.key, label: item.label }))} selected={tab} onSelect={(key) => setTab(key as CoreParityTab)}/>{tab === 'checklists' ? <ChecklistsPanel/> : null}{tab === 'fields' ? <CustomFieldsPanel/> : null}{tab === 'files' ? <FilesPanel/> : null}{tab === 'downtime' ? <DowntimePanel/> : null}{tab === 'floor' ? <FloorPlanPanel/> : null}</SafeAreaView>
 }
 
 function ChecklistsPanel() {
