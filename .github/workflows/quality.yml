@@ -58,8 +58,8 @@ jobs:
           node-version: 24
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-      - name: Remove stale Chrome apt source
-        run: sudo rm -f /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome*.list || true
+      - name: Remove stale Google apt sources
+        run: sudo find /etc/apt/sources.list.d -maxdepth 1 -type f -iname '*google*' -delete || true
       - name: Install browser engines
         run: npx playwright install --with-deps chromium webkit
       - name: Build
