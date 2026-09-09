@@ -25,6 +25,7 @@ const EquipmentWorkspace = lazy(() => import('./equipment/EquipmentWorkspace').t
 const LiveEquipmentInventoryPanel = lazy(() => import('./LiveEquipmentInventoryPanel').then((module) => ({ default: module.LiveEquipmentInventoryPanel })))
 const LiveInspectionPanel = lazy(() => import('./LiveInspectionPanel').then((module) => ({ default: module.LiveInspectionPanel })))
 const MaintenanceWorkspace = lazy(() => import('./maintenance/MaintenanceWorkspace').then((module) => ({ default: module.MaintenanceWorkspace })))
+const MaintenanceSchedulerPanel = lazy(() => import('./maintenance/MaintenanceSchedulerPanel').then((module) => ({ default: module.MaintenanceSchedulerPanel })))
 const LiveQrScannerPanel = lazy(() => import('./LiveQrScannerPanel').then((module) => ({ default: module.LiveQrScannerPanel })))
 const QrEquipmentResult = lazy(() => import('./QrEquipmentResult').then((module) => ({ default: module.QrEquipmentResult })))
 const LiveSparePartsAutoPanel = lazy(() => import('./LiveSparePartsAutoPanel').then((module) => ({ default: module.LiveSparePartsAutoPanel })))
@@ -141,8 +142,9 @@ function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, 
   if (view === 'equipment') return <EquipmentWorkspace />
   if (view === 'inventory') return <LiveEquipmentInventoryPanel />
   if (view === 'inspection') return <LiveInspectionPanel />
-  if (view === 'work-orders') return <MaintenanceWorkspace equipmentId={contextEquipmentId} />
-  if (view === 'maintenance') return <MaintenanceWorkspace equipmentId={contextEquipmentId} />
+  if (view === 'work-orders') return <MaintenanceWorkspace equipmentId={contextEquipmentId} initialTab="work-orders" />
+  if (view === 'maintenance') return <MaintenanceWorkspace equipmentId={contextEquipmentId} initialTab="plans" />
+  if (view === 'scheduler') return <MaintenanceSchedulerPanel />
   if (view === 'spare') return <LiveSparePartsAutoPanel />
   if (view === 'tooling') return <LiveToolingPanel />
   if (view === 'calibration') return <div className="maintenance-workspace-stack"><LiveCalibrationPanel /><LiveCalibrationEvaluationPanel /><LiveCalibrationQuotePanel /></div>
