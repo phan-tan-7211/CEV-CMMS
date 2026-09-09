@@ -1,7 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   readPersistentSnapshot,
   writePersistentSnapshot,
 } from '../../../lib/cache/persistentSnapshot'
+import { supabase } from '../../../lib/supabase/client'
 import {
   getWorkOrderDetail as fetchWorkOrderDetail,
   listWorkOrders as fetchWorkOrders,
@@ -9,15 +11,18 @@ import {
   type WorkOrderListItem,
 } from './workOrderService'
 
-const LIST_CACHE_KEY = 'cev:data:mobile:work-orders:v1'
-const LIST_CACHE_VERSION = 1
+const LIST_CACHE_KEY_PREFIX = 'cev:data:mobile:work-orders:v2'
+const LIST_CACHE_VERSION = 2
 const LIST_SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000
 const LIST_REVALIDATE_AFTER_MS = 2 * 60 * 1000
 
-const DETAIL_CACHE_PREFIX = 'cev:data:mobile:work-order-detail:v1:'
-const DETAIL_CACHE_VERSION = 1
+const DETAIL_CACHE_PREFIX = 'cev:data:mobile:work-order-detail:v2:'
+const DETAIL_CACHE_VERSION = 2
 const DETAIL_SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000
+const BOOKMARKED_DETAIL_SNAPSHOT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 const DETAIL_REVALIDATE_AFTER_MS = 2 * 60 * 1000
+const BOOKMARK_KEY_PREFIX = 'cev:data:mobile:work-order-bookmarks:v1'
+const BOOKMARK_LIMIT = 100
 
 type Listener<T> = (value: T) => void
 type TimedValue<T> = { data: T; savedAt: number }
@@ -34,8 +39,39 @@ function normalizeId(value: string) {
   return value.trim()
 }
 
-function detailKey(workOrderId: string) {
-  return `${DETAIL_CACHE_PREFIX}${normalizeId(workOrderId)}`
+async function currentUserId() {
+  const { data } = await supabase.auth.getSession()
+  return data.session?.user.id || 'signed-out'
+}
+
+async function listKey() {
+  return `${LIST_CACHE_KEY_PREFIX}:${await currentUserId()}`
+}
+
+async function detailKey(workOrderId: string) {
+  return `${DETAIL_CACHE_PREFIX}${await currentUserId()}:${normalizeId(workOrderId)}`
+}
+
+async function bookmarkKey() {
+  return `${BOOKMARK_KEY_PREFIX}:${await currentUserId()}`
+}
+
+async function readBookmarks() {
+  try {
+    const raw = await AsyncStorage.getItem(await bookmarkKey())
+    if (!raw) return [] as string[]
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return [] as string[]
+    return parsed.map((value) => normalizeId(String(value || ''))).filter(Boolean).slice(0, BOOKMARK_LIMIT)
+  } catch {
+    return [] as string[]
+  }
+}
+
+async function writeBookmarks(ids: string[]) {
+  const unique = Array.from(new Set(ids.map(normalizeId).filter(Boolean))).slice(0, BOOKMARK_LIMIT)
+  await AsyncStorage.setItem(await bookmarkKey(), JSON.stringify(unique))
+  return unique
 }
 
 function notifyList(items: WorkOrderListItem[]) {
@@ -60,7 +96,7 @@ function sameList(left: WorkOrderListItem[], right: WorkOrderListItem[]) {
 async function commitList(items: WorkOrderListItem[]) {
   const changed = !listMemory || !sameList(listMemory.data, items)
   listMemory = { data: items, savedAt: Date.now() }
-  await writePersistentSnapshot(LIST_CACHE_KEY, LIST_CACHE_VERSION, items)
+  await writePersistentSnapshot(await listKey(), LIST_CACHE_VERSION, items)
   if (changed) notifyList(items)
   return items
 }
@@ -70,7 +106,7 @@ async function commitDetail(item: WorkOrderDetail) {
   const previous = detailMemory.get(id)
   const changed = !previous || JSON.stringify(previous.data) !== JSON.stringify(item)
   detailMemory.set(id, { data: item, savedAt: Date.now() })
-  await writePersistentSnapshot(detailKey(id), DETAIL_CACHE_VERSION, item)
+  await writePersistentSnapshot(await detailKey(id), DETAIL_CACHE_VERSION, item)
   if (changed) notifyDetail(id, item)
   return item
 }
@@ -91,9 +127,32 @@ export function subscribeWorkOrderDetail(workOrderId: string, listener: Listener
   }
 }
 
+export async function listBookmarkedWorkOrderIds() {
+  return readBookmarks()
+}
+
+export async function isWorkOrderBookmarked(workOrderId: string) {
+  const id = normalizeId(workOrderId)
+  if (!id) return false
+  return (await readBookmarks()).includes(id)
+}
+
+export async function setWorkOrderBookmarked(workOrderId: string, bookmarked: boolean) {
+  const id = normalizeId(workOrderId)
+  if (!id) throw new Error('Thiếu mã Work Order.')
+  const current = await readBookmarks()
+  if (bookmarked) {
+    await writeBookmarks([id, ...current.filter((item) => item !== id)])
+    try { await revalidateWorkOrderDetail(id, { force: true }) } catch { /* existing local snapshot remains usable */ }
+  } else {
+    await writeBookmarks(current.filter((item) => item !== id))
+  }
+  return bookmarked
+}
+
 export async function getWorkOrderListSnapshot() {
   if (listMemory) return listMemory.data
-  const snapshot = await readPersistentSnapshot<WorkOrderListItem[]>(LIST_CACHE_KEY, LIST_CACHE_VERSION, LIST_SNAPSHOT_MAX_AGE_MS)
+  const snapshot = await readPersistentSnapshot<WorkOrderListItem[]>(await listKey(), LIST_CACHE_VERSION, LIST_SNAPSHOT_MAX_AGE_MS)
   if (!snapshot) return null
   listMemory = { data: snapshot.data, savedAt: snapshot.savedAt }
   return snapshot.data
@@ -104,9 +163,11 @@ export async function getWorkOrderDetailSnapshot(workOrderId: string) {
   if (!id) return null
   const memory = detailMemory.get(id)
   if (memory) return memory.data
-  const snapshot = await readPersistentSnapshot<WorkOrderDetail>(detailKey(id), DETAIL_CACHE_VERSION, DETAIL_SNAPSHOT_MAX_AGE_MS)
+  const maxAge = await isWorkOrderBookmarked(id) ? BOOKMARKED_DETAIL_SNAPSHOT_MAX_AGE_MS : DETAIL_SNAPSHOT_MAX_AGE_MS
+  const snapshot = await readPersistentSnapshot<WorkOrderDetail>(await detailKey(id), DETAIL_CACHE_VERSION, maxAge)
   if (!snapshot) return null
-  detailMemory.set(id, { data: snapshot.data, savedAt: snapshot.savedAt })
+  detailMemory.set(id, { data: snapshot.data, savedAt: snapshot.savedAt }
+  )
   return snapshot.data
 }
 
