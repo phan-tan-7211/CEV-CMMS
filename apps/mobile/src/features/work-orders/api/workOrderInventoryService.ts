@@ -19,6 +19,14 @@ export type AvailablePartStock = {
   averageUnitCost: number | null
 }
 
+export type IssuePartInput = {
+  workOrderId: string
+  partId: string
+  stockLocationId: string
+  quantity: number
+  note?: string
+}
+
 export async function listAvailablePartStock(search = ''): Promise<AvailablePartStock[]> {
   const { data, error } = await supabase.rpc('rpc_cmms_inventory_available_parts', {
     p_search: search.trim() || null,
@@ -43,13 +51,7 @@ export async function listAvailablePartStock(search = ''): Promise<AvailablePart
   }))
 }
 
-export async function issuePartToWorkOrder(input: {
-  workOrderId: string
-  partId: string
-  stockLocationId: string
-  quantity: number
-  note?: string
-}) {
+export async function issuePartToWorkOrderOnline(input: IssuePartInput) {
   if (!(input.quantity > 0)) throw new Error('Số lượng phải lớn hơn 0.')
   const { data, error } = await supabase.rpc('rpc_cmms_inventory_issue_to_work_order', {
     p_work_order_id: input.workOrderId.trim(),
@@ -60,4 +62,9 @@ export async function issuePartToWorkOrder(input: {
   })
   if (error) throw new Error(error.message || 'Không thể xuất phụ tùng cho Work Order.')
   return data
+}
+
+export async function issuePartToWorkOrder(input: IssuePartInput) {
+  const offline = await import('./workOrderPartLaborOfflineService')
+  return offline.issuePartToWorkOrderOffline(input)
 }
