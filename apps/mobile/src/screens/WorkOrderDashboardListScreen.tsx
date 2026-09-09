@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import * as ImagePicker from 'expo-image-picker'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import {
   getWorkOrderListSnapshot,
   listBookmarkedWorkOrderIds,
+  queueWorkOrderPhoto,
   revalidateWorkOrderList,
   setWorkOrderBookmarked,
   subscribeWorkOrderList,
+  type WorkOrderAttachmentKind,
   type WorkOrderListItem,
 } from '../features/work-orders'
 import type { WorkOrderDashboardFilter } from './WorkOrderDashboardScreen'
@@ -39,6 +42,7 @@ export function WorkOrderDashboardListScreen({ filter, onBack, onOpenWorkOrder }
   const [items, setItems] = useState<WorkOrderListItem[]>([])
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
   const [bookmarkSavingId, setBookmarkSavingId] = useState('')
+  const [photoSavingId, setPhotoSavingId] = useState('')
   const [bookmarkedOnly, setBookmarkedOnly] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -111,6 +115,48 @@ export function WorkOrderDashboardListScreen({ filter, onBack, onOpenWorkOrder }
     } finally { setBookmarkSavingId('') }
   }
 
+  function choosePhotoKind(workOrderId: string) {
+    Alert.alert('Ảnh bảo trì', 'Chọn loại ảnh cần chụp.', [
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Trước bảo trì', onPress: () => { void capturePhoto(workOrderId, 'BEFORE') } },
+      { text: 'Sau bảo trì', onPress: () => { void capturePhoto(workOrderId, 'AFTER') } },
+    ])
+  }
+
+  async function capturePhoto(workOrderId: string, attachmentKind: WorkOrderAttachmentKind) {
+    if (photoSavingId) return
+    const permission = await ImagePicker.requestCameraPermissionsAsync()
+    if (!permission.granted) {
+      Alert.alert('Cần quyền camera', 'Hãy cấp quyền camera để chụp ảnh bảo trì.')
+      return
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.55, base64: true })
+    if (result.canceled || !result.assets[0]) return
+    const asset = result.assets[0]
+    if (!asset.base64) {
+      Alert.alert('Không lưu được ảnh', 'Camera không trả về dữ liệu ảnh. Vui lòng thử lại.')
+      return
+    }
+    setPhotoSavingId(workOrderId)
+    try {
+      const queued = await queueWorkOrderPhoto({
+        workOrderId,
+        base64: asset.base64,
+        fileName: asset.fileName || undefined,
+        mimeType: asset.mimeType || 'image/jpeg',
+        attachmentKind,
+      })
+      Alert.alert(
+        queued.queued ? 'Đã lưu ảnh ngoại tuyến' : 'Đã tải ảnh',
+        queued.queued ? 'Ảnh sẽ tự tải lên khi có kết nối trở lại.' : 'Ảnh đã được gắn vào Work Order.',
+      )
+    } catch (reason) {
+      Alert.alert('Chưa thể lưu ảnh', reason instanceof Error ? reason.message : 'Vui lòng thử lại.')
+    } finally {
+      setPhotoSavingId('')
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.header}>
@@ -120,7 +166,7 @@ export function WorkOrderDashboardListScreen({ filter, onBack, onOpenWorkOrder }
           <Ionicons name={bookmarkedOnly ? 'bookmark' : 'bookmark-outline'} size={20} color={bookmarkedOnly ? '#FFFFFF' : '#155EEF'} />
         </Pressable>
       </View>
-      <View style={styles.offlineHint}><Ionicons name="cloud-offline-outline" size={16} color="#175CD3" /><Text style={styles.offlineHintText}>{bookmarkedOnly ? 'Đang chỉ hiển thị Work Order đã lưu ngoại tuyến' : 'Nhấn biểu tượng đánh dấu ở từng Work Order để lưu dùng khi mất mạng'}</Text></View>
+      <View style={styles.offlineHint}><Ionicons name="cloud-offline-outline" size={16} color="#175CD3" /><Text style={styles.offlineHintText}>{bookmarkedOnly ? 'Đang chỉ hiển thị Work Order đã lưu ngoại tuyến' : 'Đánh dấu để lưu ngoại tuyến · Camera để chụp ảnh bảo trì'}</Text></View>
       {error ? <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View> : null}
       {loading && items.length === 0 ? <View style={styles.center}><ActivityIndicator size="large" color="#155EEF" /></View> : (
         <FlatList
@@ -143,9 +189,14 @@ export function WorkOrderDashboardListScreen({ filter, onBack, onOpenWorkOrder }
                   <Text style={styles.meta} numberOfLines={1}>{item.equipmentName || item.equipmentId || 'Chưa gắn thiết bị'}</Text>
                   {item.dueDate ? <Text style={styles.due}>Hạn: {new Date(item.dueDate).toLocaleDateString('vi-VN')}</Text> : null}
                 </Pressable>
-                <Pressable disabled={bookmarkSavingId === item.workOrderId} onPress={() => void toggleBookmark(item.workOrderId)} style={[styles.bookmarkButton, bookmarked && styles.bookmarkButtonActive]} accessibilityRole="button" accessibilityLabel={bookmarked ? `Bỏ lưu ngoại tuyến ${item.workOrderId}` : `Lưu ngoại tuyến ${item.workOrderId}`}>
-                  <Ionicons name={bookmarked ? 'bookmark' : 'bookmark-outline'} size={23} color={bookmarked ? '#155EEF' : '#667085'} />
-                </Pressable>
+                <View style={styles.cardActions}>
+                  <Pressable disabled={bookmarkSavingId === item.workOrderId} onPress={() => void toggleBookmark(item.workOrderId)} style={[styles.cardActionButton, bookmarked && styles.bookmarkButtonActive]} accessibilityRole="button" accessibilityLabel={bookmarked ? `Bỏ lưu ngoại tuyến ${item.workOrderId}` : `Lưu ngoại tuyến ${item.workOrderId}`}>
+                    <Ionicons name={bookmarked ? 'bookmark' : 'bookmark-outline'} size={22} color={bookmarked ? '#155EEF' : '#667085'} />
+                  </Pressable>
+                  <Pressable disabled={photoSavingId === item.workOrderId} onPress={() => choosePhotoKind(item.workOrderId)} style={styles.cardActionButton} accessibilityRole="button" accessibilityLabel={`Chụp ảnh bảo trì ${item.workOrderId}`}>
+                    {photoSavingId === item.workOrderId ? <ActivityIndicator size="small" color="#155EEF" /> : <Ionicons name="camera-outline" size={22} color="#667085" />}
+                  </Pressable>
+                </View>
               </View>
             )
           }}
@@ -174,7 +225,8 @@ const styles = StyleSheet.create({
   card: { position: 'relative', borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, borderColor: '#E1E1EA', backgroundColor: '#FFFFFF', overflow: 'hidden' },
   cardMain: { padding: 16, paddingRight: 58 },
   pressed: { opacity: 0.82 },
-  bookmarkButton: { position: 'absolute', top: 8, right: 7, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
+  cardActions: { position: 'absolute', top: 7, right: 7, alignItems: 'center', gap: 2 },
+  cardActionButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
   bookmarkButtonActive: { backgroundColor: '#EFF4FF' },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   id: { flex: 1, fontSize: 13, fontWeight: '900', color: '#155EEF' },

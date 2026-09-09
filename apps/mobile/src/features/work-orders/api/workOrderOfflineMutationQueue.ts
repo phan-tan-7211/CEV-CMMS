@@ -298,6 +298,12 @@ export async function syncQueuedWorkOrderMutations() {
     for (const workOrderId of touched) {
       try { await revalidateWorkOrderDetail(workOrderId, { force: true }) } catch { /* next foreground sync will retry refresh */ }
     }
+    try {
+      const attachments = await import('./workOrderAttachmentOfflineService')
+      const attachmentResult = await attachments.syncQueuedWorkOrderAttachments()
+      synced += attachmentResult.synced
+      errors += attachmentResult.errors
+    } catch { /* attachment replay is best-effort; next cycle retries */ }
     return { synced, errors }
   })().finally(() => { syncPromise = null })
   return syncPromise

@@ -53,6 +53,18 @@ export type {
   WorkOrderOfflineMutationKind,
   WorkOrderOfflineMutationState,
 } from './api/workOrderOfflineMutationQueue'
+export {
+  discardOfflineWorkOrderAttachment,
+  listOfflineWorkOrderAttachments,
+  queueWorkOrderPhoto,
+  retryOfflineWorkOrderAttachment,
+  syncQueuedWorkOrderAttachments,
+} from './api/workOrderAttachmentOfflineService'
+export type {
+  OfflineAttachmentState,
+  OfflineWorkOrderAttachment,
+  WorkOrderAttachmentKind,
+} from './api/workOrderAttachmentOfflineService'
 
 export {
   getWorkOrderDetailSnapshot,
