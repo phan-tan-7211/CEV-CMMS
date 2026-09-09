@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './ReferenceModulePanels.css'
 
-type PanelKind = 'imports' | 'inventory' | 'files' | 'checklists' | 'teams' | 'people' | 'locations' | 'locations-map'
+type PanelKind = 'imports' | 'inventory' | 'files' | 'checklists' | 'teams' | 'people' | 'locations' | 'locations-map' | 'parts' | 'edge' | 'meters' | 'analytics-open' | 'analytics-complete'
 const CONFIG: Record<PanelKind, { title: string; eyebrow: string; description: string; action: string; columns: string[] }> = {
   imports: { title: 'Nhập work order', eyebrow: 'CEV CMMS · Nhập & Xuất', description: 'Nhập lệnh công việc từ tệp dữ liệu.', action: '＋ Nhập work order', columns: ['Tên tệp', 'Ngày nhập', 'Trạng thái', 'Số dòng'] },
   inventory: { title: 'Kho & phụ tùng', eyebrow: 'CEV CMMS · Kho', description: 'Theo dõi phụ tùng, số lượng tồn và vị trí lưu kho.', action: '＋ Thêm phụ tùng', columns: ['Mã phụ tùng', 'Tên phụ tùng', 'Tồn kho', 'Vị trí'] },
@@ -11,8 +11,13 @@ const CONFIG: Record<PanelKind, { title: string; eyebrow: string; description: s
   people: { title: 'Nhân sự', eyebrow: 'CEV CMMS · Tổ chức', description: 'Quản lý người dùng, vai trò và thông tin liên hệ.', action: '＋ Thêm người', columns: ['Tên', 'Vai trò', 'Email', 'Trạng thái'] },
   locations: { title: 'Địa điểm', eyebrow: 'CEV CMMS · Địa điểm', description: 'Quản lý các khu vực và vị trí đặt thiết bị.', action: '＋ Thêm địa điểm', columns: ['Tên địa điểm', 'Địa chỉ', 'Số thiết bị', 'Ngày tạo'] },
   'locations-map': { title: 'Bản đồ địa điểm', eyebrow: 'CEV CMMS · Địa điểm', description: 'Xem các địa điểm trên bản đồ.', action: '＋ Thêm địa điểm', columns: ['Tên địa điểm', 'Địa chỉ', 'Số thiết bị', 'Tọa độ'] },
+  parts: { title: 'Phụ tùng', eyebrow: 'CEV CMMS · Kho', description: 'Quản lý phụ tùng và tồn kho bảo trì.', action: '＋ Thêm phụ tùng', columns: ['Mã phụ tùng', 'Tên phụ tùng', 'Tồn kho', 'Nhà cung cấp'] },
+  edge: { title: 'Edge', eyebrow: 'CEV CMMS · Tích hợp', description: 'Kết nối dữ liệu và thiết bị Edge trong hệ thống.', action: '＋ Thêm kết nối', columns: ['Tên kết nối', 'Loại', 'Trạng thái', 'Cập nhật'] },
+  meters: { title: 'Đồng hồ đo', eyebrow: 'CEV CMMS · Dữ liệu', description: 'Theo dõi các chỉ số đo của thiết bị.', action: '＋ Thêm đồng hồ đo', columns: ['Tên đồng hồ', 'Thiết bị', 'Đơn vị', 'Số đo gần nhất'] },
+  'analytics-open': { title: 'Phân tích · Tổng quan', eyebrow: 'CEV CMMS · Phân tích', description: 'Tổng quan hiệu suất bảo trì và công việc.', action: 'Xuất báo cáo', columns: ['Chỉ số', 'Giá trị', 'So với kỳ trước', 'Cập nhật'] },
+  'analytics-complete': { title: 'Phân tích · Hoàn thành', eyebrow: 'CEV CMMS · Phân tích', description: 'Theo dõi các công việc đã hoàn thành.', action: 'Xuất báo cáo', columns: ['Chỉ số', 'Giá trị', 'Xu hướng', 'Cập nhật'] },
 }
-const LABELS: Record<PanelKind, string> = { imports: 'nhập work order', inventory: 'phụ tùng', files: 'tệp', checklists: 'checklist', teams: 'nhóm', people: 'người', locations: 'địa điểm', 'locations-map': 'địa điểm' }
+const LABELS: Record<PanelKind, string> = { imports: 'nhập work order', inventory: 'phụ tùng', files: 'tệp', checklists: 'checklist', teams: 'nhóm', people: 'người', locations: 'địa điểm', 'locations-map': 'địa điểm', parts: 'phụ tùng', edge: 'kết nối', meters: 'đồng hồ đo', 'analytics-open': 'báo cáo', 'analytics-complete': 'báo cáo' }
 
 export function ReferenceModulePanel({ kind }: { kind: PanelKind }) {
   const config = CONFIG[kind]
