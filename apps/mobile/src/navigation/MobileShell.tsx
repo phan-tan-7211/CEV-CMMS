@@ -56,6 +56,7 @@ type RouteEntry = {
   dashboardFilter?: WorkOrderDashboardFilter
   barcode?: string
   partId?: string
+  partScanTarget?: 'detail' | 'inventory'
   draftLocalId?: string
 }
 
@@ -212,10 +213,13 @@ export function MobileShell() {
   if (route === 'part-work-order' && selectedPartId) return <PartWorkOrderScreen partId={selectedPartId} onBack={goBack} onCreated={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
   if (route === 'part-form') return <PartFormScreen partId={selectedPartId} initialBarcode={currentEntry.barcode} onBack={goBack} onSaved={(partId) => navigate({ name: 'part-detail', partId })} />
   if (route === 'part-list') return <PartsListScreen onBack={goBack} onScan={() => navigate({ name: 'part-scan' })} onCreate={() => navigate({ name: 'part-form' })} onOpenPart={(partId) => navigate({ name: 'part-detail', partId })} />
-  if (route === 'part-scan') return <SimpleScannerScreen title="Quét mã phụ tùng" onBack={goBack} onResult={async (code) => {
+  if (route === 'part-scan') return <SimpleScannerScreen title={currentEntry.partScanTarget === 'inventory' ? 'Quét mã để mở tồn kho' : 'Quét mã phụ tùng'} onBack={goBack} onResult={async (code) => {
     const { searchSparePartsByBarcode } = await import('../features/scan/api/partSearchService')
     const matches = await searchSparePartsByBarcode(code)
-    if (matches.length === 1 && matches[0]) { navigate({ name: 'part-detail', partId: matches[0].partId }); return true }
+    if (matches.length === 1 && matches[0]) {
+      navigate({ name: currentEntry.partScanTarget === 'inventory' ? 'part-inventory' : 'part-detail', partId: matches[0].partId })
+      return true
+    }
     if (matches.length) {
       Alert.alert('Có nhiều kết quả', 'Hãy dùng tìm kiếm trong danh sách Phụ tùng.')
       return false
@@ -285,7 +289,7 @@ export function MobileShell() {
   if (route === 'request-detail' && selectedRequestId) return <RequestDetailScreen requestId={selectedRequestId} onBack={goBack} />
   if (route === 'locations') return <LocationsScreen onBack={goBack} onAdd={() => navigate({ name: 'location-form' })} />
   if (route === 'location-form') return <LocationFormScreen onBack={goBack} />
-  if (route === 'inventory') return <InventoryScreen onBack={goBack} />
+  if (route === 'inventory') return <InventoryScreen onBack={goBack} onOpenPartInventory={(partId) => navigate({ name: 'part-inventory', partId })} onScan={() => navigate({ name: 'part-scan', partScanTarget: 'inventory' })} />
   if (route === 'meters') return <MetersScreen onBack={goBack} />
   if (route === 'vendors') return <VendorsScreen onBack={goBack} onAddVendor={() => navigate({ name: 'company-form' })} onAddCustomer={() => navigate({ name: 'customer-form' })} />
   if (route === 'company-form') return <CompanyFormScreen onBack={goBack} />
