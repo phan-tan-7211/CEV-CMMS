@@ -159,6 +159,25 @@ function overlapStyles(events: LiveSchedulerEvent[], basis: ScheduleBasis) {
   flush()
   return result
 }
+function countResourceConflicts(events: LiveSchedulerEvent[]) {
+  const workOrders = events
+    .filter((event) => event.eventType === 'WORK_ORDER' && event.startAt && event.endAt)
+    .toSorted((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
+  let pairs = 0
+  for (let index = 0; index < workOrders.length; index += 1) {
+    const left = workOrders[index]
+    const leftEnd = Date.parse(left.endAt)
+    if (Number.isNaN(leftEnd)) continue
+    for (let otherIndex = index + 1; otherIndex < workOrders.length; otherIndex += 1) {
+      const right = workOrders[otherIndex]
+      const rightStart = Date.parse(right.startAt)
+      if (Number.isNaN(rightStart) || rightStart >= leftEnd) break
+      const rightEnd = Date.parse(right.endAt)
+      if (!Number.isNaN(rightEnd) && rightEnd > Date.parse(left.startAt)) pairs += 1
+    }
+  }
+  return pairs
+}
 function toLocalInput(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -412,12 +431,10 @@ export function MaintenanceSchedulerPanel() {
       <div><p className="eyebrow">Scheduler</p><h2 id="scheduler-title">Lịch trình</h2><p>Điều phối Work Order và theo dõi các mốc Preventive Maintenance trong cùng một lịch.</p></div>
       <div className="scheduler-header-actions"><button type="button" onClick={() => void refresh()} disabled={loading}>Làm mới</button></div>
     </header>
-
     <div className="scheduler-surface-switch" role="group" aria-label="Kiểu lập kế hoạch">
       <button type="button" className={surface === 'calendar' ? 'active' : ''} onClick={() => setSurface('calendar')}><strong>Lịch</strong><small>Ngày / tuần / tháng</small></button>
       <button type="button" className={surface === 'resources' ? 'active' : ''} onClick={() => { setSurface('resources'); setMode('week') }}><strong>Nguồn lực</strong><small>Người / nhóm / thiết bị</small></button>
     </div>
-
     <div className="scheduler-controlbar">
       <div className="scheduler-basis-switch" role="group" aria-label="Cơ sở hiển thị lịch">
         <button type="button" className={basis === 'start' ? 'active' : ''} onClick={() => setBasis('start')}><strong>Ngày thực hiện</strong><small>Điều phối / kéo thả</small></button>
@@ -430,15 +447,12 @@ export function MaintenanceSchedulerPanel() {
         <span>Đã khóa <b>{riskCounts.locked}</b></span>
       </div>
     </div>
-
     {pmCounts.total ? <div className="scheduler-pm-strip" aria-label="Tình trạng Preventive Maintenance"><span>PM trong kỳ <b>{pmCounts.total}</b></span><span className={pmCounts.overdue ? 'danger' : ''}>PM quá hạn <b>{pmCounts.overdue}</b></span><span>Đã sinh WO <b>{pmCounts.generated}</b></span></div> : null}
-
     <div className="scheduler-toolbar">
       <div className="scheduler-period-nav"><button type="button" aria-label="Kỳ trước" onClick={() => changePeriod(-1)}>‹</button><button type="button" onClick={() => setCursor(startOfDay(new Date()))}>Hôm nay</button><button type="button" aria-label="Kỳ sau" onClick={() => changePeriod(1)}>›</button><strong>{periodLabel}</strong></div>
       {surface === 'calendar' ? <div className="scheduler-view-switch" role="group" aria-label="Kiểu hiển thị lịch">{(['day', 'week', 'month'] as CalendarMode[]).map((item) => <button key={item} type="button" className={mode === item ? 'active' : ''} onClick={() => setMode(item)}>{item === 'day' ? 'Ngày' : item === 'week' ? 'Tuần' : 'Tháng'}</button>)}</div>
         : <div className="scheduler-resource-switch" role="group" aria-label="Nhóm nguồn lực">{(['person', 'team', 'equipment'] as ResourceKind[]).map((item) => <button key={item} type="button" className={resourceKind === item ? 'active' : ''} onClick={() => setResourceKind(item)}>{resourceLabel(item)}</button>)}</div>}
     </div>
-
     <div className="scheduler-filterbar">
       <label className="scheduler-search"><span className="sr-only">Tìm kiếm lịch</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm Work Order, thiết bị, người phụ trách…" /></label>
       <label><span className="sr-only">Thiết bị</span><select value={equipmentFilter} onChange={(event) => setEquipmentFilter(event.target.value)}><option value="">Tất cả thiết bị</option>{equipmentOptions.map(([id, name]) => <option key={id} value={id}>{id} · {name}</option>)}</select></label>
@@ -446,14 +460,12 @@ export function MaintenanceSchedulerPanel() {
       <label><span className="sr-only">Nhóm</span><select value={teamFilter} onChange={(event) => setTeamFilter(event.target.value)}><option value="">Tất cả nhóm</option>{teamOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
       <button type="button" className={showUnscheduled ? 'active' : ''} onClick={() => setShowUnscheduled((current) => !current)}>Chưa xếp lịch {unscheduled.length ? `(${unscheduled.length})` : ''}</button>
     </div>
-
     {focusedPmId ? <div className="scheduler-mode-note"><strong>PM focus:</strong> lịch đã mở tại kỳ Next Due của PM. Nhấn card PM để quay lại đúng PM Detail.</div> : null}
     {basis === 'due' ? <div className="scheduler-mode-note">Chế độ <strong>Ngày đến hạn</strong> dùng để kiểm soát kế hoạch. Kéo thả bị khóa để không vô tình thay đổi ngày thực hiện.</div> : null}
     {surface === 'calendar' && basis === 'start' && mode !== 'month' ? <div className="scheduler-mode-note"><strong>Snap 30 phút:</strong> thả Work Order vào đúng vị trí thời gian; kéo mép dưới card để đổi thời lượng theo mốc 30 phút.</div> : null}
-    {surface === 'resources' && basis === 'start' ? <div className="scheduler-mode-note"><strong>Resource Planning:</strong> kéo Work Order sang ô ngày của nhân sự hoặc nhóm để đổi lịch và phân công trong một thao tác. View Thiết bị chỉ đổi ngày, không đổi Equipment ID.</div> : null}
+    {surface === 'resources' && basis === 'start' ? <div className="scheduler-mode-note"><strong>Resource Planning:</strong> ô màu cảnh báo chỉ xuất hiện khi Work Order thực sự chồng thời gian; không dùng ngưỡng tải suy đoán. Kéo Work Order sang nhân sự/nhóm để đổi lịch và phân công.</div> : null}
     {message ? <div className="scheduler-feedback" role="status">{message}</div> : null}
     {error ? <div className="scheduler-feedback error" role="alert">{error}</div> : null}
-
     <div className={`scheduler-layout${showUnscheduled ? '' : ' tray-hidden'}`}>
       {showUnscheduled ? <aside className="scheduler-unscheduled" aria-label="Công việc chưa xếp lịch" onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={onUnscheduledDrop}>
         <header><div><strong>Chưa xếp lịch</strong><small>{basis === 'start' ? 'Kéo vào lịch · kéo từ lịch về đây để hủy xếp lịch' : 'Work Order chưa có ngày thực hiện'}</small></div><span>{unscheduled.length}</span></header>
@@ -467,7 +479,6 @@ export function MaintenanceSchedulerPanel() {
             : <TimeCalendar days={calendarDays} scheduled={scheduled} basis={basis} canManage={canManage} now={now} onDrop={onTimeDrop} onResize={requestResize} onSelect={selectEvent} />}
       </div>
     </div>
-
     {selected ? <SchedulerDetail event={selected} basis={basis} canManage={canManage} saving={saving} onClose={() => setSelected(null)} onSave={saveFromDetail} /> : null}
     {pendingMove ? <ConflictDialog pending={pendingMove} saving={saving} onCancel={() => setPendingMove(null)} onConfirm={() => void commitMove(pendingMove.event, pendingMove.startAt, pendingMove.endAt, true, { personId: pendingMove.personId, teamId: pendingMove.teamId })} /> : null}
   </section>
@@ -480,18 +491,20 @@ function ResourceCalendar({ days, rows, scheduled, resourceKind, basis, canManag
     <div className="scheduler-resource-rows">{rows.map((row) => {
       const rowEvents = scheduled.filter((event) => resourceId(event, resourceKind) === row.id)
       const totalHours = rowEvents.reduce((sum, event) => sum + eventHours(event), 0)
-      return <div className={`scheduler-resource-row${row.id === UNASSIGNED ? ' unassigned' : ''}`} key={row.id}>
-        <header><strong>{row.label}</strong><small>{row.secondary}</small></header>
+      const rowConflicts = days.reduce((sum, day) => sum + countResourceConflicts(rowEvents.filter((event) => sameDay(displayDate(event, basis), day))), 0)
+      return <div className={`scheduler-resource-row${row.id === UNASSIGNED ? ' unassigned' : ''}${rowConflicts ? ' has-conflict' : ''}`} key={row.id}>
+        <header><strong>{row.label}</strong><small>{row.secondary}</small>{rowConflicts ? <em>{rowConflicts} trùng lịch</em> : null}</header>
         {days.map((day) => {
           const cellEvents = rowEvents.filter((event) => sameDay(displayDate(event, basis), day))
           const hours = cellEvents.reduce((sum, event) => sum + eventHours(event), 0)
-          return <div key={dateKey(day)} className="scheduler-resource-cell" onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={(event) => onDrop(event, day, row)}>
-            <div className="scheduler-resource-cell-meta"><span>{cellEvents.length ? `${cellEvents.length} WO/PM` : '—'}</span>{hours > 0 ? <b>{hours.toFixed(1)}h</b> : null}</div>
+          const conflicts = basis === 'start' ? countResourceConflicts(cellEvents) : 0
+          return <div key={dateKey(day)} className={`scheduler-resource-cell${conflicts ? ' has-conflict' : ''}`} onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={(event) => onDrop(event, day, row)}>
+            <div className="scheduler-resource-cell-meta"><span>{cellEvents.length ? `${cellEvents.length} WO/PM` : '—'}</span><span>{hours > 0 ? <b>{hours.toFixed(1)}h</b> : null}{conflicts ? <em>{conflicts} trùng</em> : null}</span></div>
             {cellEvents.slice(0, 4).map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} compact onSelect={onSelect} />)}
             {cellEvents.length > 4 ? <span className="scheduler-resource-more">+{cellEvents.length - 4}</span> : null}
           </div>
         })}
-        <footer><strong>{rowEvents.length}</strong><small>{totalHours.toFixed(1)}h</small></footer>
+        <footer><strong>{rowEvents.length}</strong><small>{totalHours.toFixed(1)}h</small>{rowConflicts ? <em>{rowConflicts} trùng</em> : null}</footer>
       </div>
     })}</div>
   </div>
@@ -584,9 +597,12 @@ function SchedulerDetail({ event, basis, canManage, saving, onClose, onSave }: {
   const [endValue, setEndValue] = useState(() => event.endAt ? toLocalInput(event.endAt) : '')
   const editable = basis === 'start' && canManage && event.eventType === 'WORK_ORDER' && !event.scheduleLocked && !TERMINAL.has(event.status.toUpperCase())
   const dueValue = sourceDate(event)
+  const duration = eventHours(event)
+  const assignmentState = event.primaryPersonName || event.primaryTeamName || 'Chưa phân công'
   return <div className="scheduler-layer" role="presentation" onMouseDown={(mouseEvent) => { if (mouseEvent.target === mouseEvent.currentTarget) onClose() }}><aside className="scheduler-drawer" role="dialog" aria-modal="true" aria-labelledby="scheduler-detail-title">
     <header><div><p className="eyebrow">{event.eventType === 'PM_DUE' ? 'Preventive Maintenance' : 'Work Order'}</p><h2 id="scheduler-detail-title">{event.title || event.eventId}</h2><span>{event.eventId}</span></div><button type="button" aria-label="Đóng" onClick={onClose}>×</button></header>
     <div className="scheduler-drawer-body"><dl><div><dt>Thiết bị</dt><dd><strong>{event.equipmentId}</strong><span>{event.equipmentName || '—'}</span></dd></div><div><dt>Trạng thái</dt><dd>{statusLabel(event.status)}</dd></div><div><dt>Ưu tiên</dt><dd>{event.priority || '—'}</dd></div><div><dt>Địa điểm</dt><dd>{event.locationName || '—'}</dd></div><div><dt>Người phụ trách</dt><dd>{event.primaryPersonName || '—'}</dd></div><div><dt>Nhóm</dt><dd>{event.primaryTeamName || '—'}</dd></div></dl>
+      <section className="scheduler-planning-context" aria-label="Ngữ cảnh lập kế hoạch"><div><span>Thời lượng kế hoạch</span><strong>{duration ? `${duration.toFixed(duration % 1 ? 1 : 0)}h` : '—'}</strong></div><div><span>Phân công</span><strong>{assignmentState}</strong></div><div><span>Khóa lịch</span><strong>{event.scheduleLocked ? 'Đã khóa' : 'Có thể điều phối'}</strong></div></section>
       <section className="scheduler-date-summary"><div><span>Ngày thực hiện</span><strong>{formatShortDate(event.startAt)}</strong></div><div><span>Ngày đến hạn</span><strong>{formatShortDate(event.eventType === 'PM_DUE' ? event.startAt : dueValue)}</strong></div></section>
       <div className="scheduler-time-editor"><label><span>Bắt đầu</span><input type="datetime-local" value={startValue} disabled={!editable} onChange={(changeEvent) => setStartValue(changeEvent.target.value)} /></label><label><span>Kết thúc</span><input type="datetime-local" value={endValue} disabled={!editable} onChange={(changeEvent) => setEndValue(changeEvent.target.value)} /></label></div>
       {basis === 'due' ? <p className="scheduler-readonly-hint">Đang xem theo ngày đến hạn. Chuyển sang <strong>Ngày thực hiện</strong> để reschedule Work Order.</p> : null}</div>
