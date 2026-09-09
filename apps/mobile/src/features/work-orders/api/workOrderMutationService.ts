@@ -9,12 +9,13 @@ async function rpc(name: string, params: Record<string, unknown>, fallback: stri
 }
 
 export type WorkOrderTransitionAction = 'REQUEST_APPROVAL' | 'APPROVE' | 'START' | 'COMPLETE' | 'VERIFY' | 'RELEASE'
+export type WorkOrderLaborInput = { workOrderId: string; personId: string; startedAt: string; endedAt?: string; hourlyRate?: number | null; note?: string }
 
-export async function createMaintenanceWorkOrder(input: { equipmentId: string; reason: string; priority: string; sourceType?: string; sourceId?: string; personIds?: string[]; teamIds?: string[] }) {
+export async function createMaintenanceWorkOrder(input: { equipmentId: string; reason: string; priority: string; sourceType?: string; sourceId?: string; personIds?: string[]; teamIds?: string[]; operationId?: string }) {
   const reason = input.reason.trim()
   if (!reason) throw new Error('Vui lòng nhập nội dung công việc.')
   const data = await rpc('rpc_cmms_create_work_order_v2', {
-    p_input: { equipmentId: input.equipmentId.trim(), reason, priority: input.priority.trim() || 'MEDIUM', sourceType: input.sourceType || 'MOBILE', sourceId: input.sourceId || input.equipmentId.trim(), operationId: operationId('CREATE-WO'), personIds: input.personIds || [], teamIds: input.teamIds || [] },
+    p_input: { equipmentId: input.equipmentId.trim(), reason, priority: input.priority.trim() || 'MEDIUM', sourceType: input.sourceType || 'MOBILE', sourceId: input.sourceId || input.equipmentId.trim(), operationId: input.operationId?.trim() || operationId('CREATE-WO'), personIds: input.personIds || [], teamIds: input.teamIds || [] },
   }, 'Không thể tạo Work Order.')
   const result = (data || {}) as Record<string, unknown>
   const workOrderId = text(result.workOrderId)
@@ -35,13 +36,23 @@ export async function setWorkOrderReviewAssignments(input: { workOrderId: string
   }, 'Không thể cập nhật người theo dõi/duyệt/xác nhận.')
 }
 
-export async function addWorkOrderChecklistItem(workOrderId: string, title: string, required = false) {
+export async function addWorkOrderChecklistItemOnline(workOrderId: string, title: string, required = false) {
   if (!title.trim()) throw new Error('Tên checklist là bắt buộc.')
   return rpc('rpc_cmms_add_checklist_item', { p_work_order_id: workOrderId.trim(), p_title: title.trim(), p_description: null, p_response_type: 'CHECK', p_required: required, p_sequence_no: 0 }, 'Không thể thêm checklist.')
 }
 
-export async function completeWorkOrderChecklistItem(checklistItemId: string, completed: boolean) {
+export async function completeWorkOrderChecklistItemOnline(checklistItemId: string, completed: boolean) {
   return rpc('rpc_cmms_complete_checklist_item', { p_checklist_item_id: checklistItemId, p_completed: completed, p_response_text: null, p_response_number: null }, 'Không thể cập nhật checklist.')
+}
+
+export async function addWorkOrderChecklistItem(workOrderId: string, title: string, required = false) {
+  const offline = await import('./workOrderOfflineMutationQueue')
+  return offline.addWorkOrderChecklistItemOffline(workOrderId, title, required)
+}
+
+export async function completeWorkOrderChecklistItem(checklistItemId: string, completed: boolean) {
+  const offline = await import('./workOrderOfflineMutationQueue')
+  return offline.setWorkOrderChecklistCompletedByIdOffline(checklistItemId, completed)
 }
 
 export async function addWorkOrderPartUsage(input: { workOrderId: string; partName: string; quantity: number; unit?: string; unitCost?: number | null; notes?: string }) {
@@ -50,9 +61,14 @@ export async function addWorkOrderPartUsage(input: { workOrderId: string; partNa
   return rpc('rpc_cmms_add_part_usage', { p_work_order_id: input.workOrderId.trim(), p_part_name: input.partName.trim(), p_quantity: input.quantity, p_unit: input.unit || null, p_unit_cost: input.unitCost ?? null, p_spare_part_id: null, p_notes: input.notes || null }, 'Không thể ghi nhận phụ tùng sử dụng.')
 }
 
-export async function addWorkOrderLabor(input: { workOrderId: string; personId: string; startedAt: string; endedAt?: string; hourlyRate?: number | null; note?: string }) {
+export async function addWorkOrderLaborOnline(input: WorkOrderLaborInput) {
   if (!input.personId) throw new Error('Chọn người thực hiện trước khi ghi giờ công.')
   return rpc('rpc_cmms_add_labor', { p_work_order_id: input.workOrderId.trim(), p_person_id: input.personId, p_started_at: input.startedAt, p_ended_at: input.endedAt || null, p_hourly_rate: input.hourlyRate ?? null, p_note: input.note || null }, 'Không thể ghi nhận giờ công.')
+}
+
+export async function addWorkOrderLabor(input: WorkOrderLaborInput) {
+  const offline = await import('./workOrderPartLaborOfflineService')
+  return offline.addWorkOrderLaborOffline(input)
 }
 
 export async function saveWorkOrderExecution(input: { workOrderId: string; rootCause?: string; correctiveAction?: string; preventiveAction?: string; executionNote?: string; downtimeStartedAt?: string; downtimeEndedAt?: string; downtimeCauseCategory?: string; downtimeDetail?: string }) {
@@ -63,10 +79,19 @@ export async function saveWorkOrderExecution(input: { workOrderId: string; rootC
   }, 'Không thể lưu kết quả thực hiện.')
 }
 
-export async function transitionWorkOrder(workOrderId: string, action: WorkOrderTransitionAction) {
-  const data = await rpc('rpc_transition_maintenance', { p_work_order_id: workOrderId.trim(), p_action: action, p_operation_id: operationId(action) }, 'Không thể chuyển trạng thái Work Order.')
+export async function transitionWorkOrderOnline(workOrderId: string, action: WorkOrderTransitionAction, stableOperationId?: string) {
+  const data = await rpc('rpc_transition_maintenance', {
+    p_work_order_id: workOrderId.trim(),
+    p_action: action,
+    p_operation_id: stableOperationId?.trim() || operationId(action),
+  }, 'Không thể chuyển trạng thái Work Order.')
   const row = (data || {}) as Record<string, unknown>
   return { status: text(row.status) }
+}
+
+export async function transitionWorkOrder(workOrderId: string, action: WorkOrderTransitionAction) {
+  const offline = await import('./workOrderOfflineMutationQueue')
+  return offline.transitionWorkOrderOffline(workOrderId, action)
 }
 
 export async function recordWorkOrderHandover(input: { workOrderId: string; equipmentId: string; handoverPerson: string; receiverPerson: string; handoverReason: string; equipmentCondition: 'NORMAL' | 'MINOR_ISSUE' | 'NOT_OPERATIONAL'; accepted: boolean }) {

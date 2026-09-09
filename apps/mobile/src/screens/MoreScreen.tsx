@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { AppBottomNav } from '../components/AppBottomNav'
 import { GlobalCreateSheet } from '../components/GlobalCreateSheet'
 import { OeeScreen } from './OeeScreen'
+import { SchedulerScreen } from './SchedulerScreen'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -21,6 +22,7 @@ type MoreMenuItem = {
 type MoreScreenProps = {
   onHome: () => void
   onOpenWorkOrders: () => void
+  onOpenWorkOrderDrafts: () => void
   onOpenRequests: () => void
   onOpenEquipment: () => void
   onCreateEquipment: () => void
@@ -40,10 +42,12 @@ const MENU_ITEMS: MoreMenuItem[] = [
   { key: 'locations', label: 'Vị trí', icon: 'location', iconColor: '#2E90FA', backgroundColor: '#DCE5E9' },
   { key: 'assets', label: 'Tài sản', icon: 'cube-outline', iconColor: '#F79009', backgroundColor: '#F3EBD8' },
   { key: 'requests', label: 'Yêu cầu', icon: 'clipboard-outline', iconColor: '#12B76A', backgroundColor: '#DDF7EA' },
+  { key: 'work-order-drafts', label: 'Bản nháp Work Order', icon: 'document-text-outline', iconColor: '#155EEF', backgroundColor: '#E8EEFF' },
   { key: 'parts', label: 'Phụ tùng', icon: 'archive-outline', iconColor: '#7F56D9', backgroundColor: '#E7DDEB' },
   { key: 'inventory', label: 'Kho & Tồn kho', icon: 'file-tray-stacked-outline', iconColor: '#6941C6', backgroundColor: '#EEE6FF' },
   { key: 'meters', label: 'Đồng hồ đo', icon: 'speedometer-outline', iconColor: '#E31B54', backgroundColor: '#E8DEDC' },
   { key: 'preventive-maintenance', label: 'Bảo trì định kỳ', icon: 'calendar-outline', iconColor: '#12B76A', backgroundColor: '#DDF7EA' },
+  { key: 'scheduler', label: 'Lịch trình', icon: 'calendar-number-outline', iconColor: '#155EEF', backgroundColor: '#E8EEFF' },
   { key: 'oee', label: 'Hiệu suất OEE', icon: 'analytics-outline', iconColor: '#0E7090', backgroundColor: '#E0F2FE' },
   { key: 'people-teams', label: 'Người & Nhóm', icon: 'person', iconColor: '#155EEF', backgroundColor: '#DCE5E9' },
   { key: 'vendors-contractors', label: 'Nhà cung cấp & Nhà thầu', icon: 'people-circle-outline', iconColor: '#F79009', backgroundColor: '#E8E5D8' },
@@ -56,6 +60,7 @@ function showComingSoon(label: string) {
 export function MoreScreen({
   onHome,
   onOpenWorkOrders,
+  onOpenWorkOrderDrafts,
   onOpenRequests,
   onOpenEquipment,
   onCreateEquipment,
@@ -72,6 +77,7 @@ export function MoreScreen({
 }: MoreScreenProps) {
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const [oeeOpen, setOeeOpen] = useState(false)
+  const [schedulerOpen, setSchedulerOpen] = useState(false)
 
   function handleCenterAction() {
     if (isOperatorFlow) {
@@ -81,6 +87,7 @@ export function MoreScreen({
     setCreateMenuOpen(true)
   }
 
+  if (schedulerOpen) return <SchedulerScreen onBack={() => setSchedulerOpen(false)} onOpenWorkOrder={() => { setSchedulerOpen(false); onOpenWorkOrders() }} />
   if (oeeOpen) return <OeeScreen onBack={() => setOeeOpen(false)} />
 
   return (
@@ -102,6 +109,7 @@ export function MoreScreen({
               accessibilityRole="button"
               accessibilityLabel={item.label}
               onPress={() => {
+                if (item.key === 'work-order-drafts') return onOpenWorkOrderDrafts()
                 if (item.key === 'parts') return onOpenParts()
                 if (item.key === 'locations') return onOpenLocations()
                 if (item.key === 'inventory') return onOpenInventory()
@@ -109,6 +117,7 @@ export function MoreScreen({
                 if (item.key === 'people-teams') return onOpenPeople()
                 if (item.key === 'vendors-contractors') return onOpenVendors()
                 if (item.key === 'preventive-maintenance') return onOpenPreventiveMaintenance()
+                if (item.key === 'scheduler') return setSchedulerOpen(true)
                 if (item.key === 'oee') return setOeeOpen(true)
                 if (item.key === 'requests') return onOpenRequests()
                 if (item.key === 'assets') return onOpenEquipment()

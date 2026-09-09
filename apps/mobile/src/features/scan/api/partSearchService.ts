@@ -13,6 +13,11 @@ export type SparePart = {
   equipment: Array<{ equipmentId: string; equipmentName: string }>
 }
 
+export type SparePartSaveInput = Partial<SparePart> & {
+  partName: string
+  equipmentIds?: string[]
+}
+
 function text(value: unknown) { return String(value ?? '').trim() }
 function number(value: unknown) { const n = Number(value); return Number.isFinite(n) ? n : 0 }
 
@@ -51,9 +56,10 @@ export async function listSpareParts() {
   return ((data || []) as Record<string, unknown>[]).map(mapPart)
 }
 
-export async function saveSparePart(input: Partial<SparePart> & { partName: string }) {
-  const { data, error } = await supabase.rpc('rpc_save_spare_part', { p_input: {
-    partId: input.partId || '', partName: input.partName.trim(), barcode: input.barcode || '', partNumber: input.partNumber || '', maker: input.maker || '', stockQty: input.stockQty || 0, minQty: input.minQty || 0, location: input.location || '', equipmentIds: [],
+export async function saveSparePart(input: SparePartSaveInput) {
+  const equipmentIds = Array.from(new Set((input.equipmentIds || []).map((value) => value.trim()).filter(Boolean)))
+  const { data, error } = await supabase.rpc('rpc_cmms_save_spare_part_v2', { p_input: {
+    partId: input.partId || '', partName: input.partName.trim(), barcode: input.barcode || '', partNumber: input.partNumber || '', maker: input.maker || '', stockQty: input.stockQty || 0, minQty: input.minQty || 0, location: input.location || '', equipmentIds,
   } })
   if (error) throw error
   return mapPart((data || {}) as Record<string, unknown>)
