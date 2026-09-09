@@ -147,7 +147,6 @@ function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, 
   if (view === 'providers') return <ProvidersNetworkPanel />
   if (view === 'customers') return <CustomersListPanel />
   if (view === 'purchase-orders') return <PurchaseOrdersPanel />
-  if (view === 'inventory') return <LiveEquipmentInventoryPanel />
   if (view === 'cycle-counts') return <CycleCountsPanel />
   if (view === 'sets') return <SetsListPanel />
   if (view === 'files-upkeep') return <ReferenceModulePanel kind="files" />
