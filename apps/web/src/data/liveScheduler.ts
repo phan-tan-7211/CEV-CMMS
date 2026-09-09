@@ -1,9 +1,9 @@
 import { dataGateway } from './dataGateway'
 
-export type SchedulerView = 'MONTH' | 'WEEK' | 'DAY'
+export type SchedulerEventType = 'WORK_ORDER' | 'PM_DUE'
 
-export type SchedulerEvent = {
-  eventType: 'WORK_ORDER' | 'PM_DUE'
+export type LiveSchedulerEvent = {
+  eventType: SchedulerEventType
   eventId: string
   workOrderId: string
   pmScheduleId: string
@@ -25,18 +25,8 @@ export type SchedulerEvent = {
   sourceData: Record<string, unknown>
 }
 
-export type SchedulerOption = { id: string; label: string }
-export type SchedulerFilters = {
-  startAt: string
-  endAt: string
-  locationId?: string
-  personId?: string
-  teamId?: string
-  includeUnscheduled?: boolean
-}
-
 export type SchedulerConflict = {
-  conflictType: 'EQUIPMENT' | 'PERSON' | 'TEAM'
+  conflictType: string
   conflictingWorkOrderId: string
   resourceId: string
   resourceName: string
@@ -46,45 +36,24 @@ export type SchedulerConflict = {
   title: string
 }
 
-const text = (value: unknown) => value == null ? '' : String(value).trim()
-const bool = (value: unknown) => value === true
-const objectValue = (value: unknown) => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+type SchedulerRow = Record<string, unknown>
 
-export async function loadSchedulerOptions() {
-  const [locationsResult, peopleResult, teamsResult] = await Promise.all([
-    dataGateway.readRows('cmms_location', { columns: 'location_id,name,active,archived_at', order: { column: 'name', ascending: true } }),
-    dataGateway.readRows('cmms_person', { columns: 'person_id,display_name,email,active,archived_at', order: { column: 'display_name', ascending: true } }),
-    dataGateway.readRows('cmms_team', { columns: 'team_id,name,active,archived_at', order: { column: 'name', ascending: true } }),
-  ])
-  const failed = [locationsResult, peopleResult, teamsResult].find((result) => result.error)
-  if (failed?.error) throw failed.error
-  const locations: SchedulerOption[] = locationsResult.data
-    .filter((row) => row.active !== false && !row.archived_at)
-    .map((row) => ({ id: text(row.location_id), label: text(row.name) || text(row.location_id) }))
-    .filter((row) => row.id)
-  const people: SchedulerOption[] = peopleResult.data
-    .filter((row) => row.active !== false && !row.archived_at)
-    .map((row) => ({ id: text(row.person_id), label: text(row.display_name) || text(row.email) || text(row.person_id) }))
-    .filter((row) => row.id)
-  const teams: SchedulerOption[] = teamsResult.data
-    .filter((row) => row.active !== false && !row.archived_at)
-    .map((row) => ({ id: text(row.team_id), label: text(row.name) || text(row.team_id) }))
-    .filter((row) => row.id)
-  return { locations, people, teams }
+const TERMINAL_WORK_ORDER_STATUSES = new Set(['COMPLETED', 'COMPLETE', 'VERIFIED', 'RELEASED', 'CANCELLED', 'CLOSED'])
+
+function text(value: unknown) {
+  return value == null ? '' : String(value).trim()
 }
 
-export async function loadSchedulerEvents(filters: SchedulerFilters): Promise<SchedulerEvent[]> {
-  const result = await dataGateway.rpc<Array<Record<string, unknown>>>('rpc_cmms_scheduler_events', {
-    p_start_at: filters.startAt,
-    p_end_at: filters.endAt,
-    p_location_id: filters.locationId || null,
-    p_person_id: filters.personId || null,
-    p_team_id: filters.teamId || null,
-    p_include_unscheduled: filters.includeUnscheduled ?? true,
-    p_limit: 3000,
-  })
-  if (result.error) throw result.error
-  return (result.data || []).map((row) => ({
+function bool(value: unknown) {
+  return value === true || ['TRUE', '1', 'YES'].includes(text(value).toUpperCase())
+}
+
+function object(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function normalizeEvent(row: SchedulerRow): LiveSchedulerEvent {
+  return {
     eventType: text(row.event_type) === 'PM_DUE' ? 'PM_DUE' : 'WORK_ORDER',
     eventId: text(row.event_id),
     workOrderId: text(row.work_order_id),
@@ -104,21 +73,13 @@ export async function loadSchedulerEvents(filters: SchedulerFilters): Promise<Sc
     primaryTeamId: text(row.primary_team_id),
     primaryTeamName: text(row.primary_team_name),
     unscheduled: bool(row.unscheduled),
-    sourceData: objectValue(row.source_data),
-  }))
+    sourceData: object(row.source_data),
+  }
 }
 
-export async function loadSchedulerConflicts(workOrderId: string, startAt: string, endAt: string, personId = '', teamId = ''): Promise<SchedulerConflict[]> {
-  const result = await dataGateway.rpc<Array<Record<string, unknown>>>('rpc_cmms_scheduler_conflicts', {
-    p_work_order_id: workOrderId,
-    p_start_at: startAt,
-    p_end_at: endAt,
-    p_person_id: personId || null,
-    p_team_id: teamId || null,
-  })
-  if (result.error) throw result.error
-  return (result.data || []).map((row) => ({
-    conflictType: text(row.conflict_type) as SchedulerConflict['conflictType'],
+function normalizeConflict(row: SchedulerRow): SchedulerConflict {
+  return {
+    conflictType: text(row.conflict_type),
     conflictingWorkOrderId: text(row.conflicting_work_order_id),
     resourceId: text(row.resource_id),
     resourceName: text(row.resource_name),
@@ -126,7 +87,52 @@ export async function loadSchedulerConflicts(workOrderId: string, startAt: strin
     plannedEndAt: text(row.planned_end_at),
     status: text(row.status),
     title: text(row.title),
-  }))
+  }
+}
+
+function isPlanningEvent(event: LiveSchedulerEvent) {
+  if (event.eventType !== 'WORK_ORDER' || !event.unscheduled) return true
+  return !TERMINAL_WORK_ORDER_STATUSES.has(event.status.toUpperCase())
+}
+
+export async function loadSchedulerEvents(input: {
+  startAt: string
+  endAt: string
+  locationId?: string
+  personId?: string
+  teamId?: string
+  includeUnscheduled?: boolean
+  limit?: number
+}) {
+  const { data, error } = await dataGateway.rpc<SchedulerRow[]>('rpc_cmms_scheduler_events', {
+    p_start_at: input.startAt,
+    p_end_at: input.endAt,
+    p_location_id: input.locationId || null,
+    p_person_id: input.personId || null,
+    p_team_id: input.teamId || null,
+    p_include_unscheduled: input.includeUnscheduled ?? true,
+    p_limit: input.limit ?? 2000,
+  })
+  if (error) throw error
+  return (data || []).map(normalizeEvent).filter(isPlanningEvent)
+}
+
+export async function loadSchedulerConflicts(input: {
+  workOrderId: string
+  startAt: string
+  endAt: string
+  personId?: string
+  teamId?: string
+}) {
+  const { data, error } = await dataGateway.rpc<SchedulerRow[]>('rpc_cmms_scheduler_conflicts', {
+    p_work_order_id: input.workOrderId,
+    p_start_at: input.startAt,
+    p_end_at: input.endAt,
+    p_person_id: input.personId || null,
+    p_team_id: input.teamId || null,
+  })
+  if (error) throw error
+  return (data || []).map(normalizeConflict)
 }
 
 export async function rescheduleWorkOrder(input: {
@@ -138,7 +144,7 @@ export async function rescheduleWorkOrder(input: {
   allowConflict?: boolean
   note?: string
 }) {
-  const result = await dataGateway.rpc('rpc_cmms_reschedule_work_order', {
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_cmms_reschedule_work_order', {
     p_work_order_id: input.workOrderId,
     p_start_at: input.startAt,
     p_end_at: input.endAt,
@@ -147,15 +153,15 @@ export async function rescheduleWorkOrder(input: {
     p_allow_conflict: input.allowConflict ?? false,
     p_note: input.note || null,
   })
-  if (result.error) throw result.error
-  return result.data
+  if (error) throw error
+  return object(data)
 }
 
-export async function setScheduleLock(workOrderId: string, locked: boolean) {
-  const result = await dataGateway.rpc('rpc_cmms_set_work_order_schedule_lock', {
+export async function setWorkOrderScheduleLock(workOrderId: string, locked: boolean) {
+  const { data, error } = await dataGateway.rpc<Record<string, unknown>>('rpc_cmms_set_work_order_schedule_lock', {
     p_work_order_id: workOrderId,
     p_locked: locked,
   })
-  if (result.error) throw result.error
-  return Boolean(result.data)
+  if (error) throw error
+  return object(data)
 }

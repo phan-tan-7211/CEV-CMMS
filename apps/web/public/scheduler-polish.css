@@ -1,0 +1,125 @@
+.scheduler-event[draggable="true"]{
+  transition:transform .12s ease,opacity .12s ease,box-shadow .12s ease,border-color .12s ease;
+  user-select:none;
+}
+.scheduler-event[draggable="true"]:hover{
+  box-shadow:0 4px 12px rgb(32 49 72 / 12%);
+  transform:translateY(-1px);
+}
+.scheduler-event[draggable="true"]:active{
+  cursor:grabbing;
+  opacity:.62;
+  transform:scale(.985);
+  box-shadow:0 8px 18px rgb(32 49 72 / 16%);
+}
+.scheduler-day,.scheduler-time-day,.scheduler-resource-cell,.scheduler-unscheduled{
+  transition:background-color .12s ease,box-shadow .12s ease,border-color .12s ease;
+}
+.scheduler-day:hover,.scheduler-time-day:hover,.scheduler-resource-cell:hover{
+  background:#f7faff;
+  box-shadow:inset 0 0 0 1px #c8d8f1;
+}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-day:hover,
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day:hover,
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-resource-cell:hover{
+  background:#edf4ff;
+  box-shadow:inset 0 0 0 2px #6f98dc;
+}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-unscheduled:hover{
+  background:#fff8ef;
+  box-shadow:inset 0 0 0 2px #d89942;
+}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-unscheduled:hover>header small{
+  color:#9a6420;
+  font-weight:700;
+}
+.scheduler-unscheduled-list .scheduler-event{will-change:transform}
+.scheduler-time-events .scheduler-event,.scheduler-resource-cell .scheduler-event,.scheduler-day-events .scheduler-event{will-change:transform,opacity}
+
+/* Day/Week scheduler: 30-minute snap grid. */
+.scheduler-time-day{min-height:960px}
+.scheduler-half-hour-lines{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  display:grid;
+  grid-template-rows:repeat(32,30px);
+  pointer-events:none;
+}
+.scheduler-half-hour-lines i{display:block;min-height:30px;border-bottom:1px dashed #f0f2f5}
+.scheduler-half-hour-lines i:nth-child(even){border-bottom-style:solid;border-bottom-color:#e7ebef}
+.scheduler-time-events{z-index:1}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day{cursor:crosshair}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day:hover .scheduler-half-hour-lines i{border-bottom-color:#d9e5f7}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day:hover .scheduler-half-hour-lines i:nth-child(even){border-bottom-color:#bfd2ef}
+
+.scheduler-now-line{
+  position:absolute;
+  right:0;
+  left:0;
+  z-index:4;
+  height:0;
+  border-top:2px solid #d64545;
+  pointer-events:none;
+}
+.scheduler-now-line::before{position:absolute;top:-5px;left:-4px;width:8px;height:8px;border-radius:50%;background:#d64545;content:""}
+.scheduler-now-line>span{position:absolute;top:-10px;right:4px;padding:1px 5px;border-radius:999px;background:#fff1f1;color:#a72d2d;font-size:9px;font-weight:800}
+
+.scheduler-pm-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 24px;border-bottom:1px solid #e5e7eb;background:#fff}
+.scheduler-pm-strip span{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:0 9px;border:1px solid #ded6eb;border-radius:999px;background:#faf7ff;color:#57466d;font-size:10px}
+.scheduler-pm-strip span.danger{border-color:#efc3c3;background:#fff5f5;color:#a23131}
+.scheduler-pm-badges{display:flex!important;max-width:100%;gap:3px;flex-wrap:wrap;overflow:visible!important;white-space:normal!important}
+.scheduler-pm-badges em{display:inline-flex;min-height:16px;align-items:center;padding:1px 4px;border-radius:4px;background:#eee8f7;color:#624e7c;font-size:8px;font-style:normal;font-weight:700;line-height:1.2}
+.scheduler-pm-badges em.generated{background:#e9f6ed;color:#28633a}
+.scheduler-pm-badges em.danger{background:#feecec;color:#a72f2f}
+.scheduler-event.pm-overdue{border-color:#e8aaaa;border-left-color:#c74444;background:#fff5f5}
+.scheduler-event.pm-overdue .scheduler-event-kicker{color:#a72f2f}
+
+.scheduler-time-events .scheduler-event{transition:left .12s ease,width .12s ease,transform .12s ease,opacity .12s ease,box-shadow .12s ease}
+
+.scheduler-month-layer{position:fixed;inset:0;z-index:1180;display:flex;align-items:center;justify-content:center;padding:20px;background:rgb(19 28 40 / 28%)}
+.scheduler-month-popover{width:min(520px,100%);max-height:min(680px,86dvh);overflow:hidden;border:1px solid #dde2e8;border-radius:10px;background:#fff;box-shadow:0 24px 70px rgb(0 0 0 / 22%)}
+.scheduler-month-popover>header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-bottom:1px solid #e5e8ec}
+.scheduler-month-popover>header>div{display:flex;flex-direction:column;gap:2px}
+.scheduler-month-popover>header strong{font-size:14px;text-transform:capitalize}
+.scheduler-month-popover>header small{color:#7a838e;font-size:10px}
+.scheduler-month-popover>header button{width:40px;height:40px;border:0;border-radius:6px;background:transparent;cursor:pointer;font-size:22px}
+.scheduler-month-popover>div{display:flex;max-height:560px;flex-direction:column;gap:7px;overflow:auto;padding:12px}
+
+/* Resource planner conflict signal is based on real overlapping WO time ranges, never an invented capacity threshold. */
+.scheduler-resource-row.has-conflict>header,.scheduler-resource-row.has-conflict>footer{background:#fff8f4}
+.scheduler-resource-row>header em,.scheduler-resource-row>footer em{color:#a14c2d;font-size:9px;font-style:normal;font-weight:800}
+.scheduler-resource-cell.has-conflict{background:#fff7f2;box-shadow:inset 0 0 0 1px #efc1ad}
+.scheduler-resource-cell.has-conflict:hover{background:#fff3ec;box-shadow:inset 0 0 0 2px #df9f7f}
+.scheduler-resource-cell-meta>span:last-child{display:inline-flex;align-items:center;gap:5px}
+.scheduler-resource-cell-meta em{display:inline-flex;align-items:center;padding:1px 4px;border-radius:999px;background:#fee9df;color:#9b4727;font-size:8px;font-style:normal;font-weight:800}
+.scheduler-event.resource-conflict{border-color:#e0a184;border-left-color:#b85b35;background:#fff7f2}
+.scheduler-conflict-badge{display:inline-flex!important;max-width:100%;align-items:center;padding:1px 5px;border-radius:999px;background:#fee9df;color:#934322!important;font-size:8px!important;font-weight:800;line-height:1.4;white-space:normal!important}
+.scheduler-event.saving{cursor:progress!important;opacity:.7}
+.scheduler-saving-label{color:#315f9f!important;font-size:9px!important;font-weight:800}
+.scheduler-planning-context{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.scheduler-planning-context>div{display:flex;min-width:0;flex-direction:column;gap:4px;padding:10px;border:1px solid #e2e6eb;border-radius:7px;background:#fafbfc}
+.scheduler-planning-context span{color:#7a828c;font-size:9px;font-weight:700;text-transform:uppercase}
+.scheduler-planning-context strong{overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.scheduler-detail-badge{display:inline-flex;width:max-content;align-items:center;min-height:22px;padding:2px 7px;border-radius:999px;background:#eef2f7;color:#445268;font-size:10px;font-weight:800}
+.scheduler-detail-badge.status-overdue,.scheduler-detail-badge.priority-critical,.scheduler-detail-badge.priority-urgent,.scheduler-detail-badge.priority-high{background:#feecec;color:#a72f2f}
+.scheduler-detail-badge.status-completed,.scheduler-detail-badge.status-verified,.scheduler-detail-badge.status-released{background:#e9f6ed;color:#28633a}
+.scheduler-detail-footer{align-items:center;justify-content:space-between!important;gap:10px;flex-wrap:wrap}
+.scheduler-detail-footer>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.scheduler-related-actions button{color:#315f9f}
+
+.scheduler-time-events .scheduler-event{overflow:visible!important}
+.scheduler-time-events .scheduler-event>span:not(.scheduler-resize-handle):not(.scheduler-pm-badges),
+.scheduler-time-events .scheduler-event>strong,
+.scheduler-time-events .scheduler-event>small{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.scheduler-resize-handle{position:absolute;right:0;bottom:-4px;left:0;z-index:5;display:flex;height:10px;align-items:center;justify-content:center;cursor:ns-resize;touch-action:none}
+.scheduler-resize-handle i{display:block;width:24px;height:3px;border-radius:999px;background:#6f88ad;opacity:.35;transition:width .12s ease,opacity .12s ease,background-color .12s ease}
+.scheduler-event:hover .scheduler-resize-handle i,.scheduler-event.resizing .scheduler-resize-handle i{width:34px;opacity:.95;background:#2f63c7}
+.scheduler-event.resizing{z-index:12!important;cursor:ns-resize!important;box-shadow:0 8px 20px rgb(32 49 72 / 18%)!important;opacity:.92}
+.scheduler-event.resizing *{cursor:ns-resize!important}
+
+@media(max-width:900px){.scheduler-pm-strip{padding-left:16px;padding-right:16px}}
+@media(max-width:540px){.scheduler-pm-strip{padding-left:10px;padding-right:10px}.scheduler-pm-strip span{flex:1;justify-content:space-between}.scheduler-planning-context{grid-template-columns:1fr}.scheduler-detail-footer,.scheduler-detail-footer>div{width:100%}.scheduler-detail-footer>div:last-child{justify-content:flex-end}.scheduler-related-actions button{flex:1}}
+@media (prefers-reduced-motion:reduce){
+  .scheduler-event[draggable="true"],.scheduler-day,.scheduler-time-day,.scheduler-resource-cell,.scheduler-unscheduled,.scheduler-resize-handle i,.scheduler-time-events .scheduler-event{transition:none!important}
+}

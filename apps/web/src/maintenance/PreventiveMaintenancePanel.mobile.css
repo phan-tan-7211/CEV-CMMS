@@ -1,0 +1,42 @@
+@media (max-width: 900px) {
+  .pm-modern {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pm-modern > *,
+  .pm-modern-header,
+  .pm-modern-toolbar,
+  .pm-modern-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .pm-modern-header > * {
+    min-width: 0;
+  }
+
+  .pm-modern-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pm-modern-actions button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pm-modern-filter {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .pm-modern-table-wrap {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+}

@@ -109,6 +109,7 @@ function assignmentMatches(item: LiveMaintenanceWorkOrder, filter: AssignmentFil
   if (filter === 'MINE') return Boolean(currentPerson?.personCode) && item.assignedPersonCode === currentPerson?.personCode
   return true
 }
+function requestedWorkOrderTarget() { return new URLSearchParams(window.location.search).get('workOrder')?.trim() || '' }
 
 export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: { equipmentId?: string }) {
   const role = useAppRole()
@@ -131,7 +132,7 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>('ALL')
   const [statusFilter, setStatusFilter] = useState<'ALL' | MaintenanceWorkflowStatus>('ALL')
   const [kindFilter, setKindFilter] = useState<WorkOrderKindFilter>('ALL')
-  const [selectedId, setSelectedId] = useState('')
+  const [selectedId, setSelectedId] = useState(requestedWorkOrderTarget)
   const [createOpen, setCreateOpen] = useState(false)
   const [createError, setCreateError] = useState('')
   const [equipmentId, setEquipmentId] = useState(() => normalizedEquipmentContext || initialSnapshot?.equipment[0]?.equipmentId || '')
@@ -177,6 +178,15 @@ export function LiveMaintenancePanel({ equipmentId: equipmentContextId = '' }: {
     window.addEventListener('cev:maintenance-assignment-changed', onAssignmentChanged)
     return () => window.removeEventListener('cev:maintenance-assignment-changed', onAssignmentChanged)
   }, [refresh])
+
+  useEffect(() => {
+    const onNavigate = (event: Event) => {
+      const detail = (event as CustomEvent<{ view?: string; workOrderId?: string }>).detail
+      if (detail?.view === 'work-orders' && detail.workOrderId) setSelectedId(detail.workOrderId)
+    }
+    window.addEventListener('cev:navigate', onNavigate)
+    return () => window.removeEventListener('cev:navigate', onNavigate)
+  }, [])
 
   useEffect(() => {
     const previous = previousEquipmentContext.current

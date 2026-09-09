@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import './Maintenance.css'
+import './MaintenancePlanUpkeep.css'
 import { MaintenancePlanSection } from './MaintenancePlanSection'
 import { loadLiveMaintenance, type LiveMaintenancePlan, type MaintenanceEquipmentOption } from './data/liveMaintenance'
 
