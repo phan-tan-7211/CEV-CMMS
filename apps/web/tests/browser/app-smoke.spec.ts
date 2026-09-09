@@ -95,7 +95,7 @@ test('preventive maintenance opens plans first and can switch to work orders', a
   await expect(plansTab).toHaveAttribute('aria-current', 'page')
   const plansPanel = page.locator('#maintenance-tab-plans')
   await expect(plansPanel).toBeVisible()
-  await expect(plansPanel.getByRole('heading', { name: 'Kế hoạch bảo trì phòng ngừa' })).toBeVisible()
+  await expect(plansPanel.getByRole('heading', { name: 'Bảo trì phòng ngừa' })).toBeVisible()
 
   const workOrdersTab = workspace.locator('button[aria-controls="maintenance-tab-work-orders"]')
   await workOrdersTab.click()
