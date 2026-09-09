@@ -12,6 +12,7 @@ import { AccountMenu } from './AccountMenu'
 import { AccountPreferences } from './AccountPreferences'
 import { NotificationCenter } from './NotificationCenter'
 import { GeneralSettingsMenu } from './GeneralSettingsMenu'
+import { SettingsWorkspace } from './SettingsWorkspace'
 
 const A4PrintCenter = lazy(() => import('./A4PrintCenter').then((module) => ({ default: module.A4PrintCenter })))
 const LiveAuditPanel = lazy(() => import('./LiveAuditPanel').then((module) => ({ default: module.LiveAuditPanel })))
@@ -141,6 +142,7 @@ function AppWorkspace({ session, signOut }: { session: LiveSession; signOut: () 
   const [returnEquipmentId, setReturnEquipmentId] = useState('')
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
   const [preferenceMode, setPreferenceMode] = useState<'cookie' | 'notifications' | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const sessionEmail = session.email
 
   const markVisited = useCallback((nextView: View) => {
@@ -239,7 +241,7 @@ function AppWorkspace({ session, signOut }: { session: LiveSession; signOut: () 
         <header className="workspace-topbar">
           <div><p className="eyebrow">CEV CMMS · UpKeep workspace</p><h1>{NAV.find((item) => item.id === view)?.label || 'Tổng quan'}</h1></div>
           <div className="workspace-topbar-actions">
-            <GeneralSettingsMenu onOpenCompanyProfile={() => openView('organization')} onOpenOrganization={() => openView('organization')} onOpenAudit={() => openView('settings')} />
+            <GeneralSettingsMenu onOpenCompanyProfile={() => openView('organization')} onOpenOrganization={() => openView('organization')} onOpenAudit={() => setSettingsOpen(true)} />
             <NotificationCenter />
             <AccountMenu email={sessionEmail || ''} role={role} signOut={signOut} onProfile={() => openView('settings')} onCompanyProfile={() => openView('organization')} onCookieSettings={() => setPreferenceMode('cookie')} onNotificationSettings={() => setPreferenceMode('notifications')} />
           </div>
@@ -251,6 +253,7 @@ function AppWorkspace({ session, signOut }: { session: LiveSession; signOut: () 
       </div>
     </div>
     <AccountPreferences mode={preferenceMode} onClose={() => setPreferenceMode(null)} />
+    {settingsOpen ? <SettingsWorkspace onClose={() => setSettingsOpen(false)} /> : null}
     {createPortal(mobileNav, document.body)}
   </AppRoleProvider>
 }
