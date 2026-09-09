@@ -198,6 +198,15 @@ export async function getWorkOrderDetailSnapshot(workOrderId: string) {
   return snapshot.data
 }
 
+export async function patchWorkOrderDetailSnapshot(workOrderId: string, updater: (current: WorkOrderDetail) => WorkOrderDetail) {
+  const id = normalizeId(workOrderId)
+  if (!id) throw new Error('Thiếu mã Work Order.')
+  const userId = await ensureUserScope()
+  const current = await getWorkOrderDetailSnapshot(id)
+  if (!current) return null
+  return commitDetail(userId, updater(current))
+}
+
 export function isWorkOrderListStale() {
   return !listMemory || Date.now() - listMemory.savedAt >= LIST_REVALIDATE_AFTER_MS
 }
