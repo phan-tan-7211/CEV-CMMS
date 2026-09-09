@@ -3,6 +3,8 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, Text
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { DynamicCustomFieldsSection } from '../components/DynamicCustomFieldsSection'
+import { saveEntityCustomValues, type CustomFieldDraftValue } from '../features/core-parity/api/coreParityService'
 import {
   getEquipmentListSnapshot,
   revalidateEquipmentList,
@@ -27,6 +29,8 @@ export function PartFormScreen({ onBack, partId = '', initialBarcode = '', onSav
   const [equipmentItems, setEquipmentItems] = useState<EquipmentListItem[]>([])
   const [equipmentIds, setEquipmentIds] = useState<string[]>([])
   const [equipmentQuery, setEquipmentQuery] = useState('')
+  const [customValues,setCustomValues]=useState<CustomFieldDraftValue[]>([])
+  const [customError,setCustomError]=useState('')
 
   useEffect(() => {
     if (partId) return
@@ -102,6 +106,7 @@ export function PartFormScreen({ onBack, partId = '', initialBarcode = '', onSav
 
   async function submit() {
     if (!form.partName.trim() || saving) return
+    if (customError) { Alert.alert('Thiếu trường tùy chỉnh', customError); return }
     const stockQty = Number(form.stockQty || 0)
     const minQty = Number(form.minQty || 0)
     if (!Number.isFinite(stockQty) || stockQty < 0 || !Number.isFinite(minQty) || minQty < 0) {
@@ -116,6 +121,7 @@ export function PartFormScreen({ onBack, partId = '', initialBarcode = '', onSav
     setSaving(true)
     try {
       const part = await saveSparePart({ partId, ...form, stockQty, minQty, equipmentIds })
+      if(customValues.length) await saveEntityCustomValues('PART',part.partId,customValues)
       Alert.alert('Đã lưu phụ tùng', part.partId, [{ text: 'Mở chi tiết', onPress: () => onSaved(part.partId) }])
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Vui lòng thử lại.'
@@ -179,9 +185,10 @@ export function PartFormScreen({ onBack, partId = '', initialBarcode = '', onSav
           ))}
           {equipmentQuery.trim() && !equipmentLoading && equipmentResults.length === 0 ? <Text style={styles.noResult}>Không tìm thấy thiết bị phù hợp.</Text> : null}
         </View>
+        <DynamicCustomFieldsSection entityType="PART" entityId={partId} values={customValues} onChange={setCustomValues} onValidationChange={setCustomError}/>
       </ScrollView>
       <View style={styles.bottom}>
-        <Pressable disabled={!form.partName.trim() || saving} onPress={() => void submit()} style={[styles.submit, (!form.partName.trim() || saving) && styles.disabled]}>
+        <Pressable disabled={!form.partName.trim() || saving || Boolean(customError)} onPress={() => void submit()} style={[styles.submit, (!form.partName.trim() || saving || Boolean(customError)) && styles.disabled]}>
           {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>Lưu phụ tùng</Text>}
         </Pressable>
       </View>
@@ -194,43 +201,5 @@ function Field({ label, value, onChange, keyboard }: { label: string; value: str
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8F9FB' },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  loadingText: { fontSize: 13, color: '#667085' },
-  header: { minHeight: 60, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF' },
-  icon: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '900', color: '#101828' },
-  content: { padding: 16, paddingBottom: 30 },
-  infoBox: { marginBottom: 16, padding: 13, flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 12, borderWidth: 1, borderColor: '#B2DDFF', backgroundColor: '#EFF8FF' },
-  infoText: { flex: 1, fontSize: 12, lineHeight: 17, color: '#175CD3' },
-  field: { marginBottom: 14 },
-  label: { marginBottom: 7, fontSize: 13, fontWeight: '900', color: '#344054' },
-  input: { minHeight: 48, paddingHorizontal: 13, borderRadius: 11, borderWidth: 1, borderColor: '#D0D5DD', backgroundColor: '#FFF', fontSize: 15, color: '#101828' },
-  two: { flexDirection: 'row', gap: 12 },
-  flex: { flex: 1 },
-  helper: { marginTop: -3, fontSize: 11.5, lineHeight: 16, color: '#667085' },
-  section: { marginTop: 20, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: '#EAECF0', backgroundColor: '#FFF' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sectionTitle: { fontSize: 14, fontWeight: '900', color: '#344054' },
-  sectionHint: { marginTop: 2, fontSize: 11, color: '#667085' },
-  countBadge: { minWidth: 28, height: 28, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: '#E9F0FF' },
-  countText: { fontSize: 12, fontWeight: '900', color: '#155EEF' },
-  selectedRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0' },
-  selectedCopy: { flex: 1, minWidth: 0 },
-  selectedName: { fontSize: 13, fontWeight: '800', color: '#344054' },
-  selectedId: { marginTop: 2, fontSize: 10.5, color: '#667085' },
-  removeButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
-  searchBox: { minHeight: 48, marginTop: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, borderWidth: 1, borderColor: '#D0D5DD', backgroundColor: '#FFF' },
-  searchInput: { flex: 1, minWidth: 0, fontSize: 14, color: '#101828' },
-  resultRow: { minHeight: 58, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0' },
-  resultIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#EFF4FF' },
-  resultCopy: { flex: 1, minWidth: 0 },
-  resultName: { fontSize: 13, fontWeight: '800', color: '#344054' },
-  resultMeta: { marginTop: 2, fontSize: 10.5, color: '#667085' },
-  noResult: { paddingVertical: 14, textAlign: 'center', fontSize: 11.5, color: '#667085' },
-  pressed: { opacity: 0.72 },
-  bottom: { padding: 16, backgroundColor: '#FFF', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EAECF0' },
-  submit: { minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
-  disabled: { opacity: 0.45 },
-  submitText: { fontSize: 16, fontWeight: '900', color: '#FFF' },
+  safe: { flex: 1, backgroundColor: '#F8F9FB' },loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },loadingText: { fontSize: 13, color: '#667085' },header: { minHeight: 60, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF' },icon: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },title: { fontSize: 20, fontWeight: '900', color: '#101828' },content: { padding: 16, paddingBottom: 30 },infoBox: { marginBottom: 16, padding: 13, flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 12, borderWidth: 1, borderColor: '#B2DDFF', backgroundColor: '#EFF8FF' },infoText: { flex: 1, fontSize: 12, lineHeight: 17, color: '#175CD3' },field: { marginBottom: 14 },label: { marginBottom: 7, fontSize: 13, fontWeight: '900', color: '#344054' },input: { minHeight: 48, paddingHorizontal: 13, borderRadius: 11, borderWidth: 1, borderColor: '#D0D5DD', backgroundColor: '#FFF', fontSize: 15, color: '#101828' },two: { flexDirection: 'row', gap: 12 },flex: { flex: 1 },helper: { marginTop: -3, fontSize: 11.5, lineHeight: 16, color: '#667085' },section: { marginTop: 20, padding: 14, borderRadius: 16, borderWidth: 1, borderColor: '#EAECF0', backgroundColor: '#FFF' },sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },sectionTitle: { fontSize: 14, fontWeight: '900', color: '#344054' },sectionHint: { marginTop: 2, fontSize: 11, color: '#667085' },countBadge: { minWidth: 28, height: 28, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: '#E9F0FF' },countText: { fontSize: 12, fontWeight: '900', color: '#155EEF' },selectedRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0' },selectedCopy: { flex: 1, minWidth: 0 },selectedName: { fontSize: 13, fontWeight: '800', color: '#344054' },selectedId: { marginTop: 2, fontSize: 10.5, color: '#667085' },removeButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },searchBox: { minHeight: 48, marginTop: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 11, borderWidth: 1, borderColor: '#D0D5DD', backgroundColor: '#FFF' },searchInput: { flex: 1, minWidth: 0, fontSize: 14, color: '#101828' },resultRow: { minHeight: 58, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0' },resultIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#EFF4FF' },resultCopy: { flex: 1, minWidth: 0 },resultName: { fontSize: 13, fontWeight: '800', color: '#344054' },resultMeta: { marginTop: 2, fontSize: 10.5, color: '#667085' },noResult: { paddingVertical: 14, textAlign: 'center', fontSize: 11.5, color: '#667085' },pressed: { opacity: 0.72 },bottom: { padding: 16, backgroundColor: '#FFF', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EAECF0' },submit: { minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },disabled: { opacity: 0.45 },submitText: { fontSize: 16, fontWeight: '900', color: '#FFF' },
 })
