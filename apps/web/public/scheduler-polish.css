@@ -78,7 +78,7 @@
 
 /* Resize planned duration directly on the bottom edge of a scheduled WO. */
 .scheduler-time-events .scheduler-event{
-  overflow:visible;
+  overflow:visible!important;
 }
 .scheduler-time-events .scheduler-event>span:not(.scheduler-resize-handle),
 .scheduler-time-events .scheduler-event>strong,
