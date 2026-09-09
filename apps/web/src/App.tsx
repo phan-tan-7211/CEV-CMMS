@@ -34,7 +34,7 @@ const CustomersListPanel = lazy(() => import('./CustomersListPanel').then((modul
 const PurchaseOrdersPanel = lazy(() => import('./PurchaseOrdersPanel').then((module) => ({ default: module.PurchaseOrdersPanel })))
 const CycleCountsPanel = lazy(() => import('./CycleCountsPanel').then((module) => ({ default: module.CycleCountsPanel })))
 
-type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
+type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'cycle-counts' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
 
 const NAV: Array<{ id: View; label: string; adminOnly?: boolean }> = [
   { id: 'dashboard', label: 'Tổng quan' },
@@ -53,6 +53,7 @@ const NAV: Array<{ id: View; label: string; adminOnly?: boolean }> = [
   { id: 'files', label: 'Quản lý tệp' },
   { id: 'import-export', label: 'Nhập & Xuất' },
   { id: 'inventory', label: 'Kiểm kê thiết bị' },
+  { id: 'cycle-counts', label: 'Kiểm kê chu kỳ' },
   { id: 'spare', label: 'Phụ tùng & Kho' },
   { id: 'purchase-orders', label: 'Đơn đặt hàng' },
   { id: 'customers', label: 'Khách hàng' },
@@ -124,7 +125,8 @@ function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, 
   if (view === 'providers') return <ProvidersNetworkPanel />
   if (view === 'customers') return <CustomersListPanel />
   if (view === 'purchase-orders') return <PurchaseOrdersPanel />
-  if (view === 'inventory') return <CycleCountsPanel />
+  if (view === 'inventory') return <LiveEquipmentInventoryPanel />
+  if (view === 'cycle-counts') return <CycleCountsPanel />
   if (view === 'settings') return <LiveAuditPanel />
   return <ModulePlaceholderPanel title={NAV.find((item) => item.id === view)?.label || view} />
 }
