@@ -60,6 +60,7 @@ declare
   v_good numeric:=nullif(p_input->>'goodCount','')::numeric;
   v_source text:=upper(coalesce(nullif(btrim(p_input->>'sourceType'),''),'MANUAL'));
   v_elapsed_minutes numeric;
+  v_actor_email text;
   v_row public.cmms_oee_period%rowtype;
 begin
   if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
@@ -116,9 +117,20 @@ begin
     if not found then raise exception 'OEE_PERIOD_NOT_FOUND'; end if;
   end if;
 
-  insert into public.audit_log(entity_type,entity_id,action,actor_user_id,source_data)
-  values('OEE_PERIOD',v_row.oee_period_id::text,case when v_id is null then 'CREATE' else 'UPDATE' end,auth.uid(),
-    jsonb_build_object('equipmentId',v_row.equipment_id,'periodStartAt',v_row.period_start_at,'periodEndAt',v_row.period_end_at));
+  select coalesce(u.email,auth.jwt()->>'email','unknown') into v_actor_email
+  from (select 1) x
+  left join public.app_user_role u on u.user_id=auth.uid();
+
+  insert into public.audit_log(audit_id,equipment_id,entity_type,entity_id,action,actor_email,detail)
+  values(
+    'AUD-'||gen_random_uuid()::text,
+    v_row.equipment_id,
+    'OEE_PERIOD',
+    v_row.oee_period_id::text,
+    case when v_id is null then 'CREATE' else 'UPDATE' end,
+    coalesce(v_actor_email,'unknown'),
+    jsonb_build_object('equipmentId',v_row.equipment_id,'periodStartAt',v_row.period_start_at,'periodEndAt',v_row.period_end_at)
+  );
 
   return jsonb_build_object('oeePeriodId',v_row.oee_period_id,'equipmentId',v_row.equipment_id,'updatedAt',v_row.updated_at);
 end $$;
