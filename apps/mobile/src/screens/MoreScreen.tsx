@@ -17,6 +17,7 @@ import { DataToolsScreen } from './DataToolsScreen'
 import { FilesLibraryScreen } from './FilesLibraryScreen'
 import { OperationsParityScreen } from './OperationsParityScreen'
 import { FinalCoreParityScreen } from './FinalCoreParityScreen'
+import { MobileLastParityScreen } from './MobileLastParityScreen'
 import { CreateTargetPickerScreen } from './CreateTargetPickerScreen'
 import { CreateWorkOrderScreen } from './CreateWorkOrderScreen'
 import { CreateRequestScreen } from './CreateRequestScreen'
@@ -49,6 +50,7 @@ type MoreScreenProps = {
 
 const MENU_ITEMS: MoreMenuItem[] = [
   { key:'notifications',label:'Thông báo',icon:'notifications-outline',iconColor:'#155EEF',backgroundColor:'#E8EEFF' },
+  { key:'mobile-last-parity',label:'Signature · Checklist Rules · Asset Life · Tags',icon:'checkmark-done-circle-outline',iconColor:'#C11574',backgroundColor:'#FDF2FA' },
   { key:'operations-parity',label:'WO Templates · Portal · Check-in/out',icon:'briefcase-outline',iconColor:'#B54708',backgroundColor:'#FFF3E0' },
   { key:'final-core-parity',label:'Analytics · WO Status · Feedback · Provider',icon:'layers-outline',iconColor:'#027A48',backgroundColor:'#ECFDF3' },
   { key:'workload',label:'Khối lượng công việc',icon:'people-outline',iconColor:'#6941C6',backgroundColor:'#F4EBFF' },
@@ -82,6 +84,7 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
   const [coreParityOpen,setCoreParityOpen]=useState(()=>Boolean(pendingCreate&&['checklist','custom-fields','floor-plan'].includes(pendingCreate)))
   const [operationsOpen,setOperationsOpen]=useState(()=>pendingCreate==='operations-parity')
   const [finalCoreOpen,setFinalCoreOpen]=useState(()=>pendingCreate==='final-core-parity')
+  const [mobileLastParityOpen,setMobileLastParityOpen]=useState(false)
   const [notificationsOpen,setNotificationsOpen]=useState(()=>pendingCreate==='notifications')
   const [filesOpen,setFilesOpen]=useState(()=>pendingCreate==='files')
   const [dataToolsOpen,setDataToolsOpen]=useState(()=>pendingCreate==='data-tools')
@@ -111,6 +114,7 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
   if(createFlow==='customer') return <CompanyFormScreen customer onBack={()=>{resetCreate();onOpenVendors()}}/>
   if(operationsOpen) return <OperationsParityScreen onBack={()=>setOperationsOpen(false)} onOpenWorkOrders={()=>{setOperationsOpen(false);onOpenWorkOrders()}}/>
   if(finalCoreOpen) return <FinalCoreParityScreen onBack={()=>setFinalCoreOpen(false)}/>
+  if(mobileLastParityOpen) return <MobileLastParityScreen onBack={()=>setMobileLastParityOpen(false)}/>
   if(filesOpen) return <FilesLibraryScreen onBack={()=>setFilesOpen(false)}/>
   if(dataToolsOpen) return <DataToolsScreen onBack={()=>setDataToolsOpen(false)}/>
   if(workloadOpen) return <WorkloadPlanningScreen onBack={()=>setWorkloadOpen(false)} onOpenScheduler={()=>{setWorkloadOpen(false);setSchedulerOpen(true)}} onOpenWorkOrder={()=>{setWorkloadOpen(false);onOpenWorkOrders()}}/>
@@ -121,6 +125,7 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
   if(oeeOpen) return <OeeScreen onBack={()=>setOeeOpen(false)}/>
   return <SafeAreaView style={styles.safeArea} edges={['top','bottom']}><StatusBar style="dark"/><View style={styles.shell}><View style={styles.header}><Text style={styles.title}>Thêm</Text></View><ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>{MENU_ITEMS.map((item)=><Pressable key={item.key} accessibilityRole="button" accessibilityLabel={item.label} onPress={()=>{
     if(item.key==='notifications') return setNotificationsOpen(true)
+    if(item.key==='mobile-last-parity') return setMobileLastParityOpen(true)
     if(item.key==='operations-parity') return setOperationsOpen(true)
     if(item.key==='final-core-parity') return setFinalCoreOpen(true)
     if(item.key==='workload') return setWorkloadOpen(true)
