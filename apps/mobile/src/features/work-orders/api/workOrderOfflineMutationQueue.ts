@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '../../../lib/supabase/client'
 import {
-  addWorkOrderChecklistItem,
-  completeWorkOrderChecklistItem,
+  addWorkOrderChecklistItemOnline,
+  completeWorkOrderChecklistItemOnline,
 } from './workOrderMutationService'
 import {
+  findWorkOrderIdByChecklistItemId,
   patchWorkOrderDetailSnapshot,
   revalidateWorkOrderDetail,
 } from './workOrderRepository'
@@ -97,11 +98,11 @@ async function removeMutation(mutationId: string) {
 async function replayMutation(row: WorkOrderOfflineMutation) {
   if (row.kind === 'ADD_CHECKLIST') {
     const payload = row.payload as AddChecklistPayload
-    await addWorkOrderChecklistItem(row.workOrderId, payload.title, payload.required)
+    await addWorkOrderChecklistItemOnline(row.workOrderId, payload.title, payload.required)
     return
   }
   const payload = row.payload as SetChecklistCompletePayload
-  await completeWorkOrderChecklistItem(payload.checklistItemId, payload.completed)
+  await completeWorkOrderChecklistItemOnline(payload.checklistItemId, payload.completed)
 }
 
 async function optimisticAdd(workOrderId: string, payload: AddChecklistPayload) {
@@ -152,7 +153,7 @@ export async function addWorkOrderChecklistItemOffline(workOrderId: string, titl
   await optimisticAdd(id, payload)
 
   try {
-    await addWorkOrderChecklistItem(id, cleanTitle, required)
+    await addWorkOrderChecklistItemOnline(id, cleanTitle, required)
     try { await revalidateWorkOrderDetail(id, { force: true }) } catch { /* server write succeeded */ }
     return { queued: false, mutationId: '' }
   } catch (error) {
@@ -182,7 +183,7 @@ export async function setWorkOrderChecklistCompletedOffline(workOrderId: string,
 
   await optimisticComplete(id, checklistId, completed)
   try {
-    await completeWorkOrderChecklistItem(checklistId, completed)
+    await completeWorkOrderChecklistItemOnline(checklistId, completed)
     try { await revalidateWorkOrderDetail(id, { force: true }) } catch { /* server write succeeded */ }
     return { queued: false, mutationId: '' }
   } catch (error) {
@@ -202,6 +203,13 @@ export async function setWorkOrderChecklistCompletedOffline(workOrderId: string,
     })
     return { queued: true, mutationId: row.mutationId }
   }
+}
+
+export async function setWorkOrderChecklistCompletedByIdOffline(checklistItemId: string, completed: boolean) {
+  const checklistId = text(checklistItemId)
+  const workOrderId = await findWorkOrderIdByChecklistItemId(checklistId)
+  if (!workOrderId) throw new Error('Không tìm thấy Work Order của checklist trong bộ nhớ ngoại tuyến.')
+  return setWorkOrderChecklistCompletedOffline(workOrderId, checklistId, completed)
 }
 
 let syncPromise: Promise<{ synced: number; errors: number }> | null = null
