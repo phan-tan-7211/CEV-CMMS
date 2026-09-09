@@ -13,6 +13,7 @@ const maintenanceTypeLabel:Record<string,string>={PM:'Bảo trì phòng ngừa',
 function newDraft(equipmentId: string): MaintenancePlanInput { return { equipmentId, maintenanceType: 'PM', frequency: 'Hàng tháng', plannedDate: '', responsiblePerson: '', scheduledWindow: '', note: '', active: true, items: [{ ...EMPTY_ITEM }] } }
 function fromPlan(plan: LiveMaintenancePlan): MaintenancePlanInput { return { planId: plan.planId, equipmentId: plan.equipmentId, maintenanceType: plan.maintenanceType || 'PM', frequency: plan.frequency || '', plannedDate: plan.plannedDate, responsiblePerson: plan.responsiblePerson, scheduledWindow: plan.scheduledWindow, note: plan.note, active: plan.active, items: plan.items.length ? plan.items.map((item) => ({ itemName: item.itemName, standard: item.standard, method: item.method, note: item.note })) : [{ ...EMPTY_ITEM }] } }
 function normalize(value:string){return value.toLocaleLowerCase('vi-VN').trim()}
+function openScheduler(){window.dispatchEvent(new CustomEvent('cev:navigate',{detail:{view:'scheduler'}}))}
 
 export function MaintenancePlanSection({ equipment, plans, onSaved }: Props) {
   const role = useAppRole(); const canWrite = canCreateMaintenance(role)
@@ -34,8 +35,6 @@ export function MaintenancePlanSection({ equipment, plans, onSaved }: Props) {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể lưu kế hoạch PM') }
     finally { setSaving(false) }
   }
-
-  const openScheduler=()=>window.dispatchEvent(new CustomEvent('cev:navigate',{detail:{view:'scheduler'}}))
 
   return <section className="maintenance-surface maintenance-pm upkeep-pm" aria-labelledby="pm-title">
     <header className="maintenance-header"><div><p className="eyebrow">Preventive Maintenance</p><h3 id="pm-title">Kế hoạch bảo trì phòng ngừa</h3><p>Quản lý kế hoạch theo thiết bị, chu kỳ, người chịu trách nhiệm và nội dung công việc. Work Order thực hiện và bằng chứng hoàn thành được quản lý trong cùng luồng CMMS.</p></div><div className="maintenance-header-actions"><button className="maintenance-row-action" type="button" onClick={openScheduler}>Mở Lịch trình</button>{canWrite ? <button className="maintenance-primary" type="button" onClick={openNew}>+ Tạo kế hoạch PM</button> : <span className="maintenance-readonly">Chỉ xem · {roleLabel[role]||role}</span>}</div></header>
