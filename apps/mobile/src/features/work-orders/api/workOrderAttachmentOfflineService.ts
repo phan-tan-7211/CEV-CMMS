@@ -167,6 +167,12 @@ export async function syncQueuedWorkOrderAttachments() {
     for (const workOrderId of touched) {
       try { await revalidateWorkOrderDetail(workOrderId, { force: true }) } catch { /* refresh later */ }
     }
+    try {
+      const partLabor = await import('./workOrderPartLaborOfflineService')
+      const partLaborResult = await partLabor.syncQueuedWorkOrderPartLabor()
+      synced += partLaborResult.synced
+      errors += partLaborResult.errors
+    } catch { /* next automatic cycle retries */ }
     return { synced, errors }
   })().finally(() => { syncPromise = null })
   return syncPromise
