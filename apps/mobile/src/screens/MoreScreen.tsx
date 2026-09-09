@@ -6,12 +6,12 @@ import { useState } from 'react'
 
 import { AppBottomNav } from '../components/AppBottomNav'
 import { GlobalCreateSheet } from '../components/GlobalCreateSheet'
+import { NotificationsScreen } from './NotificationsScreen'
 import { OeeScreen } from './OeeScreen'
-import { SchedulerScreen } from './SchedulerScreen'
 import { PurchaseOrdersScreen } from './PurchaseOrdersScreen'
+import { SchedulerScreen } from './SchedulerScreen'
 
 type IconName = keyof typeof Ionicons.glyphMap
-
 type MoreMenuItem = { key: string; label: string; icon: IconName; iconColor: string; backgroundColor: string }
 type MoreScreenProps = {
   onHome: () => void
@@ -33,6 +33,7 @@ type MoreScreenProps = {
 }
 
 const MENU_ITEMS: MoreMenuItem[] = [
+  { key:'notifications',label:'Thông báo',icon:'notifications-outline',iconColor:'#155EEF',backgroundColor:'#E8EEFF' },
   { key:'locations',label:'Vị trí',icon:'location',iconColor:'#2E90FA',backgroundColor:'#DCE5E9' },
   { key:'assets',label:'Tài sản',icon:'cube-outline',iconColor:'#F79009',backgroundColor:'#F3EBD8' },
   { key:'requests',label:'Yêu cầu',icon:'clipboard-outline',iconColor:'#12B76A',backgroundColor:'#DDF7EA' },
@@ -52,14 +53,17 @@ function showComingSoon(label: string) { Alert.alert(label,'Module này sẽ đ�
 
 export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpenRequests,onOpenEquipment,onCreateEquipment,onOpenOperatorScan,onOpenParts,onOpenLocations,onOpenInventory,onOpenMeters,onOpenVendors,onOpenPeople,onOpenPreventiveMaintenance,isAdmin=false,isOperatorFlow=false }: MoreScreenProps) {
   const [createMenuOpen,setCreateMenuOpen]=useState(false)
+  const [notificationsOpen,setNotificationsOpen]=useState(false)
   const [oeeOpen,setOeeOpen]=useState(false)
   const [schedulerOpen,setSchedulerOpen]=useState(false)
   const [purchasingOpen,setPurchasingOpen]=useState(false)
   function handleCenterAction(){ if(isOperatorFlow){onOpenOperatorScan();return} setCreateMenuOpen(true) }
+  if(notificationsOpen) return <NotificationsScreen onBack={()=>setNotificationsOpen(false)}/>
   if(purchasingOpen) return <PurchaseOrdersScreen onBack={()=>setPurchasingOpen(false)} onAddVendor={()=>{setPurchasingOpen(false);onOpenVendors()}}/>
   if(schedulerOpen) return <SchedulerScreen onBack={()=>setSchedulerOpen(false)} onOpenWorkOrder={()=>{setSchedulerOpen(false);onOpenWorkOrders()}}/>
   if(oeeOpen) return <OeeScreen onBack={()=>setOeeOpen(false)}/>
   return <SafeAreaView style={styles.safeArea} edges={['top','bottom']}><StatusBar style="dark"/><View style={styles.shell}><View style={styles.header}><Text style={styles.title}>Thêm</Text></View><ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>{MENU_ITEMS.map((item)=><Pressable key={item.key} accessibilityRole="button" accessibilityLabel={item.label} onPress={()=>{
+    if(item.key==='notifications') return setNotificationsOpen(true)
     if(item.key==='work-order-drafts') return onOpenWorkOrderDrafts()
     if(item.key==='parts') return onOpenParts()
     if(item.key==='locations') return onOpenLocations()
