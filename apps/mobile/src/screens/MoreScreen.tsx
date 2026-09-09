@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import { AppBottomNav } from '../components/AppBottomNav'
 import { GlobalCreateSheet } from '../components/GlobalCreateSheet'
 import { consumePendingCreateAction } from '../features/navigation/pendingCreateAction'
-import { CoreParityScreen } from './CoreParityScreen'
+import { CoreParityScreen, type CoreParityTab } from './CoreParityScreen'
 import { NotificationsScreen } from './NotificationsScreen'
 import { OeeScreen } from './OeeScreen'
 import { PurchaseOrdersScreen } from './PurchaseOrdersScreen'
@@ -61,7 +61,10 @@ const MENU_ITEMS: MoreMenuItem[] = [
   { key:'scheduler',label:'Lịch trình',icon:'calendar-number-outline',iconColor:'#155EEF',backgroundColor:'#E8EEFF' },
   { key:'data-tools',label:'Nhập / Xuất dữ liệu',icon:'swap-vertical-outline',iconColor:'#0E7090',backgroundColor:'#E0F2FE' },
   { key:'files',label:'Files Library',icon:'folder-open-outline',iconColor:'#175CD3',backgroundColor:'#EEF4FF' },
-  { key:'core-parity',label:'Checklist · Fields · Downtime · Floor Plan',icon:'construct-outline',iconColor:'#7F56D9',backgroundColor:'#F1EAFE' },
+  { key:'checklist',label:'Checklist Templates',icon:'checkbox-outline',iconColor:'#6941C6',backgroundColor:'#F4EBFF' },
+  { key:'custom-fields',label:'Custom Fields',icon:'options-outline',iconColor:'#7F56D9',backgroundColor:'#F4F0FF' },
+  { key:'floor-plan',label:'Floor Plans',icon:'map-outline',iconColor:'#175CD3',backgroundColor:'#EEF4FF' },
+  { key:'downtime',label:'Downtime thiết bị',icon:'pulse-outline',iconColor:'#D92D20',backgroundColor:'#FEF3F2' },
   { key:'locations',label:'Vị trí',icon:'location',iconColor:'#2E90FA',backgroundColor:'#DCE5E9' },
   { key:'assets',label:'Tài sản',icon:'cube-outline',iconColor:'#F79009',backgroundColor:'#F3EBD8' },
   { key:'requests',label:'Yêu cầu',icon:'clipboard-outline',iconColor:'#12B76A',backgroundColor:'#DDF7EA' },
@@ -77,13 +80,22 @@ const MENU_ITEMS: MoreMenuItem[] = [
 ]
 
 function isCreateFlow(value: string | null): value is Exclude<CreateFlow,null> { return value === 'work-order' || value === 'request' || value === 'location' || value === 'meter' || value === 'part' || value === 'vendor' || value === 'customer' }
+function coreTabForAction(action: string | null): CoreParityTab {
+  if(action==='custom-fields') return 'fields'
+  if(action==='floor-plan') return 'floor'
+  if(action==='downtime') return 'downtime'
+  if(action==='core-files') return 'files'
+  return 'checklists'
+}
+function isCoreAction(action: string | null) { return action==='checklist'||action==='custom-fields'||action==='floor-plan'||action==='downtime'||action==='core-files' }
 
 export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderById,onOpenWorkOrderDrafts,onOpenRequests,onOpenRequestById,onOpenEquipment,onOpenEquipmentById,onCreateEquipment,onOpenOperatorScan,onOpenParts,onOpenPartById,onOpenLocations,onOpenInventory,onOpenMeters,onOpenVendors,onOpenPeople,onOpenPreventiveMaintenance,isAdmin=false,isOperatorFlow=false }: MoreScreenProps) {
   const [pendingCreate] = useState(() => consumePendingCreateAction())
   const [createMenuOpen,setCreateMenuOpen]=useState(false)
   const [createFlow,setCreateFlow]=useState<CreateFlow>(()=>isCreateFlow(pendingCreate)?pendingCreate:null)
   const [targetEquipmentId,setTargetEquipmentId]=useState('')
-  const [coreParityOpen,setCoreParityOpen]=useState(()=>Boolean(pendingCreate&&['checklist','custom-fields','floor-plan'].includes(pendingCreate)))
+  const [coreParityTab,setCoreParityTab]=useState<CoreParityTab>(()=>coreTabForAction(pendingCreate))
+  const [coreParityOpen,setCoreParityOpen]=useState(()=>isCoreAction(pendingCreate))
   const [operationsOpen,setOperationsOpen]=useState(()=>pendingCreate==='operations-parity')
   const [finalCoreOpen,setFinalCoreOpen]=useState(()=>pendingCreate==='final-core-parity')
   const [mobileLastParityOpen,setMobileLastParityOpen]=useState(false)
@@ -96,8 +108,9 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderById,onOpenW
   const [purchasingOpen,setPurchasingOpen]=useState(false)
   useEffect(()=>{if(pendingCreate==='pm')onOpenPreventiveMaintenance();else if(pendingCreate==='user')onOpenPeople()},[onOpenPeople,onOpenPreventiveMaintenance,pendingCreate])
   function resetCreate(){setCreateFlow(null);setTargetEquipmentId('')}
+  function openCore(tab:CoreParityTab){setCoreParityTab(tab);setCoreParityOpen(true)}
   function handleCenterAction(){ if(isOperatorFlow){onOpenOperatorScan();return} setCreateMenuOpen(true) }
-  function handleCreateAction(key:string){ if(key==='equipment'){onCreateEquipment();return} if(isCreateFlow(key)){setCreateFlow(key);setTargetEquipmentId('');return} if(key==='pm'){onOpenPreventiveMaintenance();return} if(key==='user'){onOpenPeople();return} if(key==='files'){setFilesOpen(true);return} if(key==='checklist'||key==='custom-fields'||key==='floor-plan'){setCoreParityOpen(true);return} }
+  function handleCreateAction(key:string){ if(key==='equipment'){onCreateEquipment();return} if(isCreateFlow(key)){setCreateFlow(key);setTargetEquipmentId('');return} if(key==='pm'){onOpenPreventiveMaintenance();return} if(key==='user'){onOpenPeople();return} if(key==='files'){setFilesOpen(true);return} if(isCoreAction(key)){openCore(coreTabForAction(key));return} }
   function openNotificationEntity(entityType:string,entityId:string){
     const type=entityType.trim().toUpperCase(); setNotificationsOpen(false)
     if(type.includes('WORK_ORDER')||type==='WO') return onOpenWorkOrderById(entityId)
@@ -123,7 +136,7 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderById,onOpenW
   if(filesOpen) return <FilesLibraryScreen onBack={()=>setFilesOpen(false)}/>
   if(dataToolsOpen) return <DataToolsScreen onBack={()=>setDataToolsOpen(false)}/>
   if(workloadOpen) return <WorkloadPlanningScreen onBack={()=>setWorkloadOpen(false)} onOpenScheduler={()=>{setWorkloadOpen(false);setSchedulerOpen(true)}} onOpenWorkOrder={()=>{setWorkloadOpen(false);onOpenWorkOrders()}}/>
-  if(coreParityOpen) return <CoreParityScreen onBack={()=>setCoreParityOpen(false)}/>
+  if(coreParityOpen) return <CoreParityScreen initialTab={coreParityTab} onBack={()=>setCoreParityOpen(false)}/>
   if(notificationsOpen) return <NotificationsScreen onBack={()=>setNotificationsOpen(false)} onOpenEntity={openNotificationEntity}/>
   if(purchasingOpen) return <PurchaseOrdersScreen onBack={()=>setPurchasingOpen(false)} onAddVendor={()=>{setPurchasingOpen(false);onOpenVendors()}}/>
   if(schedulerOpen) return <SchedulerScreen onBack={()=>setSchedulerOpen(false)} onOpenWorkOrder={()=>{setSchedulerOpen(false);onOpenWorkOrders()}}/>
@@ -137,7 +150,10 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderById,onOpenW
     if(item.key==='scheduler') return setSchedulerOpen(true)
     if(item.key==='data-tools') return setDataToolsOpen(true)
     if(item.key==='files') return setFilesOpen(true)
-    if(item.key==='core-parity') return setCoreParityOpen(true)
+    if(item.key==='checklist') return openCore('checklists')
+    if(item.key==='custom-fields') return openCore('fields')
+    if(item.key==='floor-plan') return openCore('floor')
+    if(item.key==='downtime') return openCore('downtime')
     if(item.key==='work-order-drafts') return onOpenWorkOrderDrafts()
     if(item.key==='parts') return onOpenParts()
     if(item.key==='locations') return onOpenLocations()
