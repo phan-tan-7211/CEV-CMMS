@@ -36,6 +36,11 @@ export {
 } from './api/equipmentStatusService'
 
 export {
+  listEquipmentLifecycleHistory,
+  type EquipmentLifecycleEvent,
+} from './api/equipmentLifecycleService'
+
+export {
   equipmentRegistrationConfigured,
   submitEquipmentRegistration,
   type EquipmentRegistrationInput,
