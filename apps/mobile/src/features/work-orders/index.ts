@@ -46,10 +46,13 @@ export type {
 export {
   getWorkOrderDetailSnapshot,
   getWorkOrderListSnapshot,
+  isWorkOrderBookmarked,
   isWorkOrderDetailStale,
   isWorkOrderListStale,
+  listBookmarkedWorkOrderIds,
   revalidateWorkOrderDetail,
   revalidateWorkOrderList,
+  setWorkOrderBookmarked,
   subscribeWorkOrderDetail,
   subscribeWorkOrderList,
 } from './api/workOrderRepository'
