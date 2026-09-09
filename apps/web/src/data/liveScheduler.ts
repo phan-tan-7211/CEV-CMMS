@@ -38,6 +38,8 @@ export type SchedulerConflict = {
 
 type SchedulerRow = Record<string, unknown>
 
+const TERMINAL_WORK_ORDER_STATUSES = new Set(['COMPLETED', 'COMPLETE', 'VERIFIED', 'RELEASED', 'CANCELLED', 'CLOSED'])
+
 function text(value: unknown) {
   return value == null ? '' : String(value).trim()
 }
@@ -88,6 +90,11 @@ function normalizeConflict(row: SchedulerRow): SchedulerConflict {
   }
 }
 
+function isPlanningEvent(event: LiveSchedulerEvent) {
+  if (event.eventType !== 'WORK_ORDER' || !event.unscheduled) return true
+  return !TERMINAL_WORK_ORDER_STATUSES.has(event.status.toUpperCase())
+}
+
 export async function loadSchedulerEvents(input: {
   startAt: string
   endAt: string
@@ -107,7 +114,7 @@ export async function loadSchedulerEvents(input: {
     p_limit: input.limit ?? 2000,
   })
   if (error) throw error
-  return (data || []).map(normalizeEvent)
+  return (data || []).map(normalizeEvent).filter(isPlanningEvent)
 }
 
 export async function loadSchedulerConflicts(input: {
