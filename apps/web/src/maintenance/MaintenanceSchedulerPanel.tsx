@@ -289,6 +289,33 @@ export function MaintenanceSchedulerPanel() {
     } finally { setSaving(false) }
   }
 
+  async function unscheduleWorkOrder(event: LiveSchedulerEvent) {
+    if (basis !== 'start' || !canManage || event.eventType !== 'WORK_ORDER' || event.unscheduled || event.scheduleLocked || TERMINAL.has(event.status.toUpperCase())) return
+    const snapshot = events
+    setSaving(true)
+    setError('')
+    setSelected(null)
+    setEvents((current) => current.map((candidate) => candidate.eventId === event.eventId
+      ? { ...candidate, startAt: '', endAt: '', unscheduled: true }
+      : candidate))
+    try {
+      await rescheduleWorkOrder({
+        workOrderId: event.workOrderId,
+        startAt: null,
+        endAt: null,
+        personId: event.primaryPersonId,
+        teamId: event.primaryTeamId,
+        allowConflict: false,
+        note: 'CEV Scheduler: moved back to unscheduled tray',
+      })
+      setMessage(`Đã hủy xếp lịch ${event.workOrderId}.`)
+      void refresh(true)
+    } catch (cause) {
+      setEvents(snapshot)
+      setError(cause instanceof Error ? cause.message : 'Không thể hủy xếp lịch.')
+    } finally { setSaving(false) }
+  }
+
   async function saveFromDetail(event: LiveSchedulerEvent, startValue: string, endValue: string) {
     if (!startValue || !endValue) return
     await commitMove(event, new Date(startValue).toISOString(), new Date(endValue).toISOString(), false)
@@ -315,6 +342,12 @@ export function MaintenanceSchedulerPanel() {
         ? { teamId: row.id === UNASSIGNED ? '' : row.id }
         : {}
     void requestMove(item, day, assignment)
+  }
+
+  function onUnscheduledDrop(event: DragEvent<HTMLElement>) {
+    event.preventDefault()
+    const item = findDraggedEvent(event)
+    if (item) void unscheduleWorkOrder(item)
   }
 
   const periodLabel = surface === 'resources'
@@ -377,9 +410,9 @@ export function MaintenanceSchedulerPanel() {
     {error ? <div className="scheduler-feedback error" role="alert">{error}</div> : null}
 
     <div className={`scheduler-layout${showUnscheduled ? '' : ' tray-hidden'}`}>
-      {showUnscheduled ? <aside className="scheduler-unscheduled" aria-label="Công việc chưa xếp lịch">
-        <header><div><strong>Chưa xếp lịch</strong><small>{basis === 'start' ? 'Kéo Work Order vào kế hoạch' : 'Work Order chưa có ngày thực hiện'}</small></div><span>{unscheduled.length}</span></header>
-        <div className="scheduler-unscheduled-list">{unscheduled.length ? unscheduled.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} onSelect={setSelected} />) : <div className="scheduler-empty">Không có công việc chưa xếp lịch.</div>}</div>
+      {showUnscheduled ? <aside className="scheduler-unscheduled" aria-label="Công việc chưa xếp lịch" onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={onUnscheduledDrop}>
+        <header><div><strong>Chưa xếp lịch</strong><small>{basis === 'start' ? 'Kéo vào lịch · kéo từ lịch về đây để hủy xếp lịch' : 'Work Order chưa có ngày thực hiện'}</small></div><span>{unscheduled.length}</span></header>
+        <div className="scheduler-unscheduled-list">{unscheduled.length ? unscheduled.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} onSelect={setSelected} />) : <div className="scheduler-empty">Không có công việc chưa xếp lịch.<br />Thả Work Order từ lịch vào đây để hủy xếp lịch.</div>}</div>
       </aside> : null}
 
       <div className="scheduler-calendar-wrap">
