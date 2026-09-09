@@ -12,6 +12,13 @@ import { getSparePart, saveSparePart } from '../features/scan/api/partSearchServ
 
 const EMPTY_FORM = { partName: '', barcode: '', partNumber: '', maker: '', location: '', stockQty: '0', minQty: '0' }
 
+function saveErrorMessage(message: string) {
+  if (message.includes('SPARE_PART_BARCODE_DUPLICATE')) return 'Barcode này đã được sử dụng cho một phụ tùng khác.'
+  if (message.includes('SPARE_PART_NUMBER_DUPLICATE') || message.includes('CMMS_PART_NUMBER_DUPLICATE')) return 'Part number này đã được sử dụng cho một phụ tùng khác.'
+  if (message.includes('INITIAL_STOCK_LOCATION_REQUIRED')) return 'Cần nhập vị trí kho khi tồn đầu kỳ lớn hơn 0.'
+  return message
+}
+
 export function PartFormScreen({ onBack, partId = '', onSaved }: { onBack: () => void; partId?: string; onSaved: (partId: string) => void }) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
@@ -105,7 +112,7 @@ export function PartFormScreen({ onBack, partId = '', onSaved }: { onBack: () =>
       Alert.alert('Đã lưu phụ tùng', part.partId, [{ text: 'Mở chi tiết', onPress: () => onSaved(part.partId) }])
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Vui lòng thử lại.'
-      Alert.alert('Không thể lưu phụ tùng', message.includes('INITIAL_STOCK_LOCATION_REQUIRED') ? 'Cần nhập vị trí kho khi tồn đầu kỳ lớn hơn 0.' : message)
+      Alert.alert('Không thể lưu phụ tùng', saveErrorMessage(message))
     } finally {
       setSaving(false)
     }
