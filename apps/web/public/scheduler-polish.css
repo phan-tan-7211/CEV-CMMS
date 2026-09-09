@@ -33,19 +33,11 @@
   color:#9a6420;
   font-weight:700;
 }
-.scheduler-unscheduled-list .scheduler-event{
-  will-change:transform;
-}
-.scheduler-time-events .scheduler-event,
-.scheduler-resource-cell .scheduler-event,
-.scheduler-day-events .scheduler-event{
-  will-change:transform,opacity;
-}
+.scheduler-unscheduled-list .scheduler-event{will-change:transform}
+.scheduler-time-events .scheduler-event,.scheduler-resource-cell .scheduler-event,.scheduler-day-events .scheduler-event{will-change:transform,opacity}
 
-/* Day/Week scheduler: 30-minute snap grid. The TS layer maps pointer Y to these same slots. */
-.scheduler-time-day{
-  min-height:960px;
-}
+/* Day/Week scheduler: 30-minute snap grid. */
+.scheduler-time-day{min-height:960px}
 .scheduler-half-hour-lines{
   position:absolute;
   inset:0;
@@ -54,39 +46,146 @@
   grid-template-rows:repeat(32,30px);
   pointer-events:none;
 }
-.scheduler-half-hour-lines i{
-  display:block;
-  min-height:30px;
-  border-bottom:1px dashed #f0f2f5;
+.scheduler-half-hour-lines i{display:block;min-height:30px;border-bottom:1px dashed #f0f2f5}
+.scheduler-half-hour-lines i:nth-child(even){border-bottom-style:solid;border-bottom-color:#e7ebef}
+.scheduler-time-events{z-index:1}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day{cursor:crosshair}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day:hover .scheduler-half-hour-lines i{border-bottom-color:#d9e5f7}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day:hover .scheduler-half-hour-lines i:nth-child(even){border-bottom-color:#bfd2ef}
+
+/* Current-time indicator stays out of layout flow. */
+.scheduler-now-line{
+  position:absolute;
+  right:0;
+  left:0;
+  z-index:4;
+  height:0;
+  border-top:2px solid #d64545;
+  pointer-events:none;
 }
-.scheduler-half-hour-lines i:nth-child(even){
-  border-bottom-style:solid;
-  border-bottom-color:#e7ebef;
+.scheduler-now-line::before{
+  position:absolute;
+  top:-5px;
+  left:-4px;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#d64545;
+  content:"";
 }
-.scheduler-time-events{
-  z-index:1;
-}
-.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day{
-  cursor:crosshair;
-}
-.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day:hover .scheduler-half-hour-lines i{
-  border-bottom-color:#d9e5f7;
-}
-.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day:hover .scheduler-half-hour-lines i:nth-child(even){
-  border-bottom-color:#bfd2ef;
+.scheduler-now-line>span{
+  position:absolute;
+  top:-10px;
+  right:4px;
+  padding:1px 5px;
+  border-radius:999px;
+  background:#fff1f1;
+  color:#a72d2d;
+  font-size:9px;
+  font-weight:800;
 }
 
-/* Resize planned duration directly on the bottom edge of a scheduled WO. */
-.scheduler-time-events .scheduler-event{
-  overflow:visible!important;
+/* PM state is visible without opening detail. */
+.scheduler-pm-strip{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  padding:8px 24px;
+  border-bottom:1px solid #e5e7eb;
+  background:#fff;
 }
-.scheduler-time-events .scheduler-event>span:not(.scheduler-resize-handle),
-.scheduler-time-events .scheduler-event>strong,
-.scheduler-time-events .scheduler-event>small{
+.scheduler-pm-strip span{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-height:28px;
+  padding:0 9px;
+  border:1px solid #ded6eb;
+  border-radius:999px;
+  background:#faf7ff;
+  color:#57466d;
+  font-size:10px;
+}
+.scheduler-pm-strip span.danger{border-color:#efc3c3;background:#fff5f5;color:#a23131}
+.scheduler-pm-badges{
+  display:flex!important;
   max-width:100%;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  gap:3px;
+  flex-wrap:wrap;
+  overflow:visible!important;
+  white-space:normal!important;
 }
+.scheduler-pm-badges em{
+  display:inline-flex;
+  min-height:16px;
+  align-items:center;
+  padding:1px 4px;
+  border-radius:4px;
+  background:#eee8f7;
+  color:#624e7c;
+  font-size:8px;
+  font-style:normal;
+  font-weight:700;
+  line-height:1.2;
+}
+.scheduler-pm-badges em.generated{background:#e9f6ed;color:#28633a}
+.scheduler-pm-badges em.danger{background:#feecec;color:#a72f2f}
+.scheduler-event.pm-overdue{border-color:#e8aaaa;border-left-color:#c74444;background:#fff5f5}
+.scheduler-event.pm-overdue .scheduler-event-kicker{color:#a72f2f}
+
+/* Overlapping cards get inline lane widths from TS. */
+.scheduler-time-events .scheduler-event{
+  transition:left .12s ease,width .12s ease,transform .12s ease,opacity .12s ease,box-shadow .12s ease;
+}
+
+/* Month +N opens a compact daily list instead of a dead button. */
+.scheduler-month-layer{
+  position:fixed;
+  inset:0;
+  z-index:1180;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgb(19 28 40 / 28%);
+}
+.scheduler-month-popover{
+  width:min(520px,100%);
+  max-height:min(680px,86dvh);
+  overflow:hidden;
+  border:1px solid #dde2e8;
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 24px 70px rgb(0 0 0 / 22%);
+}
+.scheduler-month-popover>header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:14px 16px;
+  border-bottom:1px solid #e5e8ec;
+}
+.scheduler-month-popover>header>div{display:flex;flex-direction:column;gap:2px}
+.scheduler-month-popover>header strong{font-size:14px;text-transform:capitalize}
+.scheduler-month-popover>header small{color:#7a838e;font-size:10px}
+.scheduler-month-popover>header button{
+  width:40px;
+  height:40px;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  cursor:pointer;
+  font-size:22px;
+}
+.scheduler-month-popover>div{display:flex;max-height:560px;flex-direction:column;gap:7px;overflow:auto;padding:12px}
+
+/* Resize planned duration directly on the bottom edge of a scheduled WO. */
+.scheduler-time-events .scheduler-event{overflow:visible!important}
+.scheduler-time-events .scheduler-event>span:not(.scheduler-resize-handle):not(.scheduler-pm-badges),
+.scheduler-time-events .scheduler-event>strong,
+.scheduler-time-events .scheduler-event>small{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .scheduler-resize-handle{
   position:absolute;
   right:0;
@@ -100,31 +199,13 @@
   cursor:ns-resize;
   touch-action:none;
 }
-.scheduler-resize-handle i{
-  display:block;
-  width:24px;
-  height:3px;
-  border-radius:999px;
-  background:#6f88ad;
-  opacity:.35;
-  transition:width .12s ease,opacity .12s ease,background-color .12s ease;
-}
-.scheduler-event:hover .scheduler-resize-handle i,
-.scheduler-event.resizing .scheduler-resize-handle i{
-  width:34px;
-  opacity:.95;
-  background:#2f63c7;
-}
-.scheduler-event.resizing{
-  z-index:12!important;
-  cursor:ns-resize!important;
-  box-shadow:0 8px 20px rgb(32 49 72 / 18%)!important;
-  opacity:.92;
-}
-.scheduler-event.resizing *{
-  cursor:ns-resize!important;
-}
+.scheduler-resize-handle i{display:block;width:24px;height:3px;border-radius:999px;background:#6f88ad;opacity:.35;transition:width .12s ease,opacity .12s ease,background-color .12s ease}
+.scheduler-event:hover .scheduler-resize-handle i,.scheduler-event.resizing .scheduler-resize-handle i{width:34px;opacity:.95;background:#2f63c7}
+.scheduler-event.resizing{z-index:12!important;cursor:ns-resize!important;box-shadow:0 8px 20px rgb(32 49 72 / 18%)!important;opacity:.92}
+.scheduler-event.resizing *{cursor:ns-resize!important}
 
+@media(max-width:900px){.scheduler-pm-strip{padding-left:16px;padding-right:16px}}
+@media(max-width:540px){.scheduler-pm-strip{padding-left:10px;padding-right:10px}.scheduler-pm-strip span{flex:1;justify-content:space-between}}
 @media (prefers-reduced-motion:reduce){
-  .scheduler-event[draggable="true"],.scheduler-day,.scheduler-time-day,.scheduler-resource-cell,.scheduler-unscheduled,.scheduler-resize-handle i{transition:none!important}
+  .scheduler-event[draggable="true"],.scheduler-day,.scheduler-time-day,.scheduler-resource-cell,.scheduler-unscheduled,.scheduler-resize-handle i,.scheduler-time-events .scheduler-event{transition:none!important}
 }
