@@ -35,13 +35,23 @@ export async function setWorkOrderReviewAssignments(input: { workOrderId: string
   }, 'Không thể cập nhật người theo dõi/duyệt/xác nhận.')
 }
 
-export async function addWorkOrderChecklistItem(workOrderId: string, title: string, required = false) {
+export async function addWorkOrderChecklistItemOnline(workOrderId: string, title: string, required = false) {
   if (!title.trim()) throw new Error('Tên checklist là bắt buộc.')
   return rpc('rpc_cmms_add_checklist_item', { p_work_order_id: workOrderId.trim(), p_title: title.trim(), p_description: null, p_response_type: 'CHECK', p_required: required, p_sequence_no: 0 }, 'Không thể thêm checklist.')
 }
 
-export async function completeWorkOrderChecklistItem(checklistItemId: string, completed: boolean) {
+export async function completeWorkOrderChecklistItemOnline(checklistItemId: string, completed: boolean) {
   return rpc('rpc_cmms_complete_checklist_item', { p_checklist_item_id: checklistItemId, p_completed: completed, p_response_text: null, p_response_number: null }, 'Không thể cập nhật checklist.')
+}
+
+export async function addWorkOrderChecklistItem(workOrderId: string, title: string, required = false) {
+  const offline = await import('./workOrderOfflineMutationQueue')
+  return offline.addWorkOrderChecklistItemOffline(workOrderId, title, required)
+}
+
+export async function completeWorkOrderChecklistItem(checklistItemId: string, completed: boolean) {
+  const offline = await import('./workOrderOfflineMutationQueue')
+  return offline.setWorkOrderChecklistCompletedByIdOffline(checklistItemId, completed)
 }
 
 export async function addWorkOrderPartUsage(input: { workOrderId: string; partName: string; quantity: number; unit?: string; unitCost?: number | null; notes?: string }) {
