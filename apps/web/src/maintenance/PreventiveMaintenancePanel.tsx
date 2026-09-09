@@ -50,6 +50,7 @@ function recurrence(schedule: PreventiveMaintenanceSchedule) {
 function canManage(role: string) { return ['SUPERVISOR', 'MANAGER', 'ADMIN'].includes(role) }
 function nextMonthIso() { const date = new Date(); date.setMonth(date.getMonth() + 1); return date.toISOString() }
 function statusText(schedule: PreventiveMaintenanceSchedule) { return schedule.isDue ? 'Đến trigger' : schedule.active ? 'Đang hoạt động' : 'Tạm dừng' }
+function urlPmTarget() { return new URLSearchParams(window.location.search).get('pm')?.trim() || '' }
 
 function draftFromSchedule(schedule?: PreventiveMaintenanceSchedule): PreventiveMaintenanceInput {
   if (!schedule) return {
@@ -92,7 +93,15 @@ export function PreventiveMaintenancePanel() {
   useEffect(() => {
     let active = true
     loadPreventiveMaintenance()
-      .then((next) => { if (active) setSnapshot(next) })
+      .then((next) => {
+        if (!active) return
+        setSnapshot(next)
+        const target = urlPmTarget()
+        if (target && next.schedules.some((schedule) => schedule.scheduleId === target)) {
+          setSelectedScheduleId(target)
+          setDetailTab('schedule')
+        }
+      })
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Không thể tải Preventive Maintenance.') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
@@ -176,14 +185,23 @@ export function PreventiveMaintenancePanel() {
     finally { setSaving(false) }
   }
 
-  const openScheduler = () => window.dispatchEvent(new CustomEvent('cev:navigate', { detail: { view: 'scheduler' } }))
+  function openScheduler(schedule?: PreventiveMaintenanceSchedule) {
+    const url = new URL(window.location.href)
+    url.searchParams.set('phase3', 'scheduler')
+    if (schedule?.scheduleId) url.searchParams.set('pm', schedule.scheduleId)
+    else url.searchParams.delete('pm')
+    if (schedule?.nextDueAt) url.searchParams.set('schedulerDate', schedule.nextDueAt)
+    else url.searchParams.delete('schedulerDate')
+    window.history.replaceState({}, '', url)
+    window.dispatchEvent(new CustomEvent('cev:navigate', { detail: { view: 'scheduler' } }))
+  }
 
   if (loading) return <div className="maintenance-state">Đang tải Preventive Maintenance…</div>
 
   return <section className="pm-modern" aria-labelledby="pm-modern-title">
     <header className="pm-modern-header">
       <div><p className="eyebrow">Preventive Maintenance</p><h2 id="pm-modern-title">Bảo trì phòng ngừa</h2><p>Định nghĩa công việc, lịch trigger và nguồn lực. Khi đến trigger, hệ thống tự tạo Work Order để đưa vào Lịch trình.</p></div>
-      <div className="pm-modern-actions"><button type="button" onClick={openScheduler}>Lịch trình</button>{writable ? <button className="primary" type="button" onClick={openNew}>+ Tạo PM</button> : null}</div>
+      <div className="pm-modern-actions"><button type="button" onClick={() => openScheduler()}>Lịch trình</button>{writable ? <button className="primary" type="button" onClick={openNew}>+ Tạo PM</button> : null}</div>
     </header>
 
     <div className="pm-modern-toolbar">
@@ -207,7 +225,7 @@ export function PreventiveMaintenancePanel() {
           <td>{formatDate(triggerDate(schedule))}<small>{schedule.leadTimeMinutes ? `Lead time ${Math.round(schedule.leadTimeMinutes / 1440)} ngày` : 'Không lead time'}</small></td>
           <td>{schedule.defaultPersonName || schedule.defaultTeamName || 'Chưa phân công'}<small>{schedule.checklistTemplateName || 'Chưa gắn checklist'}</small></td>
           <td><span className={`pm-modern-status ${schedule.isDue ? 'due' : schedule.active ? 'active' : 'inactive'}`}>{statusText(schedule)}</span>{schedule.lastGeneratedWorkOrderId ? <small>WO gần nhất: {schedule.lastGeneratedWorkOrderId}</small> : null}</td>
-          <td><div className="pm-row-actions"><button type="button" onClick={() => openDetail(schedule)}>Chi tiết</button>{writable ? <><button type="button" onClick={() => setDraft(draftFromSchedule(schedule))}>Sửa</button><button type="button" onClick={() => void toggle(schedule)} disabled={saving}>{schedule.active ? 'Tạm dừng' : 'Kích hoạt'}</button>{schedule.isDue ? <button type="button" onClick={() => void generate(schedule)} disabled={saving}>Tạo WO</button> : null}</> : null}</div></td>
+          <td><div className="pm-row-actions"><button type="button" onClick={() => openDetail(schedule)}>Chi tiết</button><button type="button" onClick={() => openScheduler(schedule)}>Trên lịch</button>{writable ? <><button type="button" onClick={() => setDraft(draftFromSchedule(schedule))}>Sửa</button><button type="button" onClick={() => void toggle(schedule)} disabled={saving}>{schedule.active ? 'Tạm dừng' : 'Kích hoạt'}</button>{schedule.isDue ? <button type="button" onClick={() => void generate(schedule)} disabled={saving}>Tạo WO</button> : null}</> : null}</div></td>
         </tr>)}</tbody>
       </table>
       {!filtered.length ? <div className="maintenance-state">Chưa có Preventive Maintenance phù hợp bộ lọc.</div> : null}
@@ -223,13 +241,13 @@ export function PreventiveMaintenancePanel() {
         </div> : null}
 
         {detailTab === 'schedule' ? <div className="pm-detail-grid">
-          <section><h3>Trigger</h3><dl><div><dt>Kiểu trigger</dt><dd>{TYPE_LABEL[selectedSchedule.scheduleType]}</dd></div><div><dt>Chu kỳ</dt><dd>{recurrence(selectedSchedule) || '—'}</dd></div><div><dt>Bắt đầu</dt><dd>{formatDate(selectedSchedule.startAt)}</dd></div><div><dt>Next due</dt><dd>{formatDate(selectedSchedule.nextDueAt)}</dd></div><div><dt>Next trigger</dt><dd>{formatDate(triggerDate(selectedSchedule))}<small>{selectedSchedule.leadTimeMinutes ? `Lead time ${Math.round(selectedSchedule.leadTimeMinutes / 1440)} ngày` : 'Không lead time'}</small></dd></div></dl></section>
+          <section><h3>Trigger</h3><dl><div><dt>Kiểu trigger</dt><dd>{TYPE_LABEL[selectedSchedule.scheduleType]}</dd></div><div><dt>Chu kỳ</dt><dd>{recurrence(selectedSchedule) || '—'}</dd></div><div><dt>Bắt đầu</dt><dd>{formatDate(selectedSchedule.startAt)}</dd></div><div><dt>Next due</dt><dd>{formatDate(selectedSchedule.nextDueAt)}</dd></div><div><dt>Next trigger</dt><dd>{formatDate(triggerDate(selectedSchedule))}<small>{selectedSchedule.leadTimeMinutes ? `Lead time ${Math.round(selectedSchedule.leadTimeMinutes / 1440)} ngày` : 'Không lead time'}</small></dd></div></dl><button type="button" onClick={() => openScheduler(selectedSchedule)}>Mở đúng ngày trên Lịch trình</button></section>
           <section><h3>Meter trigger</h3>{selectedSchedule.scheduleType === 'TIME' ? <div className="pm-detail-empty">PM này chỉ chạy theo thời gian.</div> : <dl><div><dt>Đồng hồ</dt><dd>{selectedSchedule.meterName || '—'}</dd></div><div><dt>Giá trị hiện tại</dt><dd>{selectedSchedule.latestMeterValue?.toLocaleString('vi-VN') ?? '—'} {selectedSchedule.meterUnit}</dd></div><div><dt>Ngưỡng kế tiếp</dt><dd>{selectedSchedule.nextMeterDue?.toLocaleString('vi-VN') ?? '—'} {selectedSchedule.meterUnit}</dd></div><div><dt>Chu kỳ meter</dt><dd>{selectedSchedule.meterInterval?.toLocaleString('vi-VN') ?? '—'} {selectedSchedule.meterUnit}</dd></div></dl>}</section>
         </div> : null}
 
         {detailTab === 'work-orders' ? <section className="pm-history"><div className="pm-history-head"><div><h3>Work Orders được tạo từ PM</h3><p>Lịch sử thực thi thuộc CMMS; biểu mẫu audit/IATF lấy bằng chứng từ các Work Order này.</p></div>{selectedSchedule.isDue && writable ? <button className="primary" type="button" onClick={() => void generate(selectedSchedule)} disabled={saving}>Tạo Work Order</button> : null}</div>{selectedWorkOrders.length ? <div className="pm-history-list">{selectedWorkOrders.map((workOrder) => <article key={workOrder.workOrderId}><div><strong>{workOrder.workOrderId}</strong><small>{formatDate(workOrder.createdAt)} · {workOrder.reason || selectedSchedule.title}</small></div><div className="pm-history-state"><span>{workOrder.status}</span><small>{workOrder.priority}</small></div></article>)}</div> : <div className="pm-detail-empty">Chưa có Work Order nào được tạo từ kế hoạch PM này.</div>}</section> : null}
       </div>
-      <footer className="pm-detail-footer"><button type="button" onClick={openScheduler}>Mở Lịch trình</button>{writable ? <button type="button" onClick={() => void toggle(selectedSchedule)} disabled={saving}>{selectedSchedule.active ? 'Tạm dừng PM' : 'Kích hoạt PM'}</button> : null}</footer>
+      <footer className="pm-detail-footer"><button type="button" onClick={() => openScheduler(selectedSchedule)}>Mở Lịch trình</button>{writable ? <button type="button" onClick={() => void toggle(selectedSchedule)} disabled={saving}>{selectedSchedule.active ? 'Tạm dừng PM' : 'Kích hoạt PM'}</button> : null}</footer>
     </aside></div> : null}
 
     {draft && writable ? <div className="pm-modern-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) setDraft(null) }}><aside className="pm-modern-drawer" role="dialog" aria-modal="true" aria-labelledby="pm-editor-title">
