@@ -87,16 +87,18 @@ export function WorkOrderOfflineSyncPanel() {
 
   if (!rows.length) return null
 
+  const hasErrors = errors.length > 0
+
   return (
-    <View style={[styles.panel, errors.length ? styles.errorPanel : styles.pendingPanel]}>
+    <View style={[styles.panel, hasErrors ? styles.errorPanel : styles.pendingPanel]}>
       <View style={styles.summaryRow}>
-        <Ionicons name={errors.length ? 'warning-outline' : 'cloud-upload-outline'} size={20} color={errors.length ? '#B42318' : '#175CD3'} />
+        <Ionicons name={hasErrors ? 'warning-outline' : 'cloud-upload-outline'} size={20} color={hasErrors ? '#B42318' : '#175CD3'} />
         <View style={styles.summaryCopy}>
-          <Text style={[styles.title, errors.length && styles.errorTitle]}>{errors.length ? 'Có thay đổi cần xử lý' : 'Đang chờ đồng bộ'}</Text>
+          <Text style={[styles.title, hasErrors ? styles.errorTitle : undefined]}>{hasErrors ? 'Có thay đổi cần xử lý' : 'Đang chờ đồng bộ'}</Text>
           <Text style={styles.subtitle}>{pending.length} đang chờ · {errors.length} lỗi</Text>
         </View>
       </View>
-      {!errors.length ? <Text style={styles.autoText}>Không cần bấm Sync. Ứng dụng sẽ tự gửi khi có mạng.</Text> : null}
+      {!hasErrors ? <Text style={styles.autoText}>Không cần bấm Sync. Ứng dụng sẽ tự gửi khi có mạng.</Text> : null}
       {errors.slice(0, 5).map((row) => (
         <View key={`${row.source}:${row.id}`} style={styles.errorRow}>
           <View style={styles.errorCopy}>
