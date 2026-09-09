@@ -14,7 +14,6 @@ import {
 
 const HOUR_START = 6
 const HOUR_END = 22
-const DAY_MS = 24 * 60 * 60 * 1000
 
 function startOfDay(date: Date) { return new Date(date.getFullYear(), date.getMonth(), date.getDate()) }
 function addDays(date: Date, count: number) { const next = new Date(date); next.setDate(next.getDate() + count); return next }
