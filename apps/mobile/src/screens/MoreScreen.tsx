@@ -12,6 +12,9 @@ import { NotificationsScreen } from './NotificationsScreen'
 import { OeeScreen } from './OeeScreen'
 import { PurchaseOrdersScreen } from './PurchaseOrdersScreen'
 import { SchedulerScreen } from './SchedulerScreen'
+import { WorkloadPlanningScreen } from './WorkloadPlanningScreen'
+import { DataToolsScreen } from './DataToolsScreen'
+import { FilesLibraryScreen } from './FilesLibraryScreen'
 import { CreateTargetPickerScreen } from './CreateTargetPickerScreen'
 import { CreateWorkOrderScreen } from './CreateWorkOrderScreen'
 import { CreateRequestScreen } from './CreateRequestScreen'
@@ -44,7 +47,11 @@ type MoreScreenProps = {
 
 const MENU_ITEMS: MoreMenuItem[] = [
   { key:'notifications',label:'Thông báo',icon:'notifications-outline',iconColor:'#155EEF',backgroundColor:'#E8EEFF' },
-  { key:'core-parity',label:'CMMS nâng cao',icon:'construct-outline',iconColor:'#7F56D9',backgroundColor:'#F1EAFE' },
+  { key:'workload',label:'Khối lượng công việc',icon:'people-outline',iconColor:'#6941C6',backgroundColor:'#F4EBFF' },
+  { key:'scheduler',label:'Lịch trình',icon:'calendar-number-outline',iconColor:'#155EEF',backgroundColor:'#E8EEFF' },
+  { key:'data-tools',label:'Nhập / Xuất dữ liệu',icon:'swap-vertical-outline',iconColor:'#0E7090',backgroundColor:'#E0F2FE' },
+  { key:'files',label:'Files Library',icon:'folder-open-outline',iconColor:'#175CD3',backgroundColor:'#EEF4FF' },
+  { key:'core-parity',label:'Checklist · Fields · Downtime · Floor Plan',icon:'construct-outline',iconColor:'#7F56D9',backgroundColor:'#F1EAFE' },
   { key:'locations',label:'Vị trí',icon:'location',iconColor:'#2E90FA',backgroundColor:'#DCE5E9' },
   { key:'assets',label:'Tài sản',icon:'cube-outline',iconColor:'#F79009',backgroundColor:'#F3EBD8' },
   { key:'requests',label:'Yêu cầu',icon:'clipboard-outline',iconColor:'#12B76A',backgroundColor:'#DDF7EA' },
@@ -54,7 +61,6 @@ const MENU_ITEMS: MoreMenuItem[] = [
   { key:'purchasing',label:'Mua hàng & Reorder',icon:'cart-outline',iconColor:'#B54708',backgroundColor:'#FFF3E0' },
   { key:'meters',label:'Đồng hồ đo',icon:'speedometer-outline',iconColor:'#E31B54',backgroundColor:'#E8DEDC' },
   { key:'preventive-maintenance',label:'Bảo trì định kỳ',icon:'calendar-outline',iconColor:'#12B76A',backgroundColor:'#DDF7EA' },
-  { key:'scheduler',label:'Lịch trình',icon:'calendar-number-outline',iconColor:'#155EEF',backgroundColor:'#E8EEFF' },
   { key:'oee',label:'Hiệu suất OEE',icon:'analytics-outline',iconColor:'#0E7090',backgroundColor:'#E0F2FE' },
   { key:'people-teams',label:'Người & Nhóm',icon:'person',iconColor:'#155EEF',backgroundColor:'#DCE5E9' },
   { key:'vendors-contractors',label:'Nhà cung cấp & Nhà thầu',icon:'people-circle-outline',iconColor:'#F79009',backgroundColor:'#E8E5D8' },
@@ -69,8 +75,11 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
   const [createMenuOpen,setCreateMenuOpen]=useState(false)
   const [createFlow,setCreateFlow]=useState<CreateFlow>(()=>isCreateFlow(pendingCreate)?pendingCreate:null)
   const [targetEquipmentId,setTargetEquipmentId]=useState('')
-  const [coreParityOpen,setCoreParityOpen]=useState(()=>Boolean(pendingCreate&&['checklist','custom-fields','files','floor-plan'].includes(pendingCreate)))
-  const [notificationsOpen,setNotificationsOpen]=useState(false)
+  const [coreParityOpen,setCoreParityOpen]=useState(()=>Boolean(pendingCreate&&['checklist','custom-fields','floor-plan'].includes(pendingCreate)))
+  const [notificationsOpen,setNotificationsOpen]=useState(()=>pendingCreate==='notifications')
+  const [filesOpen,setFilesOpen]=useState(()=>pendingCreate==='files')
+  const [dataToolsOpen,setDataToolsOpen]=useState(()=>pendingCreate==='data-tools')
+  const [workloadOpen,setWorkloadOpen]=useState(()=>pendingCreate==='workload')
   const [oeeOpen,setOeeOpen]=useState(false)
   const [schedulerOpen,setSchedulerOpen]=useState(false)
   const [purchasingOpen,setPurchasingOpen]=useState(false)
@@ -82,7 +91,8 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
     if(isCreateFlow(key)){setCreateFlow(key);setTargetEquipmentId('');return}
     if(key==='pm'){onOpenPreventiveMaintenance();return}
     if(key==='user'){onOpenPeople();return}
-    if(key==='checklist'||key==='custom-fields'||key==='files'||key==='floor-plan'){setCoreParityOpen(true);return}
+    if(key==='files'){setFilesOpen(true);return}
+    if(key==='checklist'||key==='custom-fields'||key==='floor-plan'){setCoreParityOpen(true);return}
   }
   if(createFlow==='work-order'&&!targetEquipmentId) return <CreateTargetPickerScreen title="Tạo Work Order" onBack={resetCreate} onSelect={setTargetEquipmentId}/>
   if(createFlow==='request'&&!targetEquipmentId) return <CreateTargetPickerScreen title="Tạo yêu cầu sửa chữa" onBack={resetCreate} onSelect={setTargetEquipmentId}/>
@@ -93,6 +103,9 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
   if(createFlow==='part') return <PartFormScreen onBack={resetCreate} onSaved={()=>{resetCreate();onOpenParts()}}/>
   if(createFlow==='vendor') return <CompanyFormScreen onBack={()=>{resetCreate();onOpenVendors()}}/>
   if(createFlow==='customer') return <CompanyFormScreen customer onBack={()=>{resetCreate();onOpenVendors()}}/>
+  if(filesOpen) return <FilesLibraryScreen onBack={()=>setFilesOpen(false)}/>
+  if(dataToolsOpen) return <DataToolsScreen onBack={()=>setDataToolsOpen(false)}/>
+  if(workloadOpen) return <WorkloadPlanningScreen onBack={()=>setWorkloadOpen(false)} onOpenScheduler={()=>{setWorkloadOpen(false);setSchedulerOpen(true)}} onOpenWorkOrder={()=>{setWorkloadOpen(false);onOpenWorkOrders()}}/>
   if(coreParityOpen) return <CoreParityScreen onBack={()=>setCoreParityOpen(false)}/>
   if(notificationsOpen) return <NotificationsScreen onBack={()=>setNotificationsOpen(false)}/>
   if(purchasingOpen) return <PurchaseOrdersScreen onBack={()=>setPurchasingOpen(false)} onAddVendor={()=>{setPurchasingOpen(false);onOpenVendors()}}/>
@@ -100,6 +113,10 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
   if(oeeOpen) return <OeeScreen onBack={()=>setOeeOpen(false)}/>
   return <SafeAreaView style={styles.safeArea} edges={['top','bottom']}><StatusBar style="dark"/><View style={styles.shell}><View style={styles.header}><Text style={styles.title}>Thêm</Text></View><ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>{MENU_ITEMS.map((item)=><Pressable key={item.key} accessibilityRole="button" accessibilityLabel={item.label} onPress={()=>{
     if(item.key==='notifications') return setNotificationsOpen(true)
+    if(item.key==='workload') return setWorkloadOpen(true)
+    if(item.key==='scheduler') return setSchedulerOpen(true)
+    if(item.key==='data-tools') return setDataToolsOpen(true)
+    if(item.key==='files') return setFilesOpen(true)
     if(item.key==='core-parity') return setCoreParityOpen(true)
     if(item.key==='work-order-drafts') return onOpenWorkOrderDrafts()
     if(item.key==='parts') return onOpenParts()
@@ -110,7 +127,6 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
     if(item.key==='people-teams') return onOpenPeople()
     if(item.key==='vendors-contractors') return onOpenVendors()
     if(item.key==='preventive-maintenance') return onOpenPreventiveMaintenance()
-    if(item.key==='scheduler') return setSchedulerOpen(true)
     if(item.key==='oee') return setOeeOpen(true)
     if(item.key==='requests') return onOpenRequests()
     if(item.key==='assets') return onOpenEquipment()
