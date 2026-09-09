@@ -7,6 +7,7 @@ export {
   savePmSchedule,
   setPmScheduleActive,
 } from './api/preventiveMaintenanceService'
+export { saveMeter } from './api/meterWriteService'
 export type {
   MeterItem,
   PmDueItem,
