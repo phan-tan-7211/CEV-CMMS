@@ -34,8 +34,9 @@ const CustomersListPanel = lazy(() => import('./CustomersListPanel').then((modul
 const PurchaseOrdersPanel = lazy(() => import('./PurchaseOrdersPanel').then((module) => ({ default: module.PurchaseOrdersPanel })))
 const CycleCountsPanel = lazy(() => import('./CycleCountsPanel').then((module) => ({ default: module.CycleCountsPanel })))
 const SetsListPanel = lazy(() => import('./SetsListPanel').then((module) => ({ default: module.SetsListPanel })))
+const ReferenceModulePanel = lazy(() => import('./ReferenceModulePanels').then((module) => ({ default: module.ReferenceModulePanel })))
 
-type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'cycle-counts' | 'sets' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
+type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'cycle-counts' | 'sets' | 'files-upkeep' | 'checklists-upkeep' | 'people-upkeep' | 'locations-upkeep' | 'locations-map' | 'teams-upkeep' | 'imports-upkeep' | 'inventory-upkeep' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
 
 const NAV: Array<{ id: View; label: string; adminOnly?: boolean }> = [
   { id: 'dashboard', label: 'Tổng quan' },
@@ -56,6 +57,14 @@ const NAV: Array<{ id: View; label: string; adminOnly?: boolean }> = [
   { id: 'inventory', label: 'Kiểm kê thiết bị' },
   { id: 'cycle-counts', label: 'Kiểm kê chu kỳ' },
   { id: 'sets', label: 'Bộ thẻ' },
+  { id: 'files-upkeep', label: 'Tệp (UpKeep)' },
+  { id: 'checklists-upkeep', label: 'Checklist (UpKeep)' },
+  { id: 'people-upkeep', label: 'Nhân sự (UpKeep)' },
+  { id: 'locations-upkeep', label: 'Địa điểm (UpKeep)' },
+  { id: 'locations-map', label: 'Bản đồ địa điểm' },
+  { id: 'teams-upkeep', label: 'Nhóm (UpKeep)' },
+  { id: 'imports-upkeep', label: 'Nhập work order' },
+  { id: 'inventory-upkeep', label: 'Kho & phụ tùng (UpKeep)' },
   { id: 'spare', label: 'Phụ tùng & Kho' },
   { id: 'purchase-orders', label: 'Đơn đặt hàng' },
   { id: 'customers', label: 'Khách hàng' },
@@ -130,6 +139,14 @@ function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, 
   if (view === 'inventory') return <LiveEquipmentInventoryPanel />
   if (view === 'cycle-counts') return <CycleCountsPanel />
   if (view === 'sets') return <SetsListPanel />
+  if (view === 'files-upkeep') return <ReferenceModulePanel kind="files" />
+  if (view === 'checklists-upkeep') return <ReferenceModulePanel kind="checklists" />
+  if (view === 'people-upkeep') return <ReferenceModulePanel kind="people" />
+  if (view === 'locations-upkeep') return <ReferenceModulePanel kind="locations" />
+  if (view === 'locations-map') return <ReferenceModulePanel kind="locations-map" />
+  if (view === 'teams-upkeep') return <ReferenceModulePanel kind="teams" />
+  if (view === 'imports-upkeep') return <ReferenceModulePanel kind="imports" />
+  if (view === 'inventory-upkeep') return <ReferenceModulePanel kind="inventory" />
   if (view === 'settings') return <LiveAuditPanel />
   return <ModulePlaceholderPanel title={NAV.find((item) => item.id === view)?.label || view} />
 }
