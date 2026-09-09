@@ -76,6 +76,55 @@
   border-bottom-color:#bfd2ef;
 }
 
+/* Resize planned duration directly on the bottom edge of a scheduled WO. */
+.scheduler-time-events .scheduler-event{
+  overflow:visible;
+}
+.scheduler-time-events .scheduler-event>span:not(.scheduler-resize-handle),
+.scheduler-time-events .scheduler-event>strong,
+.scheduler-time-events .scheduler-event>small{
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.scheduler-resize-handle{
+  position:absolute;
+  right:0;
+  bottom:-4px;
+  left:0;
+  z-index:5;
+  display:flex;
+  height:10px;
+  align-items:center;
+  justify-content:center;
+  cursor:ns-resize;
+  touch-action:none;
+}
+.scheduler-resize-handle i{
+  display:block;
+  width:24px;
+  height:3px;
+  border-radius:999px;
+  background:#6f88ad;
+  opacity:.35;
+  transition:width .12s ease,opacity .12s ease,background-color .12s ease;
+}
+.scheduler-event:hover .scheduler-resize-handle i,
+.scheduler-event.resizing .scheduler-resize-handle i{
+  width:34px;
+  opacity:.95;
+  background:#2f63c7;
+}
+.scheduler-event.resizing{
+  z-index:12!important;
+  cursor:ns-resize!important;
+  box-shadow:0 8px 20px rgb(32 49 72 / 18%)!important;
+  opacity:.92;
+}
+.scheduler-event.resizing *{
+  cursor:ns-resize!important;
+}
+
 @media (prefers-reduced-motion:reduce){
-  .scheduler-event[draggable="true"],.scheduler-day,.scheduler-time-day,.scheduler-resource-cell,.scheduler-unscheduled{transition:none!important}
+  .scheduler-event[draggable="true"],.scheduler-day,.scheduler-time-day,.scheduler-resource-cell,.scheduler-unscheduled,.scheduler-resize-handle i{transition:none!important}
 }
