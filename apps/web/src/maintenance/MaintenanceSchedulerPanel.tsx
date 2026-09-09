@@ -159,8 +159,9 @@ export function MaintenanceSchedulerPanel() {
   const periodStartMs = period.start.getTime()
   const periodEndMs = period.end.getTime()
 
-  const refresh = useCallback(async () => {
-    setLoading(true); setError('')
+  const refresh = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    setError('')
     try {
       setEvents(await loadSchedulerEvents({
         startAt: new Date(periodStartMs).toISOString(),
@@ -169,7 +170,9 @@ export function MaintenanceSchedulerPanel() {
       }))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không thể tải lịch bảo trì.')
-    } finally { setLoading(false) }
+    } finally {
+      if (!silent) setLoading(false)
+    }
   }, [periodEndMs, periodStartMs])
 
   useEffect(() => { void refresh() }, [refresh])
@@ -245,20 +248,45 @@ export function MaintenanceSchedulerPanel() {
   }
 
   async function commitMove(event: LiveSchedulerEvent, startAt: string, endAt: string, allowConflict: boolean, assignment?: AssignmentOverride) {
-    setSaving(true); setError('')
+    const personId = assignment?.personId ?? event.primaryPersonId
+    const teamId = assignment?.teamId ?? event.primaryTeamId
+    const personName = personId ? personOptions.find(([id]) => id === personId)?.[1] || (personId === event.primaryPersonId ? event.primaryPersonName : personId) : ''
+    const teamName = teamId ? teamOptions.find(([id]) => id === teamId)?.[1] || (teamId === event.primaryTeamId ? event.primaryTeamName : teamId) : ''
+    const snapshot = events
+
+    setSaving(true)
+    setError('')
+    setPendingMove(null)
+    setSelected(null)
+    setEvents((current) => current.map((candidate) => candidate.eventId === event.eventId
+      ? {
+          ...candidate,
+          startAt,
+          endAt,
+          unscheduled: false,
+          primaryPersonId: personId,
+          primaryPersonName: personName,
+          primaryTeamId: teamId,
+          primaryTeamName: teamName,
+        }
+      : candidate))
+
     try {
       await rescheduleWorkOrder({
         workOrderId: event.workOrderId,
         startAt,
         endAt,
-        personId: assignment?.personId ?? event.primaryPersonId,
-        teamId: assignment?.teamId ?? event.primaryTeamId,
+        personId,
+        teamId,
         allowConflict,
         note: allowConflict ? 'CEV Scheduler: supervisor accepted detected conflict' : surface === 'resources' ? 'CEV Scheduler resource planning' : 'CEV Scheduler drag/drop',
       })
-      setPendingMove(null); setSelected(null); setMessage(`Đã cập nhật lịch ${event.workOrderId}.`); await refresh()
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể cập nhật lịch.') }
-    finally { setSaving(false) }
+      setMessage(`Đã cập nhật lịch ${event.workOrderId}.`)
+      void refresh(true)
+    } catch (cause) {
+      setEvents(snapshot)
+      setError(cause instanceof Error ? cause.message : 'Không thể cập nhật lịch.')
+    } finally { setSaving(false) }
   }
 
   async function saveFromDetail(event: LiveSchedulerEvent, startValue: string, endValue: string) {
