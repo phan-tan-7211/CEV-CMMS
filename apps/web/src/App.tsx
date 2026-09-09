@@ -20,6 +20,7 @@ const LiveCalibrationEvaluationPanel = lazy(() => import('./LiveCalibrationEvalu
 const LiveCalibrationPanel = lazy(() => import('./LiveCalibrationPanel').then((module) => ({ default: module.LiveCalibrationPanel })))
 const LiveCalibrationQuotePanel = lazy(() => import('./LiveCalibrationQuotePanel').then((module) => ({ default: module.LiveCalibrationQuotePanel })))
 const LiveDashboardPanel = lazy(() => import('./LiveDashboardPanel').then((module) => ({ default: module.LiveDashboardPanel })))
+const LiveAnalyticsPanel = lazy(() => import('./LiveAnalyticsPanel').then((module) => ({ default: module.LiveAnalyticsPanel })))
 const EquipmentWorkspace = lazy(() => import('./equipment/EquipmentWorkspace').then((module) => ({ default: module.EquipmentWorkspace })))
 const LiveEquipmentInventoryPanel = lazy(() => import('./LiveEquipmentInventoryPanel').then((module) => ({ default: module.LiveEquipmentInventoryPanel })))
 const LiveInspectionPanel = lazy(() => import('./LiveInspectionPanel').then((module) => ({ default: module.LiveInspectionPanel })))
@@ -134,6 +135,7 @@ function syncUrl(nextView: View, equipmentId = '') {
 
 function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, onCloseQrResult, onEditQrResult, onNavigate }: { view: View; equipmentTarget: string; contextEquipmentId: string; onOpenEquipment: (equipmentId: string) => void; onCloseQrResult: () => void; onEditQrResult: () => void; onNavigate: (view: View) => void }) {
   if (view === 'dashboard') return <LiveDashboardPanel onNavigate={onNavigate} />
+  if (view === 'analytics') return <LiveAnalyticsPanel />
   if (view === 'qr') return <LiveQrScannerPanel onOpenEquipment={onOpenEquipment} />
   if (view === 'equipment' && equipmentTarget) return <QrEquipmentResult equipmentId={equipmentTarget} onClose={onCloseQrResult} onEdit={onEditQrResult} />
   if (view === 'equipment') return <EquipmentWorkspace />
