@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LiveSelectionModal, type LiveSelectionItem } from '../components/LiveSelectionModal'
 import { listPeople, listTeams } from '../features/master-data'
+import { listChecklistTemplates, type ChecklistTemplate } from '../features/core-parity/api/coreParityService'
+import { applyChecklistTemplateToWorkOrder } from '../features/core-parity/api/coreIntegrationService'
 import {
   getLatestCreateDraftForEquipment,
   getLocalWorkOrderDraft,
@@ -22,17 +24,7 @@ const DRAFT_LABEL: Record<WorkOrderDraftSyncState, string> = {
   ERROR: 'Bản nháp cần kiểm tra lại',
 }
 
-export function CreateWorkOrderScreen({
-  equipmentId,
-  draftLocalId,
-  onBack,
-  onCreated,
-}: {
-  equipmentId: string
-  draftLocalId?: string
-  onBack: () => void
-  onCreated: (workOrderId: string) => void
-}) {
+export function CreateWorkOrderScreen({ equipmentId, draftLocalId, onBack, onCreated }: { equipmentId: string; draftLocalId?: string; onBack: () => void; onCreated: (workOrderId: string) => void }) {
   const [reason, setReason] = useState('')
   const [priority, setPriority] = useState('MEDIUM')
   const [saving, setSaving] = useState(false)
@@ -44,14 +36,20 @@ export function CreateWorkOrderScreen({
   const [team,setTeam]=useState<LiveSelectionItem|null>(null)
   const [hydrated,setHydrated]=useState(false)
   const [draftState,setDraftState]=useState<WorkOrderDraftSyncState|null>(null)
+  const [templates,setTemplates]=useState<ChecklistTemplate[]>([])
+  const [templateId,setTemplateId]=useState('')
   const localDraftIdRef=useRef<string|undefined>(draftLocalId)
 
   useEffect(()=>{
     let active=true
+    void listChecklistTemplates().then((rows)=>{if(active)setTemplates(rows)}).catch(()=>{if(active)setTemplates([])})
+    return()=>{active=false}
+  },[])
+
+  useEffect(()=>{
+    let active=true
     setHydrated(false)
-    const loader = draftLocalId
-      ? getLocalWorkOrderDraft(draftLocalId)
-      : getLatestCreateDraftForEquipment(equipmentId)
+    const loader = draftLocalId ? getLocalWorkOrderDraft(draftLocalId) : getLatestCreateDraftForEquipment(equipmentId)
     void loader.then((draft)=>{
       if(!active||!draft)return
       if (draft.payload.equipmentId !== equipmentId) return
@@ -70,10 +68,7 @@ export function CreateWorkOrderScreen({
     const hasContent=Boolean(reason.trim()||person||team||priority!=='MEDIUM')
     if(!hasContent)return undefined
     const handle=setTimeout(()=>{
-      void saveWorkOrderCreateDraft({
-        localId:localDraftIdRef.current,
-        payload:{equipmentId,reason,priority,person,team},
-      }).then((draft)=>{
+      void saveWorkOrderCreateDraft({ localId:localDraftIdRef.current, payload:{equipmentId,reason,priority,person,team} }).then((draft)=>{
         localDraftIdRef.current=draft.localId
         setDraftState(draft.syncState)
       })
@@ -99,16 +94,21 @@ export function CreateWorkOrderScreen({
     if (saving || !reason.trim()) return
     setSaving(true)
     try {
-      const draft=await saveWorkOrderCreateDraft({
-        localId:localDraftIdRef.current,
-        payload:{equipmentId,reason,priority,person,team},
-        submitOnReconnect:true,
-      })
+      const draft=await saveWorkOrderCreateDraft({ localId:localDraftIdRef.current, payload:{equipmentId,reason,priority,person,team}, submitOnReconnect:true })
       localDraftIdRef.current=draft.localId
       setDraftState('QUEUED')
       const result=await submitWorkOrderDraft(draft)
       setDraftState(null)
-      Alert.alert('Đã tạo Work Order', result.workOrderId, [{ text: 'Mở Work Order', onPress: () => onCreated(result.workOrderId) }])
+      let checklistMessage=''
+      if(templateId) {
+        try {
+          const applied=await applyChecklistTemplateToWorkOrder(result.workOrderId,templateId)
+          checklistMessage=`\nĐã thêm ${applied.appliedCount} mục checklist.`
+        } catch(error) {
+          checklistMessage=`\nWork Order đã tạo nhưng checklist chưa áp dụng: ${error instanceof Error?error.message:'lỗi checklist'}`
+        }
+      }
+      Alert.alert('Đã tạo Work Order', `${result.workOrderId}${checklistMessage}`, [{ text: 'Mở Work Order', onPress: () => onCreated(result.workOrderId) }])
     } catch (error) {
       if(isLikelyNetworkError(error)) {
         setDraftState('QUEUED')
@@ -131,6 +131,8 @@ export function CreateWorkOrderScreen({
       <TextInput value={reason} onChangeText={setReason} multiline placeholder="Mô tả sự cố hoặc công việc cần thực hiện" placeholderTextColor="#98A2B3" style={styles.textarea} />
       <Text style={styles.fieldLabel}>Mức ưu tiên</Text>
       <View style={styles.priorityRow}>{priorities.map(([value, label]) => <Pressable key={value} onPress={() => setPriority(value)} style={[styles.priority, priority === value && styles.priorityActive]}><Text style={[styles.priorityText, priority === value && styles.priorityTextActive]}>{label}</Text></Pressable>)}</View>
+      <Text style={styles.fieldLabel}>Checklist template</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.templateRow}><Pressable onPress={()=>setTemplateId('')} style={[styles.templateChip,!templateId&&styles.templateChipActive]}><Text style={[styles.templateText,!templateId&&styles.templateTextActive]}>Không dùng</Text></Pressable>{templates.map((template)=><Pressable key={template.templateId} onPress={()=>setTemplateId(template.templateId)} style={[styles.templateChip,templateId===template.templateId&&styles.templateChipActive]}><Text style={[styles.templateText,templateId===template.templateId&&styles.templateTextActive]}>{template.name} · {template.items.length}</Text></Pressable>)}</ScrollView>
       <Text style={styles.fieldLabel}>Người dùng được giao</Text>
       <Pressable onPress={()=>void openPicker('people')} style={styles.selectRow}><Text style={person?styles.selectValue:styles.selectPlaceholder}>{person?.title||'Chọn người thực hiện'}</Text><Ionicons name="chevron-forward" size={21} color="#98A2B3" /></Pressable>
       <Text style={styles.fieldLabel}>Nhóm được giao</Text>
@@ -141,4 +143,4 @@ export function CreateWorkOrderScreen({
   <LiveSelectionModal visible={picker!==null} title={picker==='people'?'Chọn người':'Chọn nhóm'} items={pickerItems} selectedId={picker==='people'?person?.id:team?.id} loading={pickerLoading} error={pickerError} onClose={()=>setPicker(null)} onSelect={(item)=>{if(picker==='people')setPerson(item);else setTeam(item);setPicker(null)}}/>
   </>
 }
-const styles = StyleSheet.create({ safeArea:{flex:1,backgroundColor:'#F1F1FA'}, header:{minHeight:60,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:'#FFF',borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:'#E5E5EF'}, icon:{width:46,height:46,alignItems:'center',justifyContent:'center'}, title:{fontSize:20,fontWeight:'900',color:'#101828'}, content:{padding:14,paddingBottom:30}, assetCard:{padding:15,flexDirection:'row',alignItems:'center',gap:10,borderRadius:17,backgroundColor:'#E9EDFF'}, assetCopy:{flex:1}, label:{fontSize:12,fontWeight:'800',color:'#667085'}, assetId:{marginTop:3,fontSize:16,fontWeight:'900',color:'#155EEF'}, draftBanner:{marginTop:12,minHeight:42,paddingHorizontal:12,flexDirection:'row',alignItems:'center',gap:8,borderRadius:12,borderWidth:1,borderColor:'#D0D5DD',backgroundColor:'#FFF'}, draftQueued:{borderColor:'#FEDF89',backgroundColor:'#FFFAEB'}, draftError:{borderColor:'#FECDCA',backgroundColor:'#FEF3F2'}, draftText:{flex:1,fontSize:12.5,fontWeight:'800',color:'#475467'},draftErrorText:{color:'#B42318'}, fieldLabel:{marginTop:22,marginBottom:8,fontSize:13.5,fontWeight:'900',color:'#344054'}, textarea:{minHeight:125,padding:14,borderWidth:1,borderColor:'#D7D8E5',borderRadius:16,fontSize:15,color:'#101828',textAlignVertical:'top',backgroundColor:'#FFF'}, priorityRow:{flexDirection:'row',flexWrap:'wrap',gap:8}, priority:{paddingHorizontal:14,paddingVertical:11,borderRadius:18,borderWidth:1,borderColor:'#D9DAE7',backgroundColor:'#FFF'}, priorityActive:{borderColor:'#536DFE',backgroundColor:'#536DFE'}, priorityText:{fontSize:12,fontWeight:'800',color:'#475467'}, priorityTextActive:{color:'#FFF'}, selectRow:{minHeight:55,paddingHorizontal:14,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderRadius:15,borderWidth:1,borderColor:'#D7D8E5',backgroundColor:'#FFF'}, selectPlaceholder:{flex:1,fontSize:14,color:'#98A2B3'},selectValue:{flex:1,fontSize:14,fontWeight:'800',color:'#101828'}, bottom:{padding:16,borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:'#EAECF0',backgroundColor:'#FFF'}, submit:{minHeight:52,borderRadius:26,alignItems:'center',justifyContent:'center',backgroundColor:'#536DFE'}, disabled:{opacity:.45}, submitText:{fontSize:16,fontWeight:'900',color:'#FFF'} })
+const styles = StyleSheet.create({ safeArea:{flex:1,backgroundColor:'#F1F1FA'}, header:{minHeight:60,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:'#FFF',borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:'#E5E5EF'}, icon:{width:46,height:46,alignItems:'center',justifyContent:'center'}, title:{fontSize:20,fontWeight:'900',color:'#101828'}, content:{padding:14,paddingBottom:30}, assetCard:{padding:15,flexDirection:'row',alignItems:'center',gap:10,borderRadius:17,backgroundColor:'#E9EDFF'}, assetCopy:{flex:1}, label:{fontSize:12,fontWeight:'800',color:'#667085'}, assetId:{marginTop:3,fontSize:16,fontWeight:'900',color:'#155EEF'}, draftBanner:{marginTop:12,minHeight:42,paddingHorizontal:12,flexDirection:'row',alignItems:'center',gap:8,borderRadius:12,borderWidth:1,borderColor:'#D0D5DD',backgroundColor:'#FFF'}, draftQueued:{borderColor:'#FEDF89',backgroundColor:'#FFFAEB'}, draftError:{borderColor:'#FECDCA',backgroundColor:'#FEF3F2'}, draftText:{flex:1,fontSize:12.5,fontWeight:'800',color:'#475467'},draftErrorText:{color:'#B42318'}, fieldLabel:{marginTop:22,marginBottom:8,fontSize:13.5,fontWeight:'900',color:'#344054'}, textarea:{minHeight:125,padding:14,borderWidth:1,borderColor:'#D7D8E5',borderRadius:16,fontSize:15,color:'#101828',textAlignVertical:'top',backgroundColor:'#FFF'}, priorityRow:{flexDirection:'row',flexWrap:'wrap',gap:8}, priority:{paddingHorizontal:14,paddingVertical:11,borderRadius:18,borderWidth:1,borderColor:'#D9DAE7',backgroundColor:'#FFF'}, priorityActive:{borderColor:'#536DFE',backgroundColor:'#536DFE'}, priorityText:{fontSize:12,fontWeight:'800',color:'#475467'}, priorityTextActive:{color:'#FFF'},templateRow:{gap:8,paddingVertical:2},templateChip:{paddingHorizontal:12,paddingVertical:10,borderRadius:18,borderWidth:1,borderColor:'#D0D5DD',backgroundColor:'#FFF'},templateChipActive:{borderColor:'#6941C6',backgroundColor:'#F4F0FF'},templateText:{fontSize:12,fontWeight:'800',color:'#475467'},templateTextActive:{color:'#6941C6'}, selectRow:{minHeight:55,paddingHorizontal:14,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderRadius:15,borderWidth:1,borderColor:'#D7D8E5',backgroundColor:'#FFF'}, selectPlaceholder:{flex:1,fontSize:14,color:'#98A2B3'},selectValue:{flex:1,fontSize:14,fontWeight:'800',color:'#101828'}, bottom:{padding:16,borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:'#EAECF0',backgroundColor:'#FFF'}, submit:{minHeight:52,borderRadius:26,alignItems:'center',justifyContent:'center',backgroundColor:'#536DFE'}, disabled:{opacity:.45}, submitText:{fontSize:16,fontWeight:'900',color:'#FFF'} })
