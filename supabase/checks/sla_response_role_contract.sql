@@ -18,7 +18,7 @@ begin
   if position('SLA_ENTITY_NOT_FOUND' in v_src)=0 then
     raise exception 'SLA response entity validation missing';
   end if;
-  if position('when status=''WARNING'' then ''ACTIVE''' in lower(v_src))=0 then
+  if position('when status=''warning'' then ''active''' in lower(v_src))=0 then
     raise exception 'SLA response warning reset missing';
   end if;
 end $$;
