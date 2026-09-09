@@ -9,6 +9,7 @@ async function rpc(name: string, params: Record<string, unknown>, fallback: stri
 }
 
 export type WorkOrderTransitionAction = 'REQUEST_APPROVAL' | 'APPROVE' | 'START' | 'COMPLETE' | 'VERIFY' | 'RELEASE'
+export type WorkOrderLaborInput = { workOrderId: string; personId: string; startedAt: string; endedAt?: string; hourlyRate?: number | null; note?: string }
 
 export async function createMaintenanceWorkOrder(input: { equipmentId: string; reason: string; priority: string; sourceType?: string; sourceId?: string; personIds?: string[]; teamIds?: string[]; operationId?: string }) {
   const reason = input.reason.trim()
@@ -60,9 +61,14 @@ export async function addWorkOrderPartUsage(input: { workOrderId: string; partNa
   return rpc('rpc_cmms_add_part_usage', { p_work_order_id: input.workOrderId.trim(), p_part_name: input.partName.trim(), p_quantity: input.quantity, p_unit: input.unit || null, p_unit_cost: input.unitCost ?? null, p_spare_part_id: null, p_notes: input.notes || null }, 'Không thể ghi nhận phụ tùng sử dụng.')
 }
 
-export async function addWorkOrderLabor(input: { workOrderId: string; personId: string; startedAt: string; endedAt?: string; hourlyRate?: number | null; note?: string }) {
+export async function addWorkOrderLaborOnline(input: WorkOrderLaborInput) {
   if (!input.personId) throw new Error('Chọn người thực hiện trước khi ghi giờ công.')
   return rpc('rpc_cmms_add_labor', { p_work_order_id: input.workOrderId.trim(), p_person_id: input.personId, p_started_at: input.startedAt, p_ended_at: input.endedAt || null, p_hourly_rate: input.hourlyRate ?? null, p_note: input.note || null }, 'Không thể ghi nhận giờ công.')
+}
+
+export async function addWorkOrderLabor(input: WorkOrderLaborInput) {
+  const offline = await import('./workOrderPartLaborOfflineService')
+  return offline.addWorkOrderLaborOffline(input)
 }
 
 export async function saveWorkOrderExecution(input: { workOrderId: string; rootCause?: string; correctiveAction?: string; preventiveAction?: string; executionNote?: string; downtimeStartedAt?: string; downtimeEndedAt?: string; downtimeCauseCategory?: string; downtimeDetail?: string }) {
