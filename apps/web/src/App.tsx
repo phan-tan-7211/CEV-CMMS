@@ -35,8 +35,9 @@ const PurchaseOrdersPanel = lazy(() => import('./PurchaseOrdersPanel').then((mod
 const CycleCountsPanel = lazy(() => import('./CycleCountsPanel').then((module) => ({ default: module.CycleCountsPanel })))
 const SetsListPanel = lazy(() => import('./SetsListPanel').then((module) => ({ default: module.SetsListPanel })))
 const ReferenceModulePanel = lazy(() => import('./ReferenceModulePanels').then((module) => ({ default: module.ReferenceModulePanel })))
+const RequestsListPanel = lazy(() => import('./RequestsListPanel').then((module) => ({ default: module.RequestsListPanel })))
 
-type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'cycle-counts' | 'sets' | 'files-upkeep' | 'checklists-upkeep' | 'people-upkeep' | 'locations-upkeep' | 'locations-map' | 'teams-upkeep' | 'imports-upkeep' | 'inventory-upkeep' | 'parts-upkeep' | 'edge-upkeep' | 'meters-upkeep' | 'analytics-upkeep' | 'analytics-complete-upkeep' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
+type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'cycle-counts' | 'sets' | 'files-upkeep' | 'checklists-upkeep' | 'people-upkeep' | 'locations-upkeep' | 'locations-map' | 'teams-upkeep' | 'imports-upkeep' | 'inventory-upkeep' | 'parts-upkeep' | 'edge-upkeep' | 'meters-upkeep' | 'analytics-upkeep' | 'analytics-complete-upkeep' | 'requests-upkeep' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
 
 const NAV: Array<{ id: View; label: string; adminOnly?: boolean }> = [
   { id: 'dashboard', label: 'Tổng quan' },
@@ -70,6 +71,7 @@ const NAV: Array<{ id: View; label: string; adminOnly?: boolean }> = [
   { id: 'meters-upkeep', label: 'Đồng hồ đo (UpKeep)' },
   { id: 'analytics-upkeep', label: 'Phân tích (UpKeep)' },
   { id: 'analytics-complete-upkeep', label: 'Phân tích hoàn thành (UpKeep)' },
+  { id: 'requests-upkeep', label: 'Yêu cầu (UpKeep)' },
   { id: 'spare', label: 'Phụ tùng & Kho' },
   { id: 'purchase-orders', label: 'Đơn đặt hàng' },
   { id: 'customers', label: 'Khách hàng' },
@@ -157,6 +159,7 @@ function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, 
   if (view === 'meters-upkeep') return <ReferenceModulePanel kind="meters" />
   if (view === 'analytics-upkeep') return <ReferenceModulePanel kind="analytics-open" />
   if (view === 'analytics-complete-upkeep') return <ReferenceModulePanel kind="analytics-complete" />
+  if (view === 'requests-upkeep') return <RequestsListPanel />
   if (view === 'settings') return <LiveAuditPanel />
   return <ModulePlaceholderPanel title={NAV.find((item) => item.id === view)?.label || view} />
 }
