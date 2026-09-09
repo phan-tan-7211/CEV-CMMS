@@ -157,11 +157,7 @@ export function MobileShell() {
   const scopedEquipmentId = String(currentEntry.equipmentId || '')
 
   if (session === undefined) {
-    return (
-      <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color="#155EEF" />
-      </View>
-    )
+    return <View style={styles.loadingScreen}><ActivityIndicator size="large" color="#155EEF" /></View>
   }
 
   if (!session) return <LoginScreen onSignIn={handleSignIn} />
@@ -171,44 +167,27 @@ export function MobileShell() {
 
   if (route === 'registration') return <EquipmentRegistrationScreen onBack={goBack} initialBarcode={currentEntry.barcode} onCreated={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })} />
   if (route === 'equipment') {
-    return (
-      <EquipmentListScreen
-        onBack={goBack}
-        onOpenScan={() => navigate({ name: 'simple-scan' })}
-        onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
-        currentUserKeys={currentUserFilterKeys(session)}
-      />
-    )
+    return <EquipmentListScreen onBack={goBack} onOpenScan={() => navigate({ name: 'simple-scan' })} onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })} currentUserKeys={currentUserFilterKeys(session)} />
   }
   if (route === 'equipment-detail' && selectedEquipmentId) {
-    return (
-      <EquipmentDetailScreen
-        equipmentId={selectedEquipmentId}
-        onBack={goBack}
-        onOpenStatus={(equipmentStatus) => navigate({ name: 'equipment-status', equipmentId: selectedEquipmentId, equipmentStatus })}
-      />
-    )
+    return <EquipmentDetailScreen
+      equipmentId={selectedEquipmentId}
+      onBack={goBack}
+      onOpenStatus={(equipmentStatus) => navigate({ name: 'equipment-status', equipmentId: selectedEquipmentId, equipmentStatus })}
+      onOpenWorkOrders={() => navigate({ name: 'work-orders', equipmentId: selectedEquipmentId })}
+      onOpenRequests={() => navigate({ name: 'requests', equipmentId: selectedEquipmentId })}
+      onCreateWorkOrder={() => navigate({ name: 'create-work-order', equipmentId: selectedEquipmentId })}
+      onCreateRequest={() => navigate({ name: 'create-request', equipmentId: selectedEquipmentId })}
+      onOpenHierarchy={() => navigate({ name: 'equipment-hierarchy', equipmentId: selectedEquipmentId })}
+    />
   }
   if (route === 'equipment-status' && selectedEquipmentId) {
-    return (
-      <EquipmentStatusScreen
-        equipmentId={selectedEquipmentId}
-        currentStatus={String(currentEntry.equipmentStatus || '')}
-        onBack={goBack}
-        onSaved={() => goBack()}
-      />
-    )
+    return <EquipmentStatusScreen equipmentId={selectedEquipmentId} currentStatus={String(currentEntry.equipmentStatus || '')} onBack={goBack} onSaved={() => goBack()} />
   }
-  if (route === 'equipment-hierarchy' && selectedEquipmentId) {
-    return <EquipmentHierarchyScreen equipmentId={selectedEquipmentId} onBack={goBack} />
-  }
-  if (route === 'create-work-order' && scopedEquipmentId) {
-    return <CreateWorkOrderScreen equipmentId={scopedEquipmentId} draftLocalId={currentEntry.draftLocalId} onBack={goBack} onCreated={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
-  }
-  if (route === 'work-order-drafts') {
-    return <WorkOrderDraftsScreen onBack={goBack} onResume={(draft) => navigate({ name: 'create-work-order', equipmentId: draft.payload.equipmentId, draftLocalId: draft.localId })} />
-  }
-  if (route === 'part-detail' && selectedPartId) return <PartDetailsScreen partId={selectedPartId} onBack={goBack} />
+  if (route === 'equipment-hierarchy' && selectedEquipmentId) return <EquipmentHierarchyScreen equipmentId={selectedEquipmentId} onBack={goBack} />
+  if (route === 'create-work-order' && scopedEquipmentId) return <CreateWorkOrderScreen equipmentId={scopedEquipmentId} draftLocalId={currentEntry.draftLocalId} onBack={goBack} onCreated={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
+  if (route === 'work-order-drafts') return <WorkOrderDraftsScreen onBack={goBack} onResume={(draft) => navigate({ name: 'create-work-order', equipmentId: draft.payload.equipmentId, draftLocalId: draft.localId })} />
+  if (route === 'part-detail' && selectedPartId) return <PartDetailsScreen partId={selectedPartId} onBack={goBack} onOpenInventory={() => navigate({ name: 'part-inventory', partId: selectedPartId })} onCreateWorkOrder={() => navigate({ name: 'part-work-order', partId: selectedPartId })} />
   if (route === 'part-inventory' && selectedPartId) return <PartInventoryScreen partId={selectedPartId} onBack={goBack} />
   if (route === 'part-work-order' && selectedPartId) return <PartWorkOrderScreen partId={selectedPartId} onBack={goBack} onCreated={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
   if (route === 'part-form') return <PartFormScreen partId={selectedPartId} initialBarcode={currentEntry.barcode} onBack={goBack} onSaved={(partId) => navigate({ name: 'part-detail', partId })} />
@@ -232,61 +211,45 @@ export function MobileShell() {
   }} />
   if (route === 'create-request' && scopedEquipmentId) return <CreateRequestScreen equipmentId={scopedEquipmentId} sourceId={currentEntry.barcode} onBack={goBack} onCreated={() => navigate({ name: 'requests', equipmentId: scopedEquipmentId })} />
   if (route === 'scan') {
-    return (
-      <ScanAssetScreen
-        onBack={goBack}
-        onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
-        onOpenHierarchy={(equipmentId) => navigate({ name: 'equipment-hierarchy', equipmentId })}
-        onOpenPendingWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'pending' })}
-        onOpenPendingRequests={(equipmentId) => navigate({ name: 'requests', equipmentId })}
-        onOpenCompletedWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'completed' })}
-        onCreateAsset={(code) => navigate({ name: 'registration', barcode: code })}
-        onCreatePart={(code) => navigate({ name: 'part-form', barcode: code })}
-        onCreateWorkOrder={(equipmentId) => navigate({ name: 'create-work-order', equipmentId })}
-        onOpenPart={(partId) => navigate({ name: 'part-detail', partId })}
-        onOpenPartInventory={(partId) => navigate({ name: 'part-inventory', partId })}
-        onCreatePartWorkOrder={(partId) => navigate({ name: 'part-work-order', partId })}
-        onCreatePortalWorkOrder={(equipmentId) => navigate({ name: 'create-work-order', equipmentId })}
-        onCreatePortalRequest={(equipmentId, sourceId) => navigate({ name: 'create-request', equipmentId, barcode: sourceId })}
-        isOperatorFlow={Boolean(currentEntry.operatorFlow)}
-      />
-    )
+    return <ScanAssetScreen
+      onBack={goBack}
+      onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
+      onOpenHierarchy={(equipmentId) => navigate({ name: 'equipment-hierarchy', equipmentId })}
+      onOpenPendingWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'pending' })}
+      onOpenPendingRequests={(equipmentId) => navigate({ name: 'requests', equipmentId })}
+      onOpenCompletedWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'completed' })}
+      onCreateAsset={(code) => navigate({ name: 'registration', barcode: code })}
+      onCreatePart={(code) => navigate({ name: 'part-form', barcode: code })}
+      onCreateWorkOrder={(equipmentId) => navigate({ name: 'create-work-order', equipmentId })}
+      onOpenPart={(partId) => navigate({ name: 'part-detail', partId })}
+      onOpenPartInventory={(partId) => navigate({ name: 'part-inventory', partId })}
+      onCreatePartWorkOrder={(partId) => navigate({ name: 'part-work-order', partId })}
+      onCreatePortalWorkOrder={(equipmentId) => navigate({ name: 'create-work-order', equipmentId })}
+      onCreatePortalRequest={(equipmentId, sourceId) => navigate({ name: 'create-request', equipmentId, barcode: sourceId })}
+      isOperatorFlow={Boolean(currentEntry.operatorFlow)}
+    />
   }
   if (route === 'simple-scan') {
-    return (
-      <SimpleScannerScreen
-        title="Quét mã thiết bị"
-        onBack={goBack}
-        onResult={async (code) => {
-          try {
-            const asset = await revalidateEquipmentDetail(code, { force: true })
-            navigate({ name: 'equipment-detail', equipmentId: asset.equipmentId })
-            return true
-          } catch {
-            Alert.alert('Không tìm thấy tài sản', `Chưa có tài sản nào có mã “${code}”.`, [
-              { text: 'Quét lại', style: 'cancel' },
-              { text: 'Tạo tài sản', onPress: () => navigate({ name: 'registration', barcode: code }) },
-            ])
-            return false
-          }
-        }}
-      />
-    )
+    return <SimpleScannerScreen title="Quét mã thiết bị" onBack={goBack} onResult={async (code) => {
+      try {
+        const asset = await revalidateEquipmentDetail(code, { force: true })
+        navigate({ name: 'equipment-detail', equipmentId: asset.equipmentId })
+        return true
+      } catch {
+        Alert.alert('Không tìm thấy tài sản', `Chưa có tài sản nào có mã “${code}”.`, [
+          { text: 'Quét lại', style: 'cancel' },
+          { text: 'Tạo tài sản', onPress: () => navigate({ name: 'registration', barcode: code }) },
+        ])
+        return false
+      }
+    }} />
   }
-  if (route === 'work-order-dashboard') {
-    return <WorkOrderDashboardScreen onBack={goBack} onOpenList={(dashboardFilter) => navigate({ name: 'work-order-dashboard-list', dashboardFilter })} />
-  }
-  if (route === 'work-order-dashboard-list') {
-    return <WorkOrderDashboardListScreen filter={currentEntry.dashboardFilter || 'all'} onBack={goBack} onOpenWorkOrder={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
-  }
-  if (route === 'work-orders') {
-    return <WorkOrdersScreen onBack={goBack} equipmentId={scopedEquipmentId || undefined} scope={currentEntry.workOrderScope} onOpenWorkOrder={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
-  }
-  if (route === 'work-order-detail' && selectedWorkOrderId) {
-    return <WorkOrderDetailScreen workOrderId={selectedWorkOrderId} onBack={goBack} />
-  }
+  if (route === 'work-order-dashboard') return <WorkOrderDashboardScreen onBack={goBack} onOpenList={(dashboardFilter) => navigate({ name: 'work-order-dashboard-list', dashboardFilter })} />
+  if (route === 'work-order-dashboard-list') return <WorkOrderDashboardListScreen filter={currentEntry.dashboardFilter || 'all'} onBack={goBack} onOpenWorkOrder={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
+  if (route === 'work-orders') return <WorkOrdersScreen onBack={goBack} equipmentId={scopedEquipmentId || undefined} scope={currentEntry.workOrderScope} onOpenWorkOrder={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
+  if (route === 'work-order-detail' && selectedWorkOrderId) return <WorkOrderDetailScreen workOrderId={selectedWorkOrderId} onBack={goBack} />
   if (route === 'requests') return <RequestsScreen onBack={goBack} equipmentId={scopedEquipmentId || undefined} onOpenRequest={(requestId) => navigate({ name: 'request-detail', requestId })} />
-  if (route === 'request-detail' && selectedRequestId) return <RequestDetailScreen requestId={selectedRequestId} onBack={goBack} />
+  if (route === 'request-detail' && selectedRequestId) return <RequestDetailScreen requestId={selectedRequestId} onBack={goBack} onOpenEquipment={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })} onOpenWorkOrder={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
   if (route === 'locations') return <LocationsScreen onBack={goBack} onAdd={() => navigate({ name: 'location-form' })} />
   if (route === 'location-form') return <LocationFormScreen onBack={goBack} />
   if (route === 'inventory') return <InventoryScreen onBack={goBack} onOpenPartInventory={(partId) => navigate({ name: 'part-inventory', partId })} onScan={() => navigate({ name: 'part-scan', partScanTarget: 'inventory' })} />
@@ -297,52 +260,45 @@ export function MobileShell() {
   if (route === 'people') return <PeopleScreen onBack={goBack} />
   if (route === 'preventive-maintenance') return <PreventiveMaintenanceScreen onBack={goBack} />
   if (route === 'more') {
-    return (
-      <MoreScreen
-        onHome={resetNavigation}
-        onOpenWorkOrders={() => navigate({ name: 'work-order-dashboard' })}
-        onOpenWorkOrderDrafts={() => navigate({ name: 'work-order-drafts' })}
-        onOpenRequests={() => navigate({ name: 'requests' })}
-        onOpenEquipment={() => navigate({ name: 'equipment' })}
-        onCreateEquipment={() => navigate({ name: 'registration' })}
-        onOpenOperatorScan={() => navigate({ name: 'scan', operatorFlow: true })}
-        onOpenParts={() => navigate({ name: 'part-list' })}
-        onOpenLocations={() => navigate({ name: 'locations' })}
-        onOpenInventory={() => navigate({ name: 'inventory' })}
-        onOpenMeters={() => navigate({ name: 'meters' })}
-        onOpenVendors={() => navigate({ name: 'vendors' })}
-        onOpenPeople={() => navigate({ name: 'people' })}
-        onOpenPreventiveMaintenance={() => navigate({ name: 'preventive-maintenance' })}
-        isAdmin={adminSession}
-        isOperatorFlow={operatorFlow}
-      />
-    )
-  }
-  if (route === 'settings') {
-    return <AccountSettingsScreen session={session} onBack={goBack} onSignOut={handleSignOut} />
-  }
-
-  return (
-    <HomeScreen
-      onCreateEquipment={() => navigate({ name: 'registration' })}
-      onOpenScan={() => navigate({ name: 'scan' })}
-      onOpenOperatorScan={() => navigate({ name: 'scan', operatorFlow: true })}
+    return <MoreScreen
+      onHome={resetNavigation}
       onOpenWorkOrders={() => navigate({ name: 'work-order-dashboard' })}
-      onOpenEquipment={() => navigate({ name: 'equipment' })}
+      onOpenWorkOrderById={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })}
+      onOpenWorkOrderDrafts={() => navigate({ name: 'work-order-drafts' })}
       onOpenRequests={() => navigate({ name: 'requests' })}
-      onOpenMore={() => navigate({ name: 'more' })}
-      onOpenSettings={() => navigate({ name: 'settings' })}
+      onOpenRequestById={(requestId) => navigate({ name: 'request-detail', requestId })}
+      onOpenEquipment={() => navigate({ name: 'equipment' })}
+      onOpenEquipmentById={(equipmentId) => navigate({ name: 'equipment-detail', equipmentId })}
+      onCreateEquipment={() => navigate({ name: 'registration' })}
+      onOpenOperatorScan={() => navigate({ name: 'scan', operatorFlow: true })}
+      onOpenParts={() => navigate({ name: 'part-list' })}
+      onOpenPartById={(partId) => navigate({ name: 'part-detail', partId })}
+      onOpenLocations={() => navigate({ name: 'locations' })}
+      onOpenInventory={() => navigate({ name: 'inventory' })}
+      onOpenMeters={() => navigate({ name: 'meters' })}
+      onOpenVendors={() => navigate({ name: 'vendors' })}
+      onOpenPeople={() => navigate({ name: 'people' })}
+      onOpenPreventiveMaintenance={() => navigate({ name: 'preventive-maintenance' })}
       isAdmin={adminSession}
       isOperatorFlow={operatorFlow}
     />
-  )
+  }
+  if (route === 'settings') return <AccountSettingsScreen session={session} onBack={goBack} onSignOut={handleSignOut} />
+
+  return <HomeScreen
+    onCreateEquipment={() => navigate({ name: 'registration' })}
+    onOpenScan={() => navigate({ name: 'scan' })}
+    onOpenOperatorScan={() => navigate({ name: 'scan', operatorFlow: true })}
+    onOpenWorkOrders={() => navigate({ name: 'work-order-dashboard' })}
+    onOpenEquipment={() => navigate({ name: 'equipment' })}
+    onOpenRequests={() => navigate({ name: 'requests' })}
+    onOpenMore={() => navigate({ name: 'more' })}
+    onOpenSettings={() => navigate({ name: 'settings' })}
+    isAdmin={adminSession}
+    isOperatorFlow={operatorFlow}
+  />
 }
 
 const styles = StyleSheet.create({
-  loadingScreen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8F9FB',
-  },
+  loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8F9FB' },
 })

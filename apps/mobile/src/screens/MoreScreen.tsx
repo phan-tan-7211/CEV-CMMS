@@ -32,12 +32,16 @@ type CreateFlow = 'work-order'|'request'|'location'|'meter'|'part'|'vendor'|'cus
 type MoreScreenProps = {
   onHome: () => void
   onOpenWorkOrders: () => void
+  onOpenWorkOrderById: (workOrderId: string) => void
   onOpenWorkOrderDrafts: () => void
   onOpenRequests: () => void
+  onOpenRequestById: (requestId: string) => void
   onOpenEquipment: () => void
+  onOpenEquipmentById: (equipmentId: string) => void
   onCreateEquipment: () => void
   onOpenOperatorScan: () => void
   onOpenParts: () => void
+  onOpenPartById: (partId: string) => void
   onOpenLocations: () => void
   onOpenInventory: () => void
   onOpenMeters: () => void
@@ -72,11 +76,9 @@ const MENU_ITEMS: MoreMenuItem[] = [
   { key:'vendors-contractors',label:'Nhà cung cấp & Nhà thầu',icon:'people-circle-outline',iconColor:'#F79009',backgroundColor:'#E8E5D8' },
 ]
 
-function isCreateFlow(value: string | null): value is Exclude<CreateFlow,null> {
-  return value === 'work-order' || value === 'request' || value === 'location' || value === 'meter' || value === 'part' || value === 'vendor' || value === 'customer'
-}
+function isCreateFlow(value: string | null): value is Exclude<CreateFlow,null> { return value === 'work-order' || value === 'request' || value === 'location' || value === 'meter' || value === 'part' || value === 'vendor' || value === 'customer' }
 
-export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpenRequests,onOpenEquipment,onCreateEquipment,onOpenOperatorScan,onOpenParts,onOpenLocations,onOpenInventory,onOpenMeters,onOpenVendors,onOpenPeople,onOpenPreventiveMaintenance,isAdmin=false,isOperatorFlow=false }: MoreScreenProps) {
+export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderById,onOpenWorkOrderDrafts,onOpenRequests,onOpenRequestById,onOpenEquipment,onOpenEquipmentById,onCreateEquipment,onOpenOperatorScan,onOpenParts,onOpenPartById,onOpenLocations,onOpenInventory,onOpenMeters,onOpenVendors,onOpenPeople,onOpenPreventiveMaintenance,isAdmin=false,isOperatorFlow=false }: MoreScreenProps) {
   const [pendingCreate] = useState(() => consumePendingCreateAction())
   const [createMenuOpen,setCreateMenuOpen]=useState(false)
   const [createFlow,setCreateFlow]=useState<CreateFlow>(()=>isCreateFlow(pendingCreate)?pendingCreate:null)
@@ -95,21 +97,24 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
   useEffect(()=>{if(pendingCreate==='pm')onOpenPreventiveMaintenance();else if(pendingCreate==='user')onOpenPeople()},[onOpenPeople,onOpenPreventiveMaintenance,pendingCreate])
   function resetCreate(){setCreateFlow(null);setTargetEquipmentId('')}
   function handleCenterAction(){ if(isOperatorFlow){onOpenOperatorScan();return} setCreateMenuOpen(true) }
-  function handleCreateAction(key:string){
-    if(key==='equipment'){onCreateEquipment();return}
-    if(isCreateFlow(key)){setCreateFlow(key);setTargetEquipmentId('');return}
-    if(key==='pm'){onOpenPreventiveMaintenance();return}
-    if(key==='user'){onOpenPeople();return}
-    if(key==='files'){setFilesOpen(true);return}
-    if(key==='checklist'||key==='custom-fields'||key==='floor-plan'){setCoreParityOpen(true);return}
+  function handleCreateAction(key:string){ if(key==='equipment'){onCreateEquipment();return} if(isCreateFlow(key)){setCreateFlow(key);setTargetEquipmentId('');return} if(key==='pm'){onOpenPreventiveMaintenance();return} if(key==='user'){onOpenPeople();return} if(key==='files'){setFilesOpen(true);return} if(key==='checklist'||key==='custom-fields'||key==='floor-plan'){setCoreParityOpen(true);return} }
+  function openNotificationEntity(entityType:string,entityId:string){
+    const type=entityType.trim().toUpperCase(); setNotificationsOpen(false)
+    if(type.includes('WORK_ORDER')||type==='WO') return onOpenWorkOrderById(entityId)
+    if(type.includes('REQUEST')) return onOpenRequestById(entityId)
+    if(type.includes('ASSET')||type.includes('EQUIPMENT')) return onOpenEquipmentById(entityId)
+    if(type.includes('PART')) return onOpenPartById(entityId)
+    if(type.includes('METER')) return onOpenMeters()
+    if(type.includes('LOCATION')) return onOpenLocations()
+    if(type.includes('PURCHASE')||type.includes('REORDER')) return setPurchasingOpen(true)
   }
   if(createFlow==='work-order'&&!targetEquipmentId) return <CreateTargetPickerScreen title="Tạo Work Order" onBack={resetCreate} onSelect={setTargetEquipmentId}/>
   if(createFlow==='request'&&!targetEquipmentId) return <CreateTargetPickerScreen title="Tạo yêu cầu sửa chữa" onBack={resetCreate} onSelect={setTargetEquipmentId}/>
-  if(createFlow==='work-order'&&targetEquipmentId) return <CreateWorkOrderScreen equipmentId={targetEquipmentId} onBack={resetCreate} onCreated={()=>{resetCreate();onOpenWorkOrders()}}/>
+  if(createFlow==='work-order'&&targetEquipmentId) return <CreateWorkOrderScreen equipmentId={targetEquipmentId} onBack={resetCreate} onCreated={(workOrderId)=>{resetCreate();onOpenWorkOrderById(workOrderId)}}/>
   if(createFlow==='request'&&targetEquipmentId) return <CreateRequestScreen equipmentId={targetEquipmentId} sourceId="GLOBAL_CREATE" onBack={resetCreate} onCreated={()=>{resetCreate();onOpenRequests()}}/>
   if(createFlow==='location') return <LocationFormScreen onBack={()=>{resetCreate();onOpenLocations()}}/>
   if(createFlow==='meter') return <MeterFormScreen onBack={resetCreate} onSaved={()=>{resetCreate();onOpenMeters()}}/>
-  if(createFlow==='part') return <PartFormScreen onBack={resetCreate} onSaved={()=>{resetCreate();onOpenParts()}}/>
+  if(createFlow==='part') return <PartFormScreen onBack={resetCreate} onSaved={(partId)=>{resetCreate();onOpenPartById(partId)}}/>
   if(createFlow==='vendor') return <CompanyFormScreen onBack={()=>{resetCreate();onOpenVendors()}}/>
   if(createFlow==='customer') return <CompanyFormScreen customer onBack={()=>{resetCreate();onOpenVendors()}}/>
   if(operationsOpen) return <OperationsParityScreen onBack={()=>setOperationsOpen(false)} onOpenWorkOrders={()=>{setOperationsOpen(false);onOpenWorkOrders()}}/>
@@ -119,7 +124,7 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
   if(dataToolsOpen) return <DataToolsScreen onBack={()=>setDataToolsOpen(false)}/>
   if(workloadOpen) return <WorkloadPlanningScreen onBack={()=>setWorkloadOpen(false)} onOpenScheduler={()=>{setWorkloadOpen(false);setSchedulerOpen(true)}} onOpenWorkOrder={()=>{setWorkloadOpen(false);onOpenWorkOrders()}}/>
   if(coreParityOpen) return <CoreParityScreen onBack={()=>setCoreParityOpen(false)}/>
-  if(notificationsOpen) return <NotificationsScreen onBack={()=>setNotificationsOpen(false)}/>
+  if(notificationsOpen) return <NotificationsScreen onBack={()=>setNotificationsOpen(false)} onOpenEntity={openNotificationEntity}/>
   if(purchasingOpen) return <PurchaseOrdersScreen onBack={()=>setPurchasingOpen(false)} onAddVendor={()=>{setPurchasingOpen(false);onOpenVendors()}}/>
   if(schedulerOpen) return <SchedulerScreen onBack={()=>setSchedulerOpen(false)} onOpenWorkOrder={()=>{setSchedulerOpen(false);onOpenWorkOrders()}}/>
   if(oeeOpen) return <OeeScreen onBack={()=>setOeeOpen(false)}/>
@@ -147,5 +152,4 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
     if(item.key==='assets') return onOpenEquipment()
   }} style={({pressed})=>[styles.menuCard,{backgroundColor:item.backgroundColor},pressed&&styles.menuCardPressed]}><Text style={styles.menuLabel} numberOfLines={2}>{item.label}</Text><Ionicons name={item.icon} size={29} color={item.iconColor}/></Pressable>)}</ScrollView><AppBottomNav activeTab="more" onHome={onHome} onWorkOrders={onOpenWorkOrders} onCenterPress={handleCenterAction} onRequests={onOpenRequests} onMore={()=>{}} centerMode={isOperatorFlow?'scan':'create'}/></View><GlobalCreateSheet visible={createMenuOpen&&!isOperatorFlow} isAdmin={isAdmin} onClose={()=>setCreateMenuOpen(false)} onAction={handleCreateAction}/></SafeAreaView>
 }
-
 const styles=StyleSheet.create({safeArea:{flex:1,backgroundColor:'#FFFFFF'},shell:{flex:1,backgroundColor:'#F8F9FB'},header:{minHeight:64,paddingHorizontal:16,justifyContent:'center',backgroundColor:'#FFFFFF',borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:'#EAECF0'},title:{fontSize:24,lineHeight:30,fontWeight:'900',color:'#101828',letterSpacing:-.45},content:{flex:1},contentContainer:{paddingHorizontal:14,paddingTop:12,paddingBottom:18,gap:10},menuCard:{minHeight:88,borderRadius:14,paddingHorizontal:18,paddingVertical:14,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:14},menuCardPressed:{opacity:.78,transform:[{scale:.995}]},menuLabel:{flex:1,fontSize:18,lineHeight:23,fontWeight:'800',color:'#202124',letterSpacing:-.3}})

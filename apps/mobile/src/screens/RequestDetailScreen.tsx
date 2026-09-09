@@ -4,62 +4,37 @@ import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { convertMaintenanceRequestToWorkOrder, getMaintenanceRequest, transitionMaintenanceRequest, type RequestAction } from '../features/requests/requestService'
 
-const STATUS_LABEL: Record<string,string> = {
-  OPEN:'Mở', UNDER_REVIEW:'Đang xem xét', APPROVED:'Đã duyệt', REJECTED:'Từ chối', CANCELLED:'Đã hủy', CONVERTED:'Đã tạo Work Order',
+const STATUS_LABEL: Record<string,string> = { OPEN:'Mở', UNDER_REVIEW:'Đang xem xét', APPROVED:'Đã duyệt', REJECTED:'Từ chối', CANCELLED:'Đã hủy', CONVERTED:'Đã tạo Work Order' }
+
+type Props = {
+  requestId: string
+  onBack: () => void
+  onOpenEquipment: (equipmentId: string) => void
+  onOpenWorkOrder: (workOrderId: string) => void
 }
 
-export function RequestDetailScreen({ requestId, onBack }: { requestId: string; onBack: () => void }) {
+export function RequestDetailScreen({ requestId, onBack, onOpenEquipment, onOpenWorkOrder }: Props) {
   const [item,setItem]=useState<Awaited<ReturnType<typeof getMaintenanceRequest>>|null>(null)
-  const [error,setError]=useState('')
-  const [saving,setSaving]=useState(false)
-  const [rejecting,setRejecting]=useState(false)
-  const [rejectionNote,setRejectionNote]=useState('')
-
-  async function reload() { const next=await getMaintenanceRequest(requestId); setItem(next) }
+  const [error,setError]=useState(''); const [saving,setSaving]=useState(false); const [rejecting,setRejecting]=useState(false); const [rejectionNote,setRejectionNote]=useState('')
+  async function reload() { setItem(await getMaintenanceRequest(requestId)) }
   useEffect(()=>{let active=true;void getMaintenanceRequest(requestId).then(v=>{if(active)setItem(v)}).catch(e=>{if(active)setError(e instanceof Error?e.message:'Không tải được yêu cầu.')});return()=>{active=false}},[requestId])
+  async function transition(action:RequestAction,note='') { if(!item||saving)return; setSaving(true);setError('');try{await transitionMaintenanceRequest(item.requestId,action,note);await reload();setRejecting(false);setRejectionNote('')}catch(e){setError(e instanceof Error?e.message:'Không cập nhật được trạng thái.')}finally{setSaving(false)} }
+  async function convert() { if(!item||saving)return;setSaving(true);setError('');try{const result=await convertMaintenanceRequestToWorkOrder(item.requestId);setItem({...item,status:'CONVERTED',convertedWorkOrderId:result.workOrderId});onOpenWorkOrder(result.workOrderId)}catch(e){setError(e instanceof Error?e.message:'Không chuyển được yêu cầu thành Work Order.')}finally{setSaving(false)} }
 
-  async function transition(action:RequestAction,note='') {
-    if(!item||saving)return
-    setSaving(true);setError('')
-    try { await transitionMaintenanceRequest(item.requestId,action,note); await reload(); setRejecting(false);setRejectionNote('') }
-    catch(e) { setError(e instanceof Error?e.message:'Không cập nhật được trạng thái.') }
-    finally {setSaving(false)}
-  }
-
-  async function convert() {
-    if(!item||saving)return
-    setSaving(true);setError('')
-    try { const result=await convertMaintenanceRequestToWorkOrder(item.requestId); setItem({...item,status:'CONVERTED',convertedWorkOrderId:result.workOrderId}) }
-    catch(e) { setError(e instanceof Error?e.message:'Không chuyển được yêu cầu thành Work Order.') }
-    finally {setSaving(false)}
-  }
-
-  return <SafeAreaView style={styles.safe} edges={['top','bottom']}>
-    <View style={styles.header}><Pressable onPress={onBack} style={styles.icon}><Ionicons name="chevron-back" size={26} color="#101828"/></Pressable><Text style={styles.title}>Chi tiết yêu cầu</Text><View style={styles.icon}/></View>
+  return <SafeAreaView style={styles.safe} edges={['top','bottom']}><View style={styles.header}><Pressable onPress={onBack} style={styles.icon}><Ionicons name="chevron-back" size={26} color="#101828"/></Pressable><Text style={styles.title}>Chi tiết yêu cầu</Text><View style={styles.icon}/></View>
     {!item&&!error?<View style={styles.center}><ActivityIndicator color="#155EEF"/></View>:!item&&error?<View style={styles.center}><Text style={styles.error}>{error}</Text></View>:<ScrollView contentContainerStyle={styles.content}>
       <View style={styles.hero}><Ionicons name="chatbox-ellipses-outline" size={29} color="#155EEF"/><Text style={styles.id}>{item?.requestId}</Text><Text style={styles.status}>{STATUS_LABEL[item?.status||'']||item?.status}</Text></View>
       {error?<View style={styles.errorBox}><Ionicons name="alert-circle-outline" size={18} color="#B42318"/><Text style={styles.errorText}>{error}</Text></View>:null}
-      <Info label="Tiêu đề" value={item?.title||item?.reason||'—'}/>
-      <Info label="Mô tả" value={item?.description||item?.reason||'—'}/>
-      <Info label="Mức ưu tiên" value={item?.priority||'—'}/>
-      <Info label="Thiết bị" value={item?.equipmentId||'—'}/>
-      <Info label="Nguồn tạo" value={item?.sourceType||'—'}/>
-      <Info label="Người tạo" value={item?.createdBy||'—'}/>
-      <Info label="Ngày tạo" value={item?.createdAt||'—'}/>
-      {item?.reviewedAt?<Info label="Ngày xem xét" value={item.reviewedAt}/>:null}
-      {item?.rejectionReason?<Info label="Lý do từ chối" value={item.rejectionReason}/>:null}
-      {item?.convertedWorkOrderId?<Info label="Work Order" value={item.convertedWorkOrderId}/>:null}
-
+      <Info label="Tiêu đề" value={item?.title||item?.reason||'—'}/><Info label="Mô tả" value={item?.description||item?.reason||'—'}/><Info label="Mức ưu tiên" value={item?.priority||'—'}/>
+      {item?.equipmentId?<Pressable onPress={()=>onOpenEquipment(item.equipmentId)} style={styles.linkInfo}><View><Text style={styles.label}>Thiết bị</Text><Text style={styles.value}>{item.equipmentId}</Text></View><Ionicons name="chevron-forward" size={20} color="#155EEF"/></Pressable>:<Info label="Thiết bị" value="—"/>}
+      <Info label="Nguồn tạo" value={item?.sourceType||'—'}/><Info label="Người tạo" value={item?.createdBy||'—'}/><Info label="Ngày tạo" value={item?.createdAt||'—'}/>{item?.reviewedAt?<Info label="Ngày xem xét" value={item.reviewedAt}/>:null}{item?.rejectionReason?<Info label="Lý do từ chối" value={item.rejectionReason}/>:null}
+      {item?.convertedWorkOrderId?<Pressable onPress={()=>onOpenWorkOrder(item.convertedWorkOrderId!)} style={styles.linkInfo}><View><Text style={styles.label}>Work Order đã tạo</Text><Text style={styles.value}>{item.convertedWorkOrderId}</Text></View><Ionicons name="open-outline" size={20} color="#155EEF"/></Pressable>:null}
       {item?.status==='OPEN'?<Pressable disabled={saving} onPress={()=>void transition('START_REVIEW')} style={styles.primary}>{saving?<ActivityIndicator color="#FFF"/>:<Text style={styles.primaryText}>Bắt đầu xem xét</Text>}</Pressable>:null}
-      {item?.status==='UNDER_REVIEW'?<>
-        <Pressable disabled={saving} onPress={()=>void transition('APPROVE')} style={styles.primary}><Text style={styles.primaryText}>Duyệt yêu cầu</Text></Pressable>
-        {!rejecting?<Pressable disabled={saving} onPress={()=>setRejecting(true)} style={styles.reject}><Text style={styles.rejectText}>Từ chối yêu cầu</Text></Pressable>:<View style={styles.rejectBox}><Text style={styles.rejectLabel}>Lý do từ chối *</Text><TextInput value={rejectionNote} onChangeText={setRejectionNote} multiline placeholder="Nhập lý do từ chối" placeholderTextColor="#98A2B3" style={styles.rejectInput}/><View style={styles.rejectActions}><Pressable onPress={()=>{setRejecting(false);setRejectionNote('')}} style={styles.secondary}><Text style={styles.secondaryText}>Hủy</Text></Pressable><Pressable disabled={saving||!rejectionNote.trim()} onPress={()=>void transition('REJECT',rejectionNote)} style={[styles.rejectConfirm,(!rejectionNote.trim()||saving)&&styles.disabled]}><Text style={styles.rejectConfirmText}>Xác nhận từ chối</Text></Pressable></View></View>}
-      </>:null}
-      {item?.status==='APPROVED'?<Pressable disabled={saving} onPress={()=>void convert()} style={styles.primary}>{saving?<ActivityIndicator color="#FFF"/>:<Text style={styles.primaryText}>Tạo Work Order</Text>}</Pressable>:null}
+      {item?.status==='UNDER_REVIEW'?<><Pressable disabled={saving} onPress={()=>void transition('APPROVE')} style={styles.primary}><Text style={styles.primaryText}>Duyệt yêu cầu</Text></Pressable>{!rejecting?<Pressable disabled={saving} onPress={()=>setRejecting(true)} style={styles.reject}><Text style={styles.rejectText}>Từ chối yêu cầu</Text></Pressable>:<View style={styles.rejectBox}><Text style={styles.rejectLabel}>Lý do từ chối *</Text><TextInput value={rejectionNote} onChangeText={setRejectionNote} multiline placeholder="Nhập lý do từ chối" placeholderTextColor="#98A2B3" style={styles.rejectInput}/><View style={styles.rejectActions}><Pressable onPress={()=>{setRejecting(false);setRejectionNote('')}} style={styles.secondary}><Text style={styles.secondaryText}>Hủy</Text></Pressable><Pressable disabled={saving||!rejectionNote.trim()} onPress={()=>void transition('REJECT',rejectionNote)} style={[styles.rejectConfirm,(!rejectionNote.trim()||saving)&&styles.disabled]}><Text style={styles.rejectConfirmText}>Xác nhận từ chối</Text></Pressable></View></View>}</>:null}
+      {item?.status==='APPROVED'?<Pressable disabled={saving} onPress={()=>void convert()} style={styles.primary}>{saving?<ActivityIndicator color="#FFF"/>:<Text style={styles.primaryText}>Tạo và mở Work Order</Text>}</Pressable>:null}
       {item?.status==='OPEN'||item?.status==='UNDER_REVIEW'||item?.status==='APPROVED'?<Pressable disabled={saving} onPress={()=>void transition('CANCEL')} style={styles.cancel}><Text style={styles.cancelText}>Hủy yêu cầu</Text></Pressable>:null}
     </ScrollView>}
   </SafeAreaView>
 }
-
 function Info({label,value}:{label:string;value:string}){return <View style={styles.info}><Text style={styles.label}>{label}</Text><Text style={styles.value}>{value}</Text></View>}
-const styles=StyleSheet.create({safe:{flex:1,backgroundColor:'#F1F1FA'},header:{minHeight:60,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:'#FFF',borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:'#E5E5EF'},icon:{width:46,height:46,alignItems:'center',justifyContent:'center'},title:{fontSize:20,fontWeight:'900',color:'#101828'},center:{flex:1,alignItems:'center',justifyContent:'center',padding:24},error:{color:'#B42318'},content:{padding:14,paddingBottom:30},hero:{padding:20,alignItems:'center',borderRadius:18,backgroundColor:'#E9EDFF'},id:{marginTop:8,fontSize:15,fontWeight:'900',color:'#155EEF'},status:{marginTop:7,paddingHorizontal:10,paddingVertical:5,borderRadius:10,fontSize:12,fontWeight:'900',color:'#344054',backgroundColor:'#FFF'},errorBox:{marginTop:12,padding:12,flexDirection:'row',gap:8,borderRadius:13,backgroundColor:'#FEF3F2'},errorText:{flex:1,fontSize:12.5,lineHeight:18,color:'#B42318'},info:{marginTop:10,padding:15,borderRadius:17,backgroundColor:'#FFF',borderWidth:StyleSheet.hairlineWidth,borderColor:'#E1E1EA'},label:{fontSize:12,fontWeight:'800',color:'#667085'},value:{marginTop:5,fontSize:15,fontWeight:'800',color:'#344054'},primary:{marginTop:18,minHeight:52,borderRadius:26,alignItems:'center',justifyContent:'center',backgroundColor:'#536DFE'},primaryText:{fontSize:15,fontWeight:'900',color:'#FFF'},reject:{marginTop:8,minHeight:48,borderRadius:24,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#FDA29B',backgroundColor:'#FFF'},rejectText:{fontSize:14,fontWeight:'900',color:'#B42318'},rejectBox:{marginTop:12,padding:14,borderRadius:16,backgroundColor:'#FFF'},rejectLabel:{fontSize:12.5,fontWeight:'900',color:'#344054'},rejectInput:{marginTop:8,minHeight:90,padding:12,borderWidth:1,borderColor:'#D0D5DD',borderRadius:12,textAlignVertical:'top',fontSize:14,color:'#101828'},rejectActions:{marginTop:10,flexDirection:'row',gap:8},secondary:{flex:1,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:22,backgroundColor:'#F2F4F7'},secondaryText:{fontSize:13.5,fontWeight:'800',color:'#475467'},rejectConfirm:{flex:2,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:22,backgroundColor:'#D92D20'},rejectConfirmText:{fontSize:13.5,fontWeight:'900',color:'#FFF'},disabled:{opacity:.45},cancel:{marginTop:8,minHeight:45,alignItems:'center',justifyContent:'center'},cancelText:{fontSize:14,fontWeight:'800',color:'#B42318'}})
+const styles=StyleSheet.create({safe:{flex:1,backgroundColor:'#F1F1FA'},header:{minHeight:60,paddingHorizontal:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:'#FFF',borderBottomWidth:StyleSheet.hairlineWidth,borderBottomColor:'#E5E5EF'},icon:{width:46,height:46,alignItems:'center',justifyContent:'center'},title:{fontSize:20,fontWeight:'900',color:'#101828'},center:{flex:1,alignItems:'center',justifyContent:'center',padding:24},error:{color:'#B42318'},content:{padding:14,paddingBottom:30},hero:{padding:20,alignItems:'center',borderRadius:18,backgroundColor:'#E9EDFF'},id:{marginTop:8,fontSize:15,fontWeight:'900',color:'#155EEF'},status:{marginTop:7,paddingHorizontal:10,paddingVertical:5,borderRadius:10,fontSize:12,fontWeight:'900',color:'#344054',backgroundColor:'#FFF'},errorBox:{marginTop:12,padding:12,flexDirection:'row',gap:8,borderRadius:13,backgroundColor:'#FEF3F2'},errorText:{flex:1,fontSize:12.5,lineHeight:18,color:'#B42318'},info:{marginTop:10,padding:15,borderRadius:17,backgroundColor:'#FFF',borderWidth:StyleSheet.hairlineWidth,borderColor:'#E1E1EA'},linkInfo:{marginTop:10,padding:15,flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderRadius:17,backgroundColor:'#FFF',borderWidth:1,borderColor:'#B2CCFF'},label:{fontSize:12,fontWeight:'800',color:'#667085'},value:{marginTop:5,fontSize:15,fontWeight:'800',color:'#344054'},primary:{marginTop:18,minHeight:52,borderRadius:26,alignItems:'center',justifyContent:'center',backgroundColor:'#536DFE'},primaryText:{fontSize:15,fontWeight:'900',color:'#FFF'},reject:{marginTop:8,minHeight:48,borderRadius:24,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#FDA29B',backgroundColor:'#FFF'},rejectText:{fontSize:14,fontWeight:'900',color:'#B42318'},rejectBox:{marginTop:12,padding:14,borderRadius:16,backgroundColor:'#FFF'},rejectLabel:{fontSize:12.5,fontWeight:'900',color:'#344054'},rejectInput:{marginTop:8,minHeight:90,padding:12,borderWidth:1,borderColor:'#D0D5DD',borderRadius:12,textAlignVertical:'top',fontSize:14,color:'#101828'},rejectActions:{marginTop:10,flexDirection:'row',gap:8},secondary:{flex:1,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:22,backgroundColor:'#F2F4F7'},secondaryText:{fontSize:13.5,fontWeight:'800',color:'#475467'},rejectConfirm:{flex:2,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:22,backgroundColor:'#D92D20'},rejectConfirmText:{fontSize:13.5,fontWeight:'900',color:'#FFF'},disabled:{opacity:.45},cancel:{marginTop:8,minHeight:45,alignItems:'center',justifyContent:'center'},cancelText:{fontSize:14,fontWeight:'800',color:'#B42318'}})
