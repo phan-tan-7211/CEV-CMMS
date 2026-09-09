@@ -3,9 +3,12 @@ import { supabase } from '../../../lib/supabase/client'
 import {
   addWorkOrderChecklistItemOnline,
   completeWorkOrderChecklistItemOnline,
+  transitionWorkOrderOnline,
+  type WorkOrderTransitionAction,
 } from './workOrderMutationService'
 import {
   findWorkOrderIdByChecklistItemId,
+  getWorkOrderDetailSnapshot,
   patchWorkOrderDetailSnapshot,
   revalidateWorkOrderDetail,
 } from './workOrderRepository'
@@ -15,7 +18,7 @@ const STORAGE_KEY_PREFIX = 'cev.cmms.work-order-mutations.v1'
 const QUEUE_LIMIT = 300
 
 export type WorkOrderOfflineMutationState = 'PENDING' | 'ERROR'
-export type WorkOrderOfflineMutationKind = 'ADD_CHECKLIST' | 'SET_CHECKLIST_COMPLETE'
+export type WorkOrderOfflineMutationKind = 'ADD_CHECKLIST' | 'SET_CHECKLIST_COMPLETE' | 'TRANSITION_STATUS'
 
 type AddChecklistPayload = {
   title: string
@@ -28,15 +31,30 @@ type SetChecklistCompletePayload = {
   completed: boolean
 }
 
+type TransitionStatusPayload = {
+  action: WorkOrderTransitionAction
+  fromStatus: string
+  toStatus: string
+}
+
 export type WorkOrderOfflineMutation = {
   mutationId: string
   workOrderId: string
   kind: WorkOrderOfflineMutationKind
-  payload: AddChecklistPayload | SetChecklistCompletePayload
+  payload: AddChecklistPayload | SetChecklistCompletePayload | TransitionStatusPayload
   state: WorkOrderOfflineMutationState
   lastError?: string
   createdAt: string
   updatedAt: string
+}
+
+const TRANSITION_STATUS: Record<WorkOrderTransitionAction, string> = {
+  REQUEST_APPROVAL: 'WAITING_APPROVAL',
+  APPROVE: 'APPROVED',
+  START: 'IN_PROGRESS',
+  COMPLETE: 'COMPLETED',
+  VERIFY: 'VERIFIED',
+  RELEASE: 'RELEASED',
 }
 
 function text(value: unknown) { return String(value ?? '').trim() }
@@ -101,8 +119,13 @@ async function replayMutation(row: WorkOrderOfflineMutation) {
     await addWorkOrderChecklistItemOnline(row.workOrderId, payload.title, payload.required)
     return
   }
-  const payload = row.payload as SetChecklistCompletePayload
-  await completeWorkOrderChecklistItemOnline(payload.checklistItemId, payload.completed)
+  if (row.kind === 'SET_CHECKLIST_COMPLETE') {
+    const payload = row.payload as SetChecklistCompletePayload
+    await completeWorkOrderChecklistItemOnline(payload.checklistItemId, payload.completed)
+    return
+  }
+  const payload = row.payload as TransitionStatusPayload
+  await transitionWorkOrderOnline(row.workOrderId, payload.action, row.mutationId)
 }
 
 async function optimisticAdd(workOrderId: string, payload: AddChecklistPayload) {
@@ -139,6 +162,14 @@ async function optimisticComplete(workOrderId: string, checklistItemId: string, 
     checklist: current.checklist.map((item) => item.checklistItemId === checklistItemId
       ? { ...item, completed, completedAt: completed ? new Date().toISOString() : '' }
       : item),
+  }))
+}
+
+async function optimisticStatus(workOrderId: string, status: string) {
+  await patchWorkOrderDetailSnapshot(workOrderId, (current) => ({
+    ...current,
+    status,
+    updatedAt: new Date().toISOString(),
   }))
 }
 
@@ -210,6 +241,33 @@ export async function setWorkOrderChecklistCompletedByIdOffline(checklistItemId:
   const workOrderId = await findWorkOrderIdByChecklistItemId(checklistId)
   if (!workOrderId) throw new Error('Không tìm thấy Work Order của checklist trong bộ nhớ ngoại tuyến.')
   return setWorkOrderChecklistCompletedOffline(workOrderId, checklistId, completed)
+}
+
+export async function transitionWorkOrderOffline(workOrderId: string, action: WorkOrderTransitionAction) {
+  const id = text(workOrderId)
+  if (!id) throw new Error('Thiếu mã Work Order.')
+  const current = await getWorkOrderDetailSnapshot(id)
+  if (!current) return transitionWorkOrderOnline(id, action)
+
+  const mutationId = makeId(`WO-${action}`)
+  const fromStatus = text(current.status)
+  const toStatus = TRANSITION_STATUS[action]
+  const payload: TransitionStatusPayload = { action, fromStatus, toStatus }
+  await optimisticStatus(id, toStatus)
+
+  try {
+    const result = await transitionWorkOrderOnline(id, action, mutationId)
+    try { await revalidateWorkOrderDetail(id, { force: true }) } catch { /* server write succeeded */ }
+    return { status: result.status || toStatus, queued: false, mutationId }
+  } catch (error) {
+    if (!isLikelyNetworkError(error)) {
+      await optimisticStatus(id, fromStatus)
+      throw error
+    }
+    const now = new Date().toISOString()
+    await enqueue({ mutationId, workOrderId: id, kind: 'TRANSITION_STATUS', payload, state: 'PENDING', createdAt: now, updatedAt: now })
+    return { status: toStatus, queued: true, mutationId }
+  }
 }
 
 let syncPromise: Promise<{ synced: number; errors: number }> | null = null
