@@ -6,6 +6,7 @@ import { LiveSelectionModal, type LiveSelectionItem } from '../components/LiveSe
 import { listPeople, listTeams } from '../features/master-data'
 import {
   getLatestCreateDraftForEquipment,
+  getLocalWorkOrderDraft,
   isLikelyNetworkError,
   saveWorkOrderCreateDraft,
   submitWorkOrderDraft,
@@ -21,7 +22,17 @@ const DRAFT_LABEL: Record<WorkOrderDraftSyncState, string> = {
   ERROR: 'Bản nháp cần kiểm tra lại',
 }
 
-export function CreateWorkOrderScreen({ equipmentId, onBack, onCreated }: { equipmentId: string; onBack: () => void; onCreated: (workOrderId: string) => void }) {
+export function CreateWorkOrderScreen({
+  equipmentId,
+  draftLocalId,
+  onBack,
+  onCreated,
+}: {
+  equipmentId: string
+  draftLocalId?: string
+  onBack: () => void
+  onCreated: (workOrderId: string) => void
+}) {
   const [reason, setReason] = useState('')
   const [priority, setPriority] = useState('MEDIUM')
   const [saving, setSaving] = useState(false)
@@ -33,12 +44,17 @@ export function CreateWorkOrderScreen({ equipmentId, onBack, onCreated }: { equi
   const [team,setTeam]=useState<LiveSelectionItem|null>(null)
   const [hydrated,setHydrated]=useState(false)
   const [draftState,setDraftState]=useState<WorkOrderDraftSyncState|null>(null)
-  const localDraftIdRef=useRef<string|undefined>(undefined)
+  const localDraftIdRef=useRef<string|undefined>(draftLocalId)
 
   useEffect(()=>{
     let active=true
-    void getLatestCreateDraftForEquipment(equipmentId).then((draft)=>{
+    setHydrated(false)
+    const loader = draftLocalId
+      ? getLocalWorkOrderDraft(draftLocalId)
+      : getLatestCreateDraftForEquipment(equipmentId)
+    void loader.then((draft)=>{
       if(!active||!draft)return
+      if (draft.payload.equipmentId !== equipmentId) return
       localDraftIdRef.current=draft.localId
       setReason(draft.payload.reason||'')
       setPriority(draft.payload.priority||'MEDIUM')
@@ -47,7 +63,7 @@ export function CreateWorkOrderScreen({ equipmentId, onBack, onCreated }: { equi
       setDraftState(draft.syncState)
     }).finally(()=>{if(active)setHydrated(true)})
     return()=>{active=false}
-  },[equipmentId])
+  },[draftLocalId,equipmentId])
 
   useEffect(()=>{
     if(!hydrated)return undefined
@@ -107,7 +123,7 @@ export function CreateWorkOrderScreen({ equipmentId, onBack, onCreated }: { equi
   const priorities: Array<[string, string]> = [['LOW', 'Thấp'], ['MEDIUM', 'Trung bình'], ['HIGH', 'Cao'], ['CRITICAL', 'Khẩn cấp']]
   return <>
   <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-    <View style={styles.header}><Pressable onPress={onBack} hitSlop={8} style={styles.icon}><Ionicons name="chevron-back" size={26} color="#101828" /></Pressable><Text style={styles.title}>Tạo Work Order</Text><View style={styles.icon} /></View>
+    <View style={styles.header}><Pressable onPress={onBack} hitSlop={8} style={styles.icon}><Ionicons name="chevron-back" size={26} color="#101828" /></Pressable><Text style={styles.title}>{draftLocalId ? 'Chỉnh sửa bản nháp' : 'Tạo Work Order'}</Text><View style={styles.icon} /></View>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.assetCard}><Ionicons name="cube-outline" size={23} color="#155EEF" /><View style={styles.assetCopy}><Text style={styles.label}>Thiết bị</Text><Text style={styles.assetId}>{equipmentId}</Text></View></View>
       {draftState?<View style={[styles.draftBanner,draftState==='QUEUED'&&styles.draftQueued,draftState==='ERROR'&&styles.draftError]}><Ionicons name={draftState==='QUEUED'?'cloud-offline-outline':draftState==='ERROR'?'alert-circle-outline':'document-text-outline'} size={18} color={draftState==='ERROR'?'#B42318':'#475467'} /><Text style={[styles.draftText,draftState==='ERROR'&&styles.draftErrorText]}>{DRAFT_LABEL[draftState]}</Text></View>:null}
