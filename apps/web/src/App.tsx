@@ -38,8 +38,9 @@ const ReferenceModulePanel = lazy(() => import('./ReferenceModulePanels').then((
 const RequestsListPanel = lazy(() => import('./RequestsListPanel').then((module) => ({ default: module.RequestsListPanel })))
 const WorkOrderCreatePanel = lazy(() => import('./WorkOrderCreatePanel').then((module) => ({ default: module.WorkOrderCreatePanel })))
 const NotificationSettingsPanel = lazy(() => import('./NotificationSettingsPanel').then((module) => ({ default: module.NotificationSettingsPanel })))
+const WorkOrderExportPanel = lazy(() => import('./WorkOrderExportPanel').then((module) => ({ default: module.WorkOrderExportPanel })))
 
-type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'cycle-counts' | 'sets' | 'files-upkeep' | 'checklists-upkeep' | 'people-upkeep' | 'locations-upkeep' | 'locations-map' | 'teams-upkeep' | 'imports-upkeep' | 'inventory-upkeep' | 'parts-upkeep' | 'edge-upkeep' | 'meters-upkeep' | 'analytics-upkeep' | 'analytics-complete-upkeep' | 'requests-upkeep' | 'work-order-create' | 'notification-settings' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
+type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'cycle-counts' | 'sets' | 'files-upkeep' | 'checklists-upkeep' | 'people-upkeep' | 'locations-upkeep' | 'locations-map' | 'teams-upkeep' | 'imports-upkeep' | 'inventory-upkeep' | 'parts-upkeep' | 'edge-upkeep' | 'meters-upkeep' | 'analytics-upkeep' | 'analytics-complete-upkeep' | 'requests-upkeep' | 'work-order-create' | 'notification-settings' | 'work-order-export' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
 
 const NAV: Array<{ id: View; label: string; adminOnly?: boolean }> = [
   { id: 'dashboard', label: 'Tổng quan' },
@@ -76,6 +77,7 @@ const NAV: Array<{ id: View; label: string; adminOnly?: boolean }> = [
   { id: 'requests-upkeep', label: 'Yêu cầu (UpKeep)' },
   { id: 'work-order-create', label: 'Tạo Work Order (UpKeep)' },
   { id: 'notification-settings', label: 'Thông báo (UpKeep)' },
+  { id: 'work-order-export', label: 'Xuất Work Order (UpKeep)' },
   { id: 'spare', label: 'Phụ tùng & Kho' },
   { id: 'purchase-orders', label: 'Đơn đặt hàng' },
   { id: 'customers', label: 'Khách hàng' },
@@ -165,6 +167,7 @@ function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, 
   if (view === 'requests-upkeep') return <RequestsListPanel />
   if (view === 'work-order-create') return <WorkOrderCreatePanel />
   if (view === 'notification-settings') return <NotificationSettingsPanel />
+  if (view === 'work-order-export') return <WorkOrderExportPanel />
   if (view === 'settings') return <LiveAuditPanel />
   return <ModulePlaceholderPanel title={NAV.find((item) => item.id === view)?.label || view} />
 }
