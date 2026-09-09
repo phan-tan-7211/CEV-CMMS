@@ -3,6 +3,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, Text
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { WorkOrderTimerCard } from '../components/WorkOrderTimerCard'
 import { listPeople, type PersonPickerItem } from '../features/master-data'
 import {
   addWorkOrderChecklistItem,
@@ -209,6 +210,7 @@ export function WorkOrderDetailScreen({ workOrderId, onBack }: { workOrderId: st
       </Section>
 
       <Section title="GIỜ CÔNG">
+        <WorkOrderTimerCard workOrderId={workOrderId} enabled={canExecute} onLaborCreated={refresh} />
         {item.labor.length ? item.labor.map((labor) => <Row key={labor.laborId} label={item.people.find((p) => p.personId === labor.personId)?.displayName || labor.personId || 'Nhân sự'} value={`${labor.minutes ?? '—'} phút${labor.note ? ` · ${labor.note}` : ''}`} />) : <EmptyRow text="Chưa ghi nhận giờ công" />}
         {canExecute ? <View style={styles.formBlock}>{item.people.filter((p) => p.role === 'PRIMARY_ASSIGNEE' || p.role === 'ASSIGNEE').length ? <View style={styles.chips}>{item.people.filter((p) => p.role === 'PRIMARY_ASSIGNEE' || p.role === 'ASSIGNEE').map((person) => { const active = selectedLaborPersonId === person.personId; return <Pressable key={person.personId} onPress={() => setLaborPersonId(person.personId)} style={[styles.chip, active && styles.chipActive]}><Text style={[styles.chipText, active && styles.chipTextActive]}>{person.displayName}</Text></Pressable>})}</View> : <Text style={styles.warning}>Cần giao người thực hiện trước khi ghi giờ công.</Text>}<FormField label="Số phút" value={laborMinutes} onChangeText={setLaborMinutes} placeholder="30"/><FormField label="Ghi chú" value={laborNote} onChangeText={setLaborNote} placeholder="Nội dung thực hiện"/><SmallButton label="Ghi giờ công" disabled={saving || !selectedLaborPersonId || !(Number(laborMinutes) > 0)} onPress={() => void addLabor()} /></View> : null}
       </Section>
