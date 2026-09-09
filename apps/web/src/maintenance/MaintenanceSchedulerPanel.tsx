@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type DragEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react'
 import { useAppRole } from '../auth/AppRoleContext'
 import {
   loadSchedulerConflicts,
@@ -140,13 +140,13 @@ export function MaintenanceSchedulerPanel() {
   const periodStartMs = period.start.getTime()
   const periodEndMs = period.end.getTime()
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
       const next = await loadSchedulerEvents({
-        startAt: period.start.toISOString(),
-        endAt: period.end.toISOString(),
+        startAt: new Date(periodStartMs).toISOString(),
+        endAt: new Date(periodEndMs).toISOString(),
         includeUnscheduled: true,
       })
       setEvents(next)
@@ -155,15 +155,15 @@ export function MaintenanceSchedulerPanel() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [periodEndMs, periodStartMs])
 
   useEffect(() => {
     void refresh()
-  }, [periodStartMs, periodEndMs])
+  }, [refresh])
 
-  const equipmentOptions = useMemo(() => Array.from(new Map(events.filter((event) => event.equipmentId).map((event) => [event.equipmentId, event.equipmentName || event.equipmentId])).entries()).sort((a, b) => a[0].localeCompare(b[0])), [events])
-  const personOptions = useMemo(() => Array.from(new Map(events.filter((event) => event.primaryPersonId).map((event) => [event.primaryPersonId, event.primaryPersonName || event.primaryPersonId])).entries()).sort((a, b) => a[1].localeCompare(b[1])), [events])
-  const teamOptions = useMemo(() => Array.from(new Map(events.filter((event) => event.primaryTeamId).map((event) => [event.primaryTeamId, event.primaryTeamName || event.primaryTeamId])).entries()).sort((a, b) => a[1].localeCompare(b[1])), [events])
+  const equipmentOptions = useMemo(() => Array.from(new Map(events.filter((event) => event.equipmentId).map((event) => [event.equipmentId, event.equipmentName || event.equipmentId])).entries()).toSorted((a, b) => a[0].localeCompare(b[0])), [events])
+  const personOptions = useMemo(() => Array.from(new Map(events.filter((event) => event.primaryPersonId).map((event) => [event.primaryPersonId, event.primaryPersonName || event.primaryPersonId])).entries()).toSorted((a, b) => a[1].localeCompare(b[1])), [events])
+  const teamOptions = useMemo(() => Array.from(new Map(events.filter((event) => event.primaryTeamId).map((event) => [event.primaryTeamId, event.primaryTeamName || event.primaryTeamId])).entries()).toSorted((a, b) => a[1].localeCompare(b[1])), [events])
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase('vi-VN')
