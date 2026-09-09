@@ -25,6 +25,7 @@ export function GeneralSettingsMenu({ onOpenCompanyProfile, onOpenOrganization, 
       <header><strong>Cài đặt</strong><span>Thiết lập CEV CMMS</span></header>
       <button type="button" onClick={() => action(onOpenCompanyProfile)}><strong>Hồ sơ công ty</strong><small>Tên, địa chỉ, số điện thoại, website và logo</small></button>
       <button type="button" onClick={() => action(onOpenOrganization)}><strong>Người dùng & nhóm</strong><small>Quản lý thành viên và quyền truy cập</small></button>
+      <button type="button" onClick={() => action(onOpenAudit)}><strong>Mở trang cài đặt</strong><small>Toàn bộ cài đặt tổ chức theo danh mục UpKeep</small></button>
       <button type="button" onClick={() => action(onOpenAudit)}><strong>Ngôn ngữ, tiền tệ & ngày giờ</strong><small>Thiết lập hiển thị chung cho công ty</small></button>
     </section> : null}
   </div>
