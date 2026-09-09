@@ -137,6 +137,12 @@ function resourceId(event: LiveSchedulerEvent, kind: ResourceKind) {
 function resourceLabel(kind: ResourceKind) {
   return kind === 'person' ? 'Nhân sự' : kind === 'team' ? 'Nhóm' : 'Thiết bị'
 }
+function schedulerUrlDate() {
+  const value = new URLSearchParams(window.location.search).get('schedulerDate')
+  const date = value ? new Date(value) : new Date()
+  return Number.isNaN(date.getTime()) ? startOfDay(new Date()) : startOfDay(date)
+}
+function schedulerUrlPm() { return new URLSearchParams(window.location.search).get('pm')?.trim() || '' }
 function snappedTimeFromPointer(event: DragEvent<HTMLDivElement>, day: Date) {
   const rect = event.currentTarget.getBoundingClientRect()
   const gridMinutes = (GRID_END_HOUR - GRID_START_HOUR) * 60
@@ -165,11 +171,12 @@ function snappedResizeEnd(clientY: number, dayElement: HTMLElement, startAt: str
 export function MaintenanceSchedulerPanel() {
   const role = useAppRole()
   const canManage = canManageScheduler(role)
+  const focusedPmId = useMemo(() => schedulerUrlPm(), [])
   const [mode, setMode] = useState<CalendarMode>('week')
-  const [basis, setBasis] = useState<ScheduleBasis>('start')
+  const [basis, setBasis] = useState<ScheduleBasis>(() => focusedPmId ? 'due' : 'start')
   const [surface, setSurface] = useState<SurfaceMode>('calendar')
   const [resourceKind, setResourceKind] = useState<ResourceKind>('person')
-  const [cursor, setCursor] = useState(() => startOfDay(new Date()))
+  const [cursor, setCursor] = useState(() => schedulerUrlDate())
   const [events, setEvents] = useState<LiveSchedulerEvent[]>([])
   const [selected, setSelected] = useState<LiveSchedulerEvent | null>(null)
   const [pendingMove, setPendingMove] = useState<PendingMove | null>(null)
@@ -266,6 +273,22 @@ export function MaintenanceSchedulerPanel() {
     else if (mode === 'week') next.setDate(next.getDate() + direction * 7)
     else next.setDate(next.getDate() + direction)
     setCursor(startOfDay(next))
+  }
+
+  function openPmDetail(event: LiveSchedulerEvent) {
+    const scheduleId = event.pmScheduleId || (typeof event.sourceData.schedule_id === 'string' ? event.sourceData.schedule_id : '') || (typeof event.sourceData.scheduleId === 'string' ? event.sourceData.scheduleId : '')
+    if (!scheduleId) return setSelected(event)
+    const url = new URL(window.location.href)
+    url.searchParams.set('phase3', 'maintenance')
+    url.searchParams.set('pm', scheduleId)
+    url.searchParams.delete('schedulerDate')
+    window.history.replaceState({}, '', url)
+    window.dispatchEvent(new CustomEvent('cev:navigate', { detail: { view: 'maintenance' } }))
+  }
+
+  function selectEvent(event: LiveSchedulerEvent) {
+    if (event.eventType === 'PM_DUE') openPmDetail(event)
+    else setSelected(event)
   }
 
   async function requestMove(event: LiveSchedulerEvent, target: Date, assignment?: AssignmentOverride, exactTime = false) {
@@ -457,6 +480,7 @@ export function MaintenanceSchedulerPanel() {
       <button type="button" className={showUnscheduled ? 'active' : ''} onClick={() => setShowUnscheduled((current) => !current)}>Chưa xếp lịch {unscheduled.length ? `(${unscheduled.length})` : ''}</button>
     </div>
 
+    {focusedPmId ? <div className="scheduler-mode-note"><strong>PM focus:</strong> lịch đã mở tại kỳ Next Due của PM. Nhấn card PM để quay lại đúng PM Detail.</div> : null}
     {basis === 'due' ? <div className="scheduler-mode-note">Chế độ <strong>Ngày đến hạn</strong> dùng để kiểm soát kế hoạch. Kéo thả bị khóa để không vô tình thay đổi ngày thực hiện.</div> : null}
     {surface === 'calendar' && basis === 'start' && mode !== 'month' ? <div className="scheduler-mode-note"><strong>Snap 30 phút:</strong> thả Work Order vào đúng vị trí thời gian; kéo mép dưới card để đổi thời lượng theo mốc 30 phút.</div> : null}
     {surface === 'resources' && basis === 'start' ? <div className="scheduler-mode-note"><strong>Resource Planning:</strong> kéo Work Order sang ô ngày của nhân sự hoặc nhóm để đổi lịch và phân công trong một thao tác. View Thiết bị chỉ đổi ngày, không đổi Equipment ID.</div> : null}
@@ -466,15 +490,15 @@ export function MaintenanceSchedulerPanel() {
     <div className={`scheduler-layout${showUnscheduled ? '' : ' tray-hidden'}`}>
       {showUnscheduled ? <aside className="scheduler-unscheduled" aria-label="Công việc chưa xếp lịch" onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={onUnscheduledDrop}>
         <header><div><strong>Chưa xếp lịch</strong><small>{basis === 'start' ? 'Kéo vào lịch · kéo từ lịch về đây để hủy xếp lịch' : 'Work Order chưa có ngày thực hiện'}</small></div><span>{unscheduled.length}</span></header>
-        <div className="scheduler-unscheduled-list">{unscheduled.length ? unscheduled.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} onSelect={setSelected} />) : <div className="scheduler-empty">Không có công việc chưa xếp lịch.<br />Thả Work Order từ lịch vào đây để hủy xếp lịch.</div>}</div>
+        <div className="scheduler-unscheduled-list">{unscheduled.length ? unscheduled.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} onSelect={selectEvent} />) : <div className="scheduler-empty">Không có công việc chưa xếp lịch.<br />Thả Work Order từ lịch vào đây để hủy xếp lịch.</div>}</div>
       </aside> : null}
 
       <div className="scheduler-calendar-wrap">
         {loading ? <div className="scheduler-state" role="status">Đang tải lịch…</div> : surface === 'resources'
-          ? <ResourceCalendar days={calendarDays} rows={resourceRows} scheduled={scheduled} resourceKind={resourceKind} basis={basis} canManage={canManage} onDrop={onResourceDrop} onSelect={setSelected} />
+          ? <ResourceCalendar days={calendarDays} rows={resourceRows} scheduled={scheduled} resourceKind={resourceKind} basis={basis} canManage={canManage} onDrop={onResourceDrop} onSelect={selectEvent} />
           : mode === 'month'
-            ? <MonthCalendar days={calendarDays} cursor={cursor} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onDrop} onSelect={setSelected} />
-            : <TimeCalendar days={calendarDays} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onTimeDrop} onResize={requestResize} onSelect={setSelected} />}
+            ? <MonthCalendar days={calendarDays} cursor={cursor} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onDrop} onSelect={selectEvent} />
+            : <TimeCalendar days={calendarDays} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onTimeDrop} onResize={requestResize} onSelect={selectEvent} />}
       </div>
     </div>
 
