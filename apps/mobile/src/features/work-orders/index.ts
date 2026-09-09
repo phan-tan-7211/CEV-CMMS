@@ -21,9 +21,9 @@ export {
   transitionWorkOrder,
   recordWorkOrderHandover,
 } from './api/workOrderMutationService'
-export type { WorkOrderTransitionAction } from './api/workOrderMutationService'
+export type { WorkOrderTransitionAction, WorkOrderLaborInput } from './api/workOrderMutationService'
 export { listAvailablePartStock, issuePartToWorkOrder } from './api/workOrderInventoryService'
-export type { AvailablePartStock } from './api/workOrderInventoryService'
+export type { AvailablePartStock, IssuePartInput } from './api/workOrderInventoryService'
 export {
   deleteWorkOrderDraft,
   flushDeferredWorkOrderDraftDiscards,
@@ -65,6 +65,15 @@ export type {
   OfflineWorkOrderAttachment,
   WorkOrderAttachmentKind,
 } from './api/workOrderAttachmentOfflineService'
+export {
+  addWorkOrderLaborOffline,
+  discardQueuedWorkOrderPartLabor,
+  issuePartToWorkOrderOffline,
+  listQueuedWorkOrderPartLabor,
+  retryQueuedWorkOrderPartLabor,
+  syncQueuedWorkOrderPartLabor,
+} from './api/workOrderPartLaborOfflineService'
+export type { PartLaborQueueItem, PartLaborQueueKind, PartLaborQueueState } from './api/workOrderPartLaborOfflineService'
 
 export {
   getWorkOrderDetailSnapshot,
