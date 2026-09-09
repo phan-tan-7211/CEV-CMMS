@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAppRole } from '../auth/AppRoleContext'
 import { loadMaintenanceExecutionDetail, saveMaintenanceExecutionDetail, type MaintenanceExecutionDetail } from '../data/maintenanceExecution'
+import { WorkOrderTimerPanel } from './WorkOrderTimerPanel'
 import './WorkOrderExecutionPanel.css'
 
 const CAUSES = [
@@ -107,6 +108,7 @@ export function WorkOrderExecutionPanel({ workOrderId }: { workOrderId: string }
       <strong>{detail?.actualCompletedAt ? 'Đã ghi hoàn tất' : detail?.actualStartAt ? 'Đang thực hiện' : 'Chưa ghi thực tế'}</strong>
     </header>
     {loading ? <p className="wo-execution-state">Đang tải dữ liệu thực hiện…</p> : <div className="wo-execution-body">
+      <WorkOrderTimerPanel workOrderId={workOrderId} enabled={detail?.status === 'IN_PROGRESS'} />
       <div className="wo-execution-grid">
         <label className="wide"><span>Nguyên nhân gốc</span><textarea rows={3} value={rootCause} onChange={(e) => setRootCause(e.target.value)} disabled={!canEdit} placeholder="Ví dụ: bạc đạn motor mòn gây rung và tăng nhiệt…" /></label>
         <label className="wide"><span>Biện pháp xử lý / khắc phục</span><textarea rows={3} value={correctiveAction} onChange={(e) => setCorrectiveAction(e.target.value)} disabled={!canEdit} placeholder="Nội dung đã thực hiện để khôi phục thiết bị…" /></label>
