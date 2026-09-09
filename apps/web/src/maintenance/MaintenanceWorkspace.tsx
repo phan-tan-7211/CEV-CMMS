@@ -9,7 +9,7 @@ const LiveMaintenanceResultPanel = lazy(() => import('../LiveMaintenanceResultPa
 const LiveHandoverPanel = lazy(() => import('../LiveHandoverPanel').then((module) => ({ default: module.LiveHandoverPanel })))
 const LiveDowntimePanel = lazy(() => import('../LiveDowntimePanel').then((module) => ({ default: module.LiveDowntimePanel })))
 
-type MaintenanceTab = 'work-orders' | 'workload' | 'plans' | 'results' | 'handovers' | 'downtime'
+export type MaintenanceTab = 'work-orders' | 'workload' | 'plans' | 'results' | 'handovers' | 'downtime'
 
 type TabDefinition = {
   id: MaintenanceTab
@@ -21,7 +21,7 @@ type TabDefinition = {
 const TABS: TabDefinition[] = [
   { id: 'work-orders', label: 'Công việc', shortLabel: 'Công việc', description: 'Hàng đợi lệnh công việc và hành động tiếp theo' },
   { id: 'workload', label: 'Phân công', shortLabel: 'Phân công', description: 'My Work và tải công việc theo từng nhân sự' },
-  { id: 'plans', label: 'Kế hoạch', shortLabel: 'Kế hoạch', description: 'Kế hoạch bảo dưỡng định kỳ BM-03' },
+  { id: 'plans', label: 'Kế hoạch PM', shortLabel: 'Kế hoạch', description: 'Kế hoạch bảo trì phòng ngừa · BM-TBSX-03' },
   { id: 'results', label: 'Kết quả', shortLabel: 'Kết quả', description: 'Kết quả thực hiện bảo dưỡng / sửa chữa BM-08' },
   { id: 'handovers', label: 'Bàn giao', shortLabel: 'Bàn giao', description: 'Biên bản bàn giao thiết bị BM-05' },
   { id: 'downtime', label: 'Dừng máy', shortLabel: 'Dừng máy', description: 'Theo dõi thời gian và nguyên nhân dừng máy' },
@@ -45,10 +45,11 @@ function MaintenanceTabPanel({ tab, equipmentId }: { tab: MaintenanceTab; equipm
   return <LiveDowntimePanel />
 }
 
-export function MaintenanceWorkspace({ equipmentId = '' }: { equipmentId?: string }) {
-  const [activeTab, setActiveTab] = useState<MaintenanceTab>('work-orders')
-  const [visitedTabs, setVisitedTabs] = useState<Set<MaintenanceTab>>(() => new Set(['work-orders']))
+export function MaintenanceWorkspace({ equipmentId = '', initialTab = 'work-orders' }: { equipmentId?: string; initialTab?: MaintenanceTab }) {
+  const [activeTab, setActiveTab] = useState<MaintenanceTab>(initialTab)
+  const [visitedTabs, setVisitedTabs] = useState<Set<MaintenanceTab>>(() => new Set([initialTab]))
   const activeDefinition = TABS.find((tab) => tab.id === activeTab) || TABS[0]
+  const preventiveMode = initialTab === 'plans'
 
   function openTab(tab: MaintenanceTab) {
     setVisitedTabs((current) => current.has(tab) ? current : new Set([...current, tab]))
@@ -57,7 +58,7 @@ export function MaintenanceWorkspace({ equipmentId = '' }: { equipmentId?: strin
 
   return <div className="maintenance-workspace">
     <header className="maintenance-workspace-header">
-      <div><p className="eyebrow">CMMS · Thiết bị sản xuất</p><h1>Bảo trì thiết bị</h1><p>{equipmentId ? `Đang theo dõi công việc liên quan đến ${equipmentId}. Hàng đợi công việc tự lọc theo thiết bị để giữ nguyên ngữ cảnh từ hồ sơ máy.` : 'Một nơi xử lý công việc bảo trì từ tiếp nhận đến bàn giao. Phân công, My Work và tải nhân sự được tách riêng để supervisor cân bằng công việc mà không làm rối hàng đợi.'}</p></div>
+      <div><p className="eyebrow">CMMS · Thiết bị sản xuất</p><h1>{preventiveMode ? 'Bảo trì phòng ngừa' : 'Bảo trì thiết bị'}</h1><p>{equipmentId ? `Đang theo dõi công việc liên quan đến ${equipmentId}. Mọi kế hoạch và hồ sơ giữ nguyên ngữ cảnh thiết bị.` : preventiveMode ? 'Quản lý kế hoạch PM theo thiết bị, tần suất, trách nhiệm và hạng mục tiêu chuẩn. Đây là lớp kế hoạch bảo trì dùng cho kiểm soát IATF 16949.' : 'Một nơi xử lý công việc bảo trì từ tiếp nhận đến bàn giao. Phân công, My Work và tải nhân sự được tách riêng để supervisor cân bằng công việc mà không làm rối hàng đợi.'}</p></div>
       <div className="maintenance-workspace-current"><span>{equipmentId ? 'Ngữ cảnh thiết bị' : 'Đang xem'}</span><strong>{equipmentId || activeDefinition.label}</strong><small>{equipmentId ? activeDefinition.label : activeDefinition.description}</small></div>
     </header>
 
