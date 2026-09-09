@@ -1,0 +1,7 @@
+import { useState } from 'react'
+import './WorkOrderCreatePanel.css'
+
+export function WorkOrderCreatePanel() {
+  const [tab, setTab] = useState<'create'|'templates'>('create')
+  return <section className="wo-create-panel" aria-labelledby="wo-create-title"><header><div><p className="eyebrow">CEV CMMS · Lệnh công việc</p><h2 id="wo-create-title">Tạo lệnh công việc</h2><p>Khởi tạo nhanh một lệnh công việc hoặc dùng mẫu có sẵn.</p></div></header><div className="wo-create-tabs" role="tablist"><button type="button" className={tab==='create'?'active':''} onClick={()=>setTab('create')}>Tạo mới</button><button type="button" className={tab==='templates'?'active':''} onClick={()=>setTab('templates')}>Mẫu lệnh công việc</button></div>{tab==='create'?<div className="wo-create-form"><label>Tiêu đề<input placeholder="Nhập tiêu đề công việc" /></label><label>Mô tả<textarea rows={4} placeholder="Mô tả vấn đề hoặc công việc cần thực hiện" /></label><div className="wo-create-grid"><label>Thiết bị<input placeholder="Chọn thiết bị" /></label><label>Ưu tiên<select defaultValue=""><option value="">Chọn ưu tiên</option><option>Thấp</option><option>Trung bình</option><option>Cao</option></select></label></div><button type="button" className="wo-create-primary" onClick={()=>window.alert('Lệnh công việc sẽ được lưu khi nối dữ liệu.')}>Tạo lệnh công việc</button></div>:<div className="wo-template-empty"><strong>Chưa có mẫu lệnh công việc</strong><span>Tạo mẫu để dùng lại các công việc bảo trì thường xuyên.</span><button type="button">＋ Tạo mẫu</button></div>}</section>
+}
