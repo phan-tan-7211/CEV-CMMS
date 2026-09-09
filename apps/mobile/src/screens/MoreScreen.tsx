@@ -8,6 +8,7 @@ import { AppBottomNav } from '../components/AppBottomNav'
 import { GlobalCreateSheet } from '../components/GlobalCreateSheet'
 import { OeeScreen } from './OeeScreen'
 import { SchedulerScreen } from './SchedulerScreen'
+import { PurchaseOrdersScreen } from './PurchaseOrdersScreen'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -23,7 +24,6 @@ type MoreScreenProps = {
   onOpenParts: () => void
   onOpenLocations: () => void
   onOpenInventory: () => void
-  onOpenPurchasing: () => void
   onOpenMeters: () => void
   onOpenVendors: () => void
   onOpenPeople: () => void
@@ -50,11 +50,13 @@ const MENU_ITEMS: MoreMenuItem[] = [
 
 function showComingSoon(label: string) { Alert.alert(label,'Module này sẽ được nối dữ liệu và workflow ở batch tiếp theo.') }
 
-export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpenRequests,onOpenEquipment,onCreateEquipment,onOpenOperatorScan,onOpenParts,onOpenLocations,onOpenInventory,onOpenPurchasing,onOpenMeters,onOpenVendors,onOpenPeople,onOpenPreventiveMaintenance,isAdmin=false,isOperatorFlow=false }: MoreScreenProps) {
+export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpenRequests,onOpenEquipment,onCreateEquipment,onOpenOperatorScan,onOpenParts,onOpenLocations,onOpenInventory,onOpenMeters,onOpenVendors,onOpenPeople,onOpenPreventiveMaintenance,isAdmin=false,isOperatorFlow=false }: MoreScreenProps) {
   const [createMenuOpen,setCreateMenuOpen]=useState(false)
   const [oeeOpen,setOeeOpen]=useState(false)
   const [schedulerOpen,setSchedulerOpen]=useState(false)
+  const [purchasingOpen,setPurchasingOpen]=useState(false)
   function handleCenterAction(){ if(isOperatorFlow){onOpenOperatorScan();return} setCreateMenuOpen(true) }
+  if(purchasingOpen) return <PurchaseOrdersScreen onBack={()=>setPurchasingOpen(false)} onAddVendor={()=>{setPurchasingOpen(false);onOpenVendors()}}/>
   if(schedulerOpen) return <SchedulerScreen onBack={()=>setSchedulerOpen(false)} onOpenWorkOrder={()=>{setSchedulerOpen(false);onOpenWorkOrders()}}/>
   if(oeeOpen) return <OeeScreen onBack={()=>setOeeOpen(false)}/>
   return <SafeAreaView style={styles.safeArea} edges={['top','bottom']}><StatusBar style="dark"/><View style={styles.shell}><View style={styles.header}><Text style={styles.title}>Thêm</Text></View><ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>{MENU_ITEMS.map((item)=><Pressable key={item.key} accessibilityRole="button" accessibilityLabel={item.label} onPress={()=>{
@@ -62,7 +64,7 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpe
     if(item.key==='parts') return onOpenParts()
     if(item.key==='locations') return onOpenLocations()
     if(item.key==='inventory') return onOpenInventory()
-    if(item.key==='purchasing') return onOpenPurchasing()
+    if(item.key==='purchasing') return setPurchasingOpen(true)
     if(item.key==='meters') return onOpenMeters()
     if(item.key==='people-teams') return onOpenPeople()
     if(item.key==='vendors-contractors') return onOpenVendors()
