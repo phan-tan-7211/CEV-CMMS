@@ -19,6 +19,7 @@ export type AssetFinancialProfile = {
 }
 export type ParityEquipment = { id: string; name: string; profile?: AssetFinancialProfile | null }
 export type ParityTag = { id: string; name: string; color?: string | null; usageCount: number }
+export type ParityTagSet = { id: string; name: string; description?: string | null; tagIds: string[] }
 export type ChecklistRule = {
   templateItemId: string
   templateId: string
@@ -34,6 +35,7 @@ export type MobileLastParitySnapshot = {
   workOrders: ParityWorkOrder[]
   equipment: ParityEquipment[]
   tags: ParityTag[]
+  tagSets: ParityTagSet[]
   checklistRules: ChecklistRule[]
   entityTags: EntityTag[]
 }
@@ -81,6 +83,16 @@ export function setEntityTag(input: { entityType: 'ASSET' | 'WORK_ORDER'; entity
   return rpc<void>('rpc_cmms_set_entity_tag', {
     p_entity_type: input.entityType,
     p_entity_id: input.entityId,
+    p_tag_id: input.tagId,
+    p_enabled: input.enabled,
+  })
+}
+export function createTagSet(name: string, description?: string) {
+  return rpc<string>('rpc_cmms_create_tag_set', { p_name: name, p_description: description || null })
+}
+export function setTagSetMember(input: { setId: string; tagId: string; enabled: boolean }) {
+  return rpc<void>('rpc_cmms_set_tag_set_member', {
+    p_set_id: input.setId,
     p_tag_id: input.tagId,
     p_enabled: input.enabled,
   })
