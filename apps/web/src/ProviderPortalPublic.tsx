@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import './ProviderPortalPublic.css'
 import { supabase } from './data/supabaseClient'
 
@@ -27,7 +27,7 @@ export function ProviderPortalPublic({ token }: { token: string }) {
   const [actorLabel, setActorLabel] = useState('Nhà thầu')
   const [note, setNote] = useState('')
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -40,9 +40,9 @@ export function ProviderPortalPublic({ token }: { token: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [token])
 
-  useEffect(() => { void load() }, [token])
+  useEffect(() => { void load() }, [load])
 
   async function submit(action: ProviderAction) {
     if (busy) return
