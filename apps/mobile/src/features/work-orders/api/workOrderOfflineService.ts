@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '../../../lib/supabase/client'
 import { createMaintenanceWorkOrder } from './workOrderMutationService'
 
-const STORAGE_KEY = 'cev.cmms.work-order-drafts.v1'
+const STORAGE_KEY_PREFIX = 'cev.cmms.work-order-drafts.v1'
 
 export type DraftSelection = {
   id: string
@@ -38,6 +38,11 @@ function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+async function storageKey() {
+  const { data } = await supabase.auth.getSession()
+  return `${STORAGE_KEY_PREFIX}:${data.session?.user.id || 'signed-out'}`
+}
+
 export function isLikelyNetworkError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? '')
   return /network|failed to fetch|fetch failed|load failed|connection|internet|offline|timeout|timed out/i.test(message)
@@ -45,7 +50,7 @@ export function isLikelyNetworkError(error: unknown) {
 
 async function readLocalDrafts(): Promise<LocalWorkOrderDraft[]> {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY)
+    const raw = await AsyncStorage.getItem(await storageKey())
     if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : []
@@ -55,7 +60,7 @@ async function readLocalDrafts(): Promise<LocalWorkOrderDraft[]> {
 }
 
 async function writeLocalDrafts(rows: LocalWorkOrderDraft[]) {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(rows))
+  await AsyncStorage.setItem(await storageKey(), JSON.stringify(rows))
 }
 
 async function replaceLocalDraft(next: LocalWorkOrderDraft) {
