@@ -32,6 +32,7 @@ const OrgManagementPanel = lazy(() => import('./OrgManagementPanel').then((modul
 const ProvidersNetworkPanel = lazy(() => import('./ProvidersNetworkPanel').then((module) => ({ default: module.ProvidersNetworkPanel })))
 const CustomersListPanel = lazy(() => import('./CustomersListPanel').then((module) => ({ default: module.CustomersListPanel })))
 const PurchaseOrdersPanel = lazy(() => import('./PurchaseOrdersPanel').then((module) => ({ default: module.PurchaseOrdersPanel })))
+const CycleCountsPanel = lazy(() => import('./CycleCountsPanel').then((module) => ({ default: module.CycleCountsPanel })))
 
 type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
 
@@ -123,6 +124,7 @@ function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, 
   if (view === 'providers') return <ProvidersNetworkPanel />
   if (view === 'customers') return <CustomersListPanel />
   if (view === 'purchase-orders') return <PurchaseOrdersPanel />
+  if (view === 'inventory') return <CycleCountsPanel />
   if (view === 'settings') return <LiveAuditPanel />
   return <ModulePlaceholderPanel title={NAV.find((item) => item.id === view)?.label || view} />
 }
