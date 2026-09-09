@@ -42,6 +42,17 @@ export type {
   WorkOrderCreateDraftPayload,
   WorkOrderDraftSyncState,
 } from './api/workOrderOfflineService'
+export {
+  addWorkOrderChecklistItemOffline,
+  listWorkOrderOfflineMutations,
+  setWorkOrderChecklistCompletedOffline,
+  syncQueuedWorkOrderMutations,
+} from './api/workOrderOfflineMutationQueue'
+export type {
+  WorkOrderOfflineMutation,
+  WorkOrderOfflineMutationKind,
+  WorkOrderOfflineMutationState,
+} from './api/workOrderOfflineMutationQueue'
 
 export {
   getWorkOrderDetailSnapshot,
@@ -50,6 +61,7 @@ export {
   isWorkOrderDetailStale,
   isWorkOrderListStale,
   listBookmarkedWorkOrderIds,
+  patchWorkOrderDetailSnapshot,
   revalidateWorkOrderDetail,
   revalidateWorkOrderList,
   setWorkOrderBookmarked,

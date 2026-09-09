@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
+import { ActivityIndicator, AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import {
+  flushDeferredWorkOrderDraftDiscards,
   getWorkOrderListSnapshot,
   revalidateWorkOrderList,
   subscribeWorkOrderList,
+  syncQueuedWorkOrderDrafts,
+  syncQueuedWorkOrderMutations,
   type WorkOrderListItem,
 } from '../features/work-orders'
 import { loadSettingsBundle, saveDashboardPreference } from '../features/settings'
@@ -57,6 +60,28 @@ export function WorkOrderDashboardScreen({
   }, [])
 
   useEffect(() => {
+    let active = true
+    const sync = async () => {
+      if (!active) return
+      await Promise.allSettled([
+        syncQueuedWorkOrderMutations(),
+        syncQueuedWorkOrderDrafts(),
+        flushDeferredWorkOrderDraftDiscards(),
+      ])
+    }
+    void sync()
+    const interval = setInterval(() => { void sync() }, 30_000)
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void sync()
+    })
+    return () => {
+      active = false
+      clearInterval(interval)
+      subscription.remove()
+    }
+  }, [])
+
+  useEffect(() => {
     let mounted = true
     void loadSettingsBundle().then((bundle) => {
       if (mounted) setVisibleFilters(asDashboardFilters(bundle.dashboard.visibleCards))
@@ -83,7 +108,10 @@ export function WorkOrderDashboardScreen({
 
   async function refresh() {
     setRefreshing(true); setError('')
-    try { setItems(await revalidateWorkOrderList({ force: true })) }
+    try {
+      await Promise.allSettled([syncQueuedWorkOrderMutations(), syncQueuedWorkOrderDrafts(), flushDeferredWorkOrderDraftDiscards()])
+      setItems(await revalidateWorkOrderList({ force: true }))
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Không tải được Work Order.') }
     finally { setRefreshing(false) }
   }
