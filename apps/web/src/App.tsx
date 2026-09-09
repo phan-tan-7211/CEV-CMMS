@@ -30,6 +30,7 @@ const LiveSparePartsAutoPanel = lazy(() => import('./LiveSparePartsAutoPanel').t
 const LiveToolingPanel = lazy(() => import('./LiveToolingPanel').then((module) => ({ default: module.LiveToolingPanel })))
 const OrgManagementPanel = lazy(() => import('./OrgManagementPanel').then((module) => ({ default: module.OrgManagementPanel })))
 const ProvidersNetworkPanel = lazy(() => import('./ProvidersNetworkPanel').then((module) => ({ default: module.ProvidersNetworkPanel })))
+const CustomersListPanel = lazy(() => import('./CustomersListPanel').then((module) => ({ default: module.CustomersListPanel })))
 
 type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
 
@@ -119,6 +120,7 @@ function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, 
   if (view === 'print') return <A4PrintCenter />
   if (view === 'organization') return <OrgManagementPanel />
   if (view === 'providers') return <ProvidersNetworkPanel />
+  if (view === 'customers') return <CustomersListPanel />
   if (view === 'settings') return <LiveAuditPanel />
   return <ModulePlaceholderPanel title={NAV.find((item) => item.id === view)?.label || view} />
 }
