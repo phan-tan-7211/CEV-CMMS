@@ -2,6 +2,8 @@
 
 This file defines how CEV CMMS uses UpKeep as its primary product reference.
 
+Before implementing or refactoring a referenced CMMS screen, also read `docs/UPKEEP_REFERENCE_INDEX.md` to locate the exact captured UpKeep route/state.
+
 ## Product statement
 
 CEV CMMS is an **UpKeep-first CMMS adapted to CEV operations and extended for IATF 16949 equipment-management requirements**.
@@ -143,11 +145,50 @@ Use the highest available source in this order:
 
 Never use a lower-priority source to override a clear higher-priority UpKeep reference.
 
+## UpKeep Drive source roles
+
+Two operator-provided Google Drive locations have different purposes and must not be conflated.
+
+### Master UpKeep source
+
+`https://drive.google.com/drive/u/0/folders/1_H0N-OgFKB7gSdfQCYxhKtIydxnnokcW`
+
+This is the long-term master research source. It may contain:
+
+- `CEV-UpKeep-Reference`
+- `AI_corpus`
+- `UpKeep_decompiled`
+- `ghidra_proj`
+- `UpKeep_jadx`
+
+Use this source to understand behavior or fill research gaps. Decompiled/reverse-engineered material is reference-only. Do not copy proprietary UpKeep source code or private assets into CEV.
+
+### Visual/capture authority
+
+`https://drive.google.com/drive/folders/1TZ2yTswQ1GgO4ZHAJdlbUfkjZq9pVwvU`
+
+Folder name: `CEV-UpKeep-Reference`.
+
+This is the primary captured UI/state source for visual parity. Known capture generations include:
+
+- `upkeep/`
+- `upkeep-v2/`
+- `upkeep-v3/`
+- `upkeep-v4/`
+- `upkeep-v5/`
+- `upkeep-v6/`
+- `upkeep-v7/`
+- `upkeep-v8-analysis/`
+
+Use `docs/UPKEEP_REFERENCE_INDEX.md` for the verified V6/V7/V8 folder links and route-to-capture mapping.
+
+If the exact capture exists in the visual/capture Drive, use it before master-source research material or fallback products.
+
 ## Current known reference sources
 
 ### Drive capture source
 
-UpKeep capture folder supplied by the operator:
+The visual/capture authority is:
 
 `https://drive.google.com/drive/folders/1TZ2yTswQ1GgO4ZHAJdlbUfkjZq9pVwvU`
 
@@ -226,7 +267,8 @@ An AI session working on CEV UI must not:
 7. duplicate Equipment ID/status/criticality across hero and overview,
 8. patch each screen independently when the mismatch comes from shared shell/list/detail primitives,
 9. declare parity without comparing screenshots when screenshots are available,
-10. break existing business flow or live data merely to make a visual mock.
+10. break existing business flow or live data merely to make a visual mock,
+11. skip `docs/UPKEEP_REFERENCE_INDEX.md` and choose a lower-priority reference from memory when an indexed capture exists.
 
 ## Visual parity checklist
 
@@ -273,10 +315,11 @@ UpKeep is the product reference, but CEV platform architecture still applies.
 
 A referenced UI batch is complete only when:
 
-1. the exact/best available UpKeep reference was identified,
-2. CEV implementation was compared against it,
-3. material layout/hierarchy/density differences were corrected,
-4. IATF additions fit the same pattern,
-5. required actions and accessibility remain intact,
-6. responsive requirements pass,
-7. architecture/build/test gates required by the repository pass.
+1. `docs/UPKEEP_REFERENCE_INDEX.md` was checked for the target screen,
+2. the exact/best available UpKeep reference was identified,
+3. CEV implementation was compared against it,
+4. material layout/hierarchy/density differences were corrected,
+5. IATF additions fit the same pattern,
+6. required actions and accessibility remain intact,
+7. responsive requirements pass,
+8. architecture/build/test gates required by the repository pass.
