@@ -36,10 +36,22 @@ export type PreventiveMaintenanceSchedule = {
   meterDue: boolean
 }
 
+export type PreventiveMaintenanceWorkOrder = {
+  workOrderId: string
+  scheduleId: string
+  equipmentId: string
+  status: string
+  priority: string
+  reason: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type PreventiveMaintenanceOption = { id: string; label: string; meta?: string }
 
 export type PreventiveMaintenanceSnapshot = {
   schedules: PreventiveMaintenanceSchedule[]
+  workOrders: PreventiveMaintenanceWorkOrder[]
   equipment: PreventiveMaintenanceOption[]
   meters: Array<PreventiveMaintenanceOption & { equipmentId: string; unit: string; latestValue: number | null }>
   checklistTemplates: PreventiveMaintenanceOption[]
@@ -80,8 +92,9 @@ function numberOrNull(value: unknown) {
 function bool(value: unknown) { return value === true || text(value).toUpperCase() === 'TRUE' }
 
 export async function loadPreventiveMaintenance(): Promise<PreventiveMaintenanceSnapshot> {
-  const [scheduleResult, equipmentResult, meterResult, readingResult, templateResult, personResult, teamResult, dueResult] = await Promise.all([
+  const [scheduleResult, workOrderResult, equipmentResult, meterResult, readingResult, templateResult, personResult, teamResult, dueResult] = await Promise.all([
     dataGateway.readRows('cmms_pm_schedule', { order: { column: 'updated_at', ascending: false } }),
+    dataGateway.readRows('maintenance_work_order', { order: { column: 'created_at', ascending: false }, limit: 5000 }),
     dataGateway.readRows('equipment_master', { columns: 'equipment_id,equipment_name,equipment_type,status,active' }),
     dataGateway.readRows('cmms_meter', { order: { column: 'name', ascending: true } }),
     dataGateway.readRows('cmms_meter_reading', { order: { column: 'recorded_at', ascending: false }, limit: 5000 }),
@@ -91,7 +104,7 @@ export async function loadPreventiveMaintenance(): Promise<PreventiveMaintenance
     dataGateway.rpc<Row[]>('rpc_cmms_pm_due_list', { p_as_of: new Date().toISOString(), p_include_not_due: true }),
   ])
 
-  for (const result of [scheduleResult, equipmentResult, meterResult, readingResult, templateResult, personResult, teamResult, dueResult]) {
+  for (const result of [scheduleResult, workOrderResult, equipmentResult, meterResult, readingResult, templateResult, personResult, teamResult, dueResult]) {
     if (result.error) throw result.error
   }
 
@@ -158,8 +171,23 @@ export async function loadPreventiveMaintenance(): Promise<PreventiveMaintenance
       }
     })
 
+  const scheduleIds = new Set(schedules.map((schedule) => schedule.scheduleId))
+  const workOrders = workOrderResult.data
+    .filter((row) => text(row.source_type).toUpperCase() === 'PREVENTIVE_MAINTENANCE' && scheduleIds.has(text(row.source_id)))
+    .map((row): PreventiveMaintenanceWorkOrder => ({
+      workOrderId: text(row.work_order_id),
+      scheduleId: text(row.source_id),
+      equipmentId: text(row.equipment_id),
+      status: text(row.status) || 'OPEN',
+      priority: text(row.priority) || 'NORMAL',
+      reason: text(row.reason),
+      createdAt: text(row.created_at),
+      updatedAt: text(row.updated_at),
+    }))
+
   return {
     schedules,
+    workOrders,
     equipment: equipmentRows.map((row) => ({ id: text(row.equipment_id), label: text(row.equipment_name) || text(row.equipment_id), meta: text(row.equipment_id) })),
     meters: meterRows.map((row) => ({
       id: text(row.meter_id),
