@@ -18,6 +18,8 @@ export type WorkOrderCreateDraftPayload = {
   priority: string
   person?: DraftSelection | null
   team?: DraftSelection | null
+  checklistTemplateId?: string
+  customFieldValues?: Array<{ fieldId: string; value: unknown }>
 }
 
 export type WorkOrderDraftSyncState = 'LOCAL' | 'SYNCED' | 'QUEUED' | 'ERROR'
@@ -236,6 +238,18 @@ export async function saveWorkOrderCreateDraft(input: {
   return draft
 }
 
+async function applyCreateExtras(draft: LocalWorkOrderDraft, workOrderId: string) {
+  const payload = draft.payload
+  if (!payload.checklistTemplateId && !(payload.customFieldValues?.length)) return
+  const { error } = await supabase.rpc('rpc_cmms_apply_work_order_create_extras', {
+    p_work_order_id: workOrderId,
+    p_client_mutation_id: draft.clientMutationId,
+    p_checklist_template_id: payload.checklistTemplateId || null,
+    p_custom_values: payload.customFieldValues || [],
+  })
+  if (error) throw new Error(error.message || 'Không thể áp dụng checklist/custom fields cho Work Order.')
+}
+
 export async function submitWorkOrderDraft(draft: LocalWorkOrderDraft) {
   const payload = draft.payload
   try {
@@ -247,6 +261,7 @@ export async function submitWorkOrderDraft(draft: LocalWorkOrderDraft) {
       teamIds: payload.team ? [payload.team.id] : [],
       operationId: draft.clientMutationId,
     })
+    await applyCreateExtras(draft, result.workOrderId)
     try { await discardServerDraft(draft.serverDraftId) } catch { /* creation succeeded; local queue must still clear */ }
     await removeLocalWorkOrderDraft(draft.localId)
     return result
