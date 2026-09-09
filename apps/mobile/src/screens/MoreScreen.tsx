@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { AppBottomNav } from '../components/AppBottomNav'
 import { GlobalCreateSheet } from '../components/GlobalCreateSheet'
 import { OeeScreen } from './OeeScreen'
+import { SchedulerScreen } from './SchedulerScreen'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -32,7 +33,6 @@ type MoreScreenProps = {
   onOpenVendors: () => void
   onOpenPeople: () => void
   onOpenPreventiveMaintenance: () => void
-  onOpenScheduler: () => void
   isAdmin?: boolean
   isOperatorFlow?: boolean
 }
@@ -69,12 +69,12 @@ export function MoreScreen({
   onOpenVendors,
   onOpenPeople,
   onOpenPreventiveMaintenance,
-  onOpenScheduler,
   isAdmin = false,
   isOperatorFlow = false,
 }: MoreScreenProps) {
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
   const [oeeOpen, setOeeOpen] = useState(false)
+  const [schedulerOpen, setSchedulerOpen] = useState(false)
 
   function handleCenterAction() {
     if (isOperatorFlow) {
@@ -84,6 +84,7 @@ export function MoreScreen({
     setCreateMenuOpen(true)
   }
 
+  if (schedulerOpen) return <SchedulerScreen onBack={() => setSchedulerOpen(false)} onOpenWorkOrder={() => { setSchedulerOpen(false); onOpenWorkOrders() }} />
   if (oeeOpen) return <OeeScreen onBack={() => setOeeOpen(false)} />
 
   return (
@@ -112,7 +113,7 @@ export function MoreScreen({
                 if (item.key === 'people-teams') return onOpenPeople()
                 if (item.key === 'vendors-contractors') return onOpenVendors()
                 if (item.key === 'preventive-maintenance') return onOpenPreventiveMaintenance()
-                if (item.key === 'scheduler') return onOpenScheduler()
+                if (item.key === 'scheduler') return setSchedulerOpen(true)
                 if (item.key === 'oee') return setOeeOpen(true)
                 if (item.key === 'requests') return onOpenRequests()
                 if (item.key === 'assets') return onOpenEquipment()
