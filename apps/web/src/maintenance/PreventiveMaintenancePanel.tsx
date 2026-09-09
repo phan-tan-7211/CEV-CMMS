@@ -51,6 +51,16 @@ function canManage(role: string) { return ['SUPERVISOR', 'MANAGER', 'ADMIN'].inc
 function nextMonthIso() { const date = new Date(); date.setMonth(date.getMonth() + 1); return date.toISOString() }
 function statusText(schedule: PreventiveMaintenanceSchedule) { return schedule.isDue ? 'Đến trigger' : schedule.active ? 'Đang hoạt động' : 'Tạm dừng' }
 function urlPmTarget() { return new URLSearchParams(window.location.search).get('pm')?.trim() || '' }
+function openScheduler(schedule?: PreventiveMaintenanceSchedule) {
+  const url = new URL(window.location.href)
+  url.searchParams.set('phase3', 'scheduler')
+  if (schedule?.scheduleId) url.searchParams.set('pm', schedule.scheduleId)
+  else url.searchParams.delete('pm')
+  if (schedule?.nextDueAt) url.searchParams.set('schedulerDate', schedule.nextDueAt)
+  else url.searchParams.delete('schedulerDate')
+  window.history.replaceState({}, '', url)
+  window.dispatchEvent(new CustomEvent('cev:navigate', { detail: { view: 'scheduler' } }))
+}
 
 function draftFromSchedule(schedule?: PreventiveMaintenanceSchedule): PreventiveMaintenanceInput {
   if (!schedule) return {
@@ -183,17 +193,6 @@ export function PreventiveMaintenancePanel() {
       await refresh()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể tạo Work Order PM.') }
     finally { setSaving(false) }
-  }
-
-  function openScheduler(schedule?: PreventiveMaintenanceSchedule) {
-    const url = new URL(window.location.href)
-    url.searchParams.set('phase3', 'scheduler')
-    if (schedule?.scheduleId) url.searchParams.set('pm', schedule.scheduleId)
-    else url.searchParams.delete('pm')
-    if (schedule?.nextDueAt) url.searchParams.set('schedulerDate', schedule.nextDueAt)
-    else url.searchParams.delete('schedulerDate')
-    window.history.replaceState({}, '', url)
-    window.dispatchEvent(new CustomEvent('cev:navigate', { detail: { view: 'scheduler' } }))
   }
 
   if (loading) return <div className="maintenance-state">Đang tải Preventive Maintenance…</div>

@@ -49,6 +49,7 @@ function plannedMinutes(item: LiveMaintenanceWorkOrder) {
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0
   return Math.round((end - start) / 60_000)
 }
+function openScheduler() { window.dispatchEvent(new CustomEvent('cev:navigate', { detail: { view: 'scheduler' } })) }
 
 export function MaintenanceWorkloadPanel() {
   const role = useAppRole()
@@ -132,8 +133,6 @@ export function MaintenanceWorkloadPanel() {
     })
     return { person, days, totalMinutes: days.reduce((sum, day) => sum + day.minutes, 0) }
   }), [activeOrders, planningDays, visibleWorkload])
-
-  const openScheduler = () => window.dispatchEvent(new CustomEvent('cev:navigate', { detail: { view: 'scheduler' } }))
 
   return <section className="maintenance-workload-page" aria-labelledby="maintenance-workload-title">
     <header className="maintenance-workload-header">

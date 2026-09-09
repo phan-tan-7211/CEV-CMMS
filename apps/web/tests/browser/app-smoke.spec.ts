@@ -39,7 +39,7 @@ async function installMocks(page: Page) {
       }
       const schedulerEvents = [
         {
-          event_type: 'WORK_ORDER', event_id: 'WO-SMOKE-1', work_order_id: 'WO-SMOKE-1', pm_schedule_id: '', equipment_id: 'CEV-PR-001', equipment_name: 'Smoke Equipment',
+          event_type: 'WORK_ORDER', event_id: 'WO-SMOKE-1', work_order_id: 'WO-SMOKE-1', pm_schedule_id: 'PM-SCHEDULE-1', equipment_id: 'CEV-PR-001', equipment_name: 'Smoke Equipment',
           location_id: '', location_name: 'Factory 2', title: 'WO overlap A', status: 'PLANNED', priority: 'NORMAL', start_at: at(9), end_at: at(10, 30), schedule_locked: false,
           primary_person_id: 'P1', primary_person_name: 'Kỹ thuật A', primary_team_id: 'T1', primary_team_name: 'Bảo trì', unscheduled: false, source_data: {},
         },
@@ -59,6 +59,7 @@ async function installMocks(page: Page) {
     }
     if (path.includes('/rest/v1/rpc/rpc_cmms_scheduler_conflicts')) return route.fulfill({ status: 200, headers, body: '[]' })
     if (path.includes('/rest/v1/rpc/rpc_cmms_reschedule_work_order')) return route.fulfill({ status: 200, headers, body: '{}' })
+    if (path.includes('/rest/v1/rpc/rpc_cmms_set_work_order_schedule_lock')) return route.fulfill({ status: 200, headers, body: '{}' })
     if (path.includes('/rest/v1/')) return route.fulfill({ status: 200, headers, body: '[]' })
     if (path.includes('/storage/v1/')) return route.fulfill({ status: 200, headers, body: '[]' })
     return route.fulfill({ status: 200, headers, body: '{}' })
@@ -157,6 +158,18 @@ test('scheduler surfaces PM state, overlap lanes and month overflow list', async
   await expect(overlapCards).toHaveCount(2)
   const widths = await overlapCards.evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).width))
   expect(widths.every((width) => Number.parseFloat(width) > 0)).toBeTruthy()
+  await overlapCards.first().click()
+  const detail = page.getByRole('dialog', { name: 'WO overlap A' })
+  await expect(detail).toBeVisible()
+  await expect(detail.getByRole('button', { name: 'Mở Work Order' })).toBeVisible()
+  await expect(detail.getByRole('button', { name: 'Mở PM liên quan' })).toBeVisible()
+  await detail.getByRole('button', { name: 'Khóa lịch' }).click()
+  await expect(detail.getByRole('button', { name: 'Mở khóa lịch' })).toBeVisible()
+  await detail.getByRole('button', { name: 'Đóng' }).click()
+  await scheduler.getByRole('button', { name: 'Nguồn lực', exact: true }).click()
+  await expect(scheduler.locator('.scheduler-resource-cell.has-conflict')).toHaveCount(1)
+  await expect(scheduler.locator('.scheduler-event.resource-conflict')).toHaveCount(2)
+  await scheduler.getByRole('button', { name: 'Lịch', exact: true }).click()
   await scheduler.getByRole('button', { name: 'Tháng', exact: true }).click()
   const more = scheduler.getByRole('button', { name: /^\+\d+ công việc$/ }).first()
   await expect(more).toBeVisible()

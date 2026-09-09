@@ -93,10 +93,20 @@
 .scheduler-resource-cell.has-conflict:hover{background:#fff3ec;box-shadow:inset 0 0 0 2px #df9f7f}
 .scheduler-resource-cell-meta>span:last-child{display:inline-flex;align-items:center;gap:5px}
 .scheduler-resource-cell-meta em{display:inline-flex;align-items:center;padding:1px 4px;border-radius:999px;background:#fee9df;color:#9b4727;font-size:8px;font-style:normal;font-weight:800}
+.scheduler-event.resource-conflict{border-color:#e0a184;border-left-color:#b85b35;background:#fff7f2}
+.scheduler-conflict-badge{display:inline-flex!important;max-width:100%;align-items:center;padding:1px 5px;border-radius:999px;background:#fee9df;color:#934322!important;font-size:8px!important;font-weight:800;line-height:1.4;white-space:normal!important}
+.scheduler-event.saving{cursor:progress!important;opacity:.7}
+.scheduler-saving-label{color:#315f9f!important;font-size:9px!important;font-weight:800}
 .scheduler-planning-context{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
 .scheduler-planning-context>div{display:flex;min-width:0;flex-direction:column;gap:4px;padding:10px;border:1px solid #e2e6eb;border-radius:7px;background:#fafbfc}
 .scheduler-planning-context span{color:#7a828c;font-size:9px;font-weight:700;text-transform:uppercase}
 .scheduler-planning-context strong{overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.scheduler-detail-badge{display:inline-flex;width:max-content;align-items:center;min-height:22px;padding:2px 7px;border-radius:999px;background:#eef2f7;color:#445268;font-size:10px;font-weight:800}
+.scheduler-detail-badge.status-overdue,.scheduler-detail-badge.priority-critical,.scheduler-detail-badge.priority-urgent,.scheduler-detail-badge.priority-high{background:#feecec;color:#a72f2f}
+.scheduler-detail-badge.status-completed,.scheduler-detail-badge.status-verified,.scheduler-detail-badge.status-released{background:#e9f6ed;color:#28633a}
+.scheduler-detail-footer{align-items:center;justify-content:space-between!important;gap:10px;flex-wrap:wrap}
+.scheduler-detail-footer>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.scheduler-related-actions button{color:#315f9f}
 
 .scheduler-time-events .scheduler-event{overflow:visible!important}
 .scheduler-time-events .scheduler-event>span:not(.scheduler-resize-handle):not(.scheduler-pm-badges),
@@ -109,7 +119,7 @@
 .scheduler-event.resizing *{cursor:ns-resize!important}
 
 @media(max-width:900px){.scheduler-pm-strip{padding-left:16px;padding-right:16px}}
-@media(max-width:540px){.scheduler-pm-strip{padding-left:10px;padding-right:10px}.scheduler-pm-strip span{flex:1;justify-content:space-between}.scheduler-planning-context{grid-template-columns:1fr}}
+@media(max-width:540px){.scheduler-pm-strip{padding-left:10px;padding-right:10px}.scheduler-pm-strip span{flex:1;justify-content:space-between}.scheduler-planning-context{grid-template-columns:1fr}.scheduler-detail-footer,.scheduler-detail-footer>div{width:100%}.scheduler-detail-footer>div:last-child{justify-content:flex-end}.scheduler-related-actions button{flex:1}}
 @media (prefers-reduced-motion:reduce){
   .scheduler-event[draggable="true"],.scheduler-day,.scheduler-time-day,.scheduler-resource-cell,.scheduler-unscheduled,.scheduler-resize-handle i,.scheduler-time-events .scheduler-event{transition:none!important}
 }

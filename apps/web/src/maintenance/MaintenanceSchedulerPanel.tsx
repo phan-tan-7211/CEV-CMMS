@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { useAppRole } from '../auth/AppRoleContext'
 import {
   loadSchedulerConflicts,
   loadSchedulerEvents,
   rescheduleWorkOrder,
+  setWorkOrderScheduleLock,
   type LiveSchedulerEvent,
   type SchedulerConflict,
 } from '../data/liveScheduler'
@@ -178,6 +179,29 @@ function countResourceConflicts(events: LiveSchedulerEvent[]) {
   }
   return pairs
 }
+function resourceConflictEventIds(events: LiveSchedulerEvent[]) {
+  const workOrders = events
+    .filter((event) => event.eventType === 'WORK_ORDER' && event.startAt && event.endAt)
+    .toSorted((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))
+  const ids = new Set<string>()
+  for (let index = 0; index < workOrders.length; index += 1) {
+    const left = workOrders[index]
+    const leftStart = Date.parse(left.startAt)
+    const leftEnd = Date.parse(left.endAt)
+    if (Number.isNaN(leftStart) || Number.isNaN(leftEnd)) continue
+    for (let otherIndex = index + 1; otherIndex < workOrders.length; otherIndex += 1) {
+      const right = workOrders[otherIndex]
+      const rightStart = Date.parse(right.startAt)
+      if (Number.isNaN(rightStart) || rightStart >= leftEnd) break
+      const rightEnd = Date.parse(right.endAt)
+      if (!Number.isNaN(rightEnd) && rightEnd > leftStart) {
+        ids.add(left.eventId)
+        ids.add(right.eventId)
+      }
+    }
+  }
+  return ids
+}
 function toLocalInput(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -203,6 +227,26 @@ function schedulerUrlDate() {
   return Number.isNaN(date.getTime()) ? startOfDay(new Date()) : startOfDay(date)
 }
 function schedulerUrlPm() { return new URLSearchParams(window.location.search).get('pm')?.trim() || '' }
+function openWorkOrder(event: LiveSchedulerEvent) {
+  const url = new URL(window.location.href)
+  url.searchParams.set('phase3', 'work-orders')
+  url.searchParams.set('workOrder', event.workOrderId)
+  url.searchParams.delete('pm')
+  url.searchParams.delete('schedulerDate')
+  window.history.replaceState({}, '', url)
+  window.dispatchEvent(new CustomEvent('cev:navigate', { detail: { view: 'work-orders', workOrderId: event.workOrderId } }))
+}
+function openRelatedPm(event: LiveSchedulerEvent) {
+  const scheduleId = event.pmScheduleId || sourceString(event, ['schedule_id', 'scheduleId'])
+  if (!scheduleId) return
+  const url = new URL(window.location.href)
+  url.searchParams.set('phase3', 'maintenance')
+  url.searchParams.set('pm', scheduleId)
+  url.searchParams.delete('workOrder')
+  url.searchParams.delete('schedulerDate')
+  window.history.replaceState({}, '', url)
+  window.dispatchEvent(new CustomEvent('cev:navigate', { detail: { view: 'maintenance' } }))
+}
 function snappedTimeFromPointer(event: DragEvent<HTMLDivElement>, day: Date) {
   const rect = event.currentTarget.getBoundingClientRect()
   const gridMinutes = (GRID_END_HOUR - GRID_START_HOUR) * 60
@@ -245,7 +289,8 @@ export function MaintenanceSchedulerPanel() {
   const [teamFilter, setTeamFilter] = useState('')
   const [showUnscheduled, setShowUnscheduled] = useState(true)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const mutationLocks = useRef(new Set<string>())
+  const [busyWorkOrderIds, setBusyWorkOrderIds] = useState<Set<string>>(() => new Set())
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [now, setNow] = useState(() => new Date())
@@ -275,7 +320,14 @@ export function MaintenanceSchedulerPanel() {
     } finally { if (!silent) setLoading(false) }
   }, [periodEndMs, periodStartMs])
 
-  useEffect(() => { void refresh() }, [refresh])
+  useEffect(() => {
+    let active = true
+    loadSchedulerEvents({ startAt: new Date(periodStartMs).toISOString(), endAt: new Date(periodEndMs).toISOString(), includeUnscheduled: true })
+      .then((next) => { if (active) { setEvents(next); setError('') } })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Không thể tải lịch bảo trì.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [periodEndMs, periodStartMs])
   useEffect(() => {
     if (!selected && !pendingMove) return
     const previous = document.body.style.overflow
@@ -326,6 +378,25 @@ export function MaintenanceSchedulerPanel() {
     locked: filtered.filter((event) => event.eventType === 'WORK_ORDER' && event.scheduleLocked).length,
   }), [filtered, unscheduled.length])
 
+  function acquireMutation(workOrderId: string) {
+    if (!workOrderId || mutationLocks.current.has(workOrderId)) return false
+    mutationLocks.current.add(workOrderId)
+    setBusyWorkOrderIds((current) => new Set(current).add(workOrderId))
+    return true
+  }
+  function releaseMutation(workOrderId: string) {
+    mutationLocks.current.delete(workOrderId)
+    setBusyWorkOrderIds((current) => {
+      const next = new Set(current)
+      next.delete(workOrderId)
+      return next
+    })
+  }
+  function cancelPendingMove() {
+    if (pendingMove) releaseMutation(pendingMove.event.workOrderId)
+    setPendingMove(null)
+  }
+
   function changePeriod(direction: number) {
     const next = new Date(cursor)
     if (surface === 'resources') next.setDate(next.getDate() + direction * 7)
@@ -351,6 +422,7 @@ export function MaintenanceSchedulerPanel() {
 
   async function requestMove(event: LiveSchedulerEvent, target: Date, assignment?: AssignmentOverride, exactTime = false) {
     if (basis !== 'start' || !canManage || event.eventType !== 'WORK_ORDER' || event.scheduleLocked || TERMINAL.has(event.status.toUpperCase())) return
+    if (!acquireMutation(event.workOrderId)) return
     const moved = exactTime ? moveEventToTime(event, target) : moveEventToDay(event, target)
     const personId = assignment?.personId ?? event.primaryPersonId
     const teamId = assignment?.teamId ?? event.primaryTeamId
@@ -358,54 +430,91 @@ export function MaintenanceSchedulerPanel() {
     try {
       const conflicts = await loadSchedulerConflicts({ workOrderId: event.workOrderId, startAt: moved.startAt, endAt: moved.endAt, personId, teamId })
       if (conflicts.length) return setPendingMove({ event, ...moved, personId, teamId, conflicts })
-      await commitMove(event, moved.startAt, moved.endAt, false, { personId, teamId })
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể kiểm tra xung đột lịch.') }
+      await commitMove(event, moved.startAt, moved.endAt, false, { personId, teamId }, true)
+    } catch (cause) {
+      releaseMutation(event.workOrderId)
+      setError(cause instanceof Error ? cause.message : 'Không thể kiểm tra xung đột lịch.')
+    }
   }
   async function requestResize(event: LiveSchedulerEvent, endAt: string) {
     if (basis !== 'start' || !canManage || event.eventType !== 'WORK_ORDER' || !event.startAt || event.scheduleLocked || TERMINAL.has(event.status.toUpperCase())) return
+    if (!acquireMutation(event.workOrderId)) return
     const personId = event.primaryPersonId
     const teamId = event.primaryTeamId
     setError(''); setMessage('')
     try {
       const conflicts = await loadSchedulerConflicts({ workOrderId: event.workOrderId, startAt: event.startAt, endAt, personId, teamId })
       if (conflicts.length) return setPendingMove({ event, startAt: event.startAt, endAt, personId, teamId, conflicts })
-      await commitMove(event, event.startAt, endAt, false)
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể kiểm tra xung đột thời lượng.') }
+      await commitMove(event, event.startAt, endAt, false, undefined, true)
+    } catch (cause) {
+      releaseMutation(event.workOrderId)
+      setError(cause instanceof Error ? cause.message : 'Không thể kiểm tra xung đột thời lượng.')
+    }
   }
-  async function commitMove(event: LiveSchedulerEvent, startAt: string, endAt: string, allowConflict: boolean, assignment?: AssignmentOverride) {
+  async function commitMove(event: LiveSchedulerEvent, startAt: string, endAt: string, allowConflict: boolean, assignment?: AssignmentOverride, lockHeld = false) {
+    if (!lockHeld && !acquireMutation(event.workOrderId)) return
     const personId = assignment?.personId ?? event.primaryPersonId
     const teamId = assignment?.teamId ?? event.primaryTeamId
     const personName = personId ? personOptions.find(([id]) => id === personId)?.[1] || (personId === event.primaryPersonId ? event.primaryPersonName : personId) : ''
     const teamName = teamId ? teamOptions.find(([id]) => id === teamId)?.[1] || (teamId === event.primaryTeamId ? event.primaryTeamName : teamId) : ''
-    const snapshot = events
-    setSaving(true); setError(''); setPendingMove(null); setSelected(null)
+    const snapshot = events.find((candidate) => candidate.eventId === event.eventId) || event
+    setError(''); setPendingMove(null); setSelected(null)
     setEvents((current) => current.map((candidate) => candidate.eventId === event.eventId ? { ...candidate, startAt, endAt, unscheduled: false, primaryPersonId: personId, primaryPersonName: personName, primaryTeamId: teamId, primaryTeamName: teamName } : candidate))
     try {
       await rescheduleWorkOrder({ workOrderId: event.workOrderId, startAt, endAt, personId, teamId, allowConflict, note: allowConflict ? 'CEV Scheduler: supervisor accepted detected conflict' : surface === 'resources' ? 'CEV Scheduler resource planning' : 'CEV Scheduler drag/drop or resize' })
       setMessage(`Đã cập nhật lịch ${event.workOrderId}.`)
-      void refresh(true)
+      await refresh(true)
     } catch (cause) {
-      setEvents(snapshot)
+      setEvents((current) => current.map((candidate) => candidate.eventId === event.eventId ? snapshot : candidate))
       setError(cause instanceof Error ? cause.message : 'Không thể cập nhật lịch.')
-    } finally { setSaving(false) }
+    } finally { releaseMutation(event.workOrderId) }
   }
   async function unscheduleWorkOrder(event: LiveSchedulerEvent) {
     if (basis !== 'start' || !canManage || event.eventType !== 'WORK_ORDER' || event.unscheduled || event.scheduleLocked || TERMINAL.has(event.status.toUpperCase())) return
-    const snapshot = events
-    setSaving(true); setError(''); setSelected(null)
+    if (!acquireMutation(event.workOrderId)) return
+    const snapshot = events.find((candidate) => candidate.eventId === event.eventId) || event
+    setError(''); setSelected(null)
     setEvents((current) => current.map((candidate) => candidate.eventId === event.eventId ? { ...candidate, startAt: '', endAt: '', unscheduled: true } : candidate))
     try {
       await rescheduleWorkOrder({ workOrderId: event.workOrderId, startAt: null, endAt: null, personId: event.primaryPersonId, teamId: event.primaryTeamId, allowConflict: false, note: 'CEV Scheduler: moved back to unscheduled tray' })
       setMessage(`Đã hủy xếp lịch ${event.workOrderId}.`)
-      void refresh(true)
+      await refresh(true)
     } catch (cause) {
-      setEvents(snapshot)
+      setEvents((current) => current.map((candidate) => candidate.eventId === event.eventId ? snapshot : candidate))
       setError(cause instanceof Error ? cause.message : 'Không thể hủy xếp lịch.')
-    } finally { setSaving(false) }
+    } finally { releaseMutation(event.workOrderId) }
   }
   async function saveFromDetail(event: LiveSchedulerEvent, startValue: string, endValue: string) {
     if (!startValue || !endValue) return
-    await commitMove(event, new Date(startValue).toISOString(), new Date(endValue).toISOString(), false)
+    const startAt = new Date(startValue).toISOString()
+    const endAt = new Date(endValue).toISOString()
+    if (Date.parse(endAt) <= Date.parse(startAt)) return setError('Thời gian kết thúc phải sau thời gian bắt đầu.')
+    if (!acquireMutation(event.workOrderId)) return
+    setError(''); setMessage('')
+    try {
+      const conflicts = await loadSchedulerConflicts({ workOrderId: event.workOrderId, startAt, endAt, personId: event.primaryPersonId, teamId: event.primaryTeamId })
+      if (conflicts.length) return setPendingMove({ event, startAt, endAt, personId: event.primaryPersonId, teamId: event.primaryTeamId, conflicts })
+      await commitMove(event, startAt, endAt, false, undefined, true)
+    } catch (cause) {
+      releaseMutation(event.workOrderId)
+      setError(cause instanceof Error ? cause.message : 'Không thể kiểm tra xung đột lịch.')
+    }
+  }
+  async function toggleScheduleLock(event: LiveSchedulerEvent) {
+    if (!canManage || event.eventType !== 'WORK_ORDER' || TERMINAL.has(event.status.toUpperCase()) || !acquireMutation(event.workOrderId)) return
+    const previous = event.scheduleLocked
+    const next = !previous
+    setError(''); setMessage('')
+    setEvents((current) => current.map((candidate) => candidate.eventId === event.eventId ? { ...candidate, scheduleLocked: next } : candidate))
+    setSelected((current) => current?.eventId === event.eventId ? { ...current, scheduleLocked: next } : current)
+    try {
+      await setWorkOrderScheduleLock(event.workOrderId, next)
+      setMessage(`${next ? 'Đã khóa' : 'Đã mở khóa'} lịch ${event.workOrderId}.`)
+    } catch (cause) {
+      setEvents((current) => current.map((candidate) => candidate.eventId === event.eventId ? { ...candidate, scheduleLocked: previous } : candidate))
+      setSelected((current) => current?.eventId === event.eventId ? { ...current, scheduleLocked: previous } : current)
+      setError(cause instanceof Error ? cause.message : 'Không thể đổi trạng thái khóa lịch.')
+    } finally { releaseMutation(event.workOrderId) }
   }
   function findDraggedEvent(event: DragEvent<HTMLElement>) {
     const eventId = event.dataTransfer.getData('text/cev-scheduler-event')
@@ -469,22 +578,22 @@ export function MaintenanceSchedulerPanel() {
     <div className={`scheduler-layout${showUnscheduled ? '' : ' tray-hidden'}`}>
       {showUnscheduled ? <aside className="scheduler-unscheduled" aria-label="Công việc chưa xếp lịch" onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={onUnscheduledDrop}>
         <header><div><strong>Chưa xếp lịch</strong><small>{basis === 'start' ? 'Kéo vào lịch · kéo từ lịch về đây để hủy xếp lịch' : 'Work Order chưa có ngày thực hiện'}</small></div><span>{unscheduled.length}</span></header>
-        <div className="scheduler-unscheduled-list">{unscheduled.length ? unscheduled.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} onSelect={selectEvent} />) : <div className="scheduler-empty">Không có công việc chưa xếp lịch.<br />Thả Work Order từ lịch vào đây để hủy xếp lịch.</div>}</div>
+        <div className="scheduler-unscheduled-list">{unscheduled.length ? unscheduled.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} busy={busyWorkOrderIds.has(event.workOrderId)} onSelect={selectEvent} />) : <div className="scheduler-empty">Không có công việc chưa xếp lịch.<br />Thả Work Order từ lịch vào đây để hủy xếp lịch.</div>}</div>
       </aside> : null}
       <div className="scheduler-calendar-wrap">
         {loading ? <div className="scheduler-state" role="status">Đang tải lịch…</div> : surface === 'resources'
-          ? <ResourceCalendar days={calendarDays} rows={resourceRows} scheduled={scheduled} resourceKind={resourceKind} basis={basis} canManage={canManage} onDrop={onResourceDrop} onSelect={selectEvent} />
+          ? <ResourceCalendar days={calendarDays} rows={resourceRows} scheduled={scheduled} resourceKind={resourceKind} basis={basis} canManage={canManage} busyWorkOrderIds={busyWorkOrderIds} onDrop={onResourceDrop} onSelect={selectEvent} />
           : mode === 'month'
-            ? <MonthCalendar days={calendarDays} cursor={cursor} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onDrop} onSelect={selectEvent} />
-            : <TimeCalendar days={calendarDays} scheduled={scheduled} basis={basis} canManage={canManage} now={now} onDrop={onTimeDrop} onResize={requestResize} onSelect={selectEvent} />}
+            ? <MonthCalendar days={calendarDays} cursor={cursor} scheduled={scheduled} basis={basis} canManage={canManage} busyWorkOrderIds={busyWorkOrderIds} onDrop={onDrop} onSelect={selectEvent} />
+            : <TimeCalendar days={calendarDays} scheduled={scheduled} basis={basis} canManage={canManage} busyWorkOrderIds={busyWorkOrderIds} now={now} onDrop={onTimeDrop} onResize={requestResize} onSelect={selectEvent} />}
       </div>
     </div>
-    {selected ? <SchedulerDetail event={selected} basis={basis} canManage={canManage} saving={saving} onClose={() => setSelected(null)} onSave={saveFromDetail} /> : null}
-    {pendingMove ? <ConflictDialog pending={pendingMove} saving={saving} onCancel={() => setPendingMove(null)} onConfirm={() => void commitMove(pendingMove.event, pendingMove.startAt, pendingMove.endAt, true, { personId: pendingMove.personId, teamId: pendingMove.teamId })} /> : null}
+    {selected ? <SchedulerDetail event={selected} basis={basis} canManage={canManage} saving={busyWorkOrderIds.has(selected.workOrderId)} onClose={() => setSelected(null)} onOpenWorkOrder={openWorkOrder} onOpenPm={openRelatedPm} onSave={saveFromDetail} onToggleLock={toggleScheduleLock} /> : null}
+    {pendingMove ? <ConflictDialog pending={pendingMove} saving={busyWorkOrderIds.has(pendingMove.event.workOrderId)} onCancel={cancelPendingMove} onConfirm={() => void commitMove(pendingMove.event, pendingMove.startAt, pendingMove.endAt, true, { personId: pendingMove.personId, teamId: pendingMove.teamId }, true)} /> : null}
   </section>
 }
 
-function ResourceCalendar({ days, rows, scheduled, resourceKind, basis, canManage, onDrop, onSelect }: { days: Date[]; rows: ResourceRow[]; scheduled: LiveSchedulerEvent[]; resourceKind: ResourceKind; basis: ScheduleBasis; canManage: boolean; onDrop: (event: DragEvent<HTMLDivElement>, day: Date, row: ResourceRow) => void; onSelect: (event: LiveSchedulerEvent) => void }) {
+function ResourceCalendar({ days, rows, scheduled, resourceKind, basis, canManage, busyWorkOrderIds, onDrop, onSelect }: { days: Date[]; rows: ResourceRow[]; scheduled: LiveSchedulerEvent[]; resourceKind: ResourceKind; basis: ScheduleBasis; canManage: boolean; busyWorkOrderIds: Set<string>; onDrop: (event: DragEvent<HTMLDivElement>, day: Date, row: ResourceRow) => void; onSelect: (event: LiveSchedulerEvent) => void }) {
   if (!rows.length) return <div className="scheduler-state">Chưa có nguồn lực phù hợp với bộ lọc hiện tại.</div>
   return <div className="scheduler-resource-board">
     <div className="scheduler-resource-head"><span>{resourceLabel(resourceKind)}</span>{days.map((day) => <strong key={dateKey(day)} className={dateKey(day) === dateKey(new Date()) ? 'today' : ''}>{WEEKDAY[day.getDay()]}<small>{day.getDate()}/{day.getMonth() + 1}</small></strong>)}<span>Tổng</span></div>
@@ -498,9 +607,10 @@ function ResourceCalendar({ days, rows, scheduled, resourceKind, basis, canManag
           const cellEvents = rowEvents.filter((event) => sameDay(displayDate(event, basis), day))
           const hours = cellEvents.reduce((sum, event) => sum + eventHours(event), 0)
           const conflicts = basis === 'start' ? countResourceConflicts(cellEvents) : 0
+          const conflictIds = conflicts ? resourceConflictEventIds(cellEvents) : new Set<string>()
           return <div key={dateKey(day)} className={`scheduler-resource-cell${conflicts ? ' has-conflict' : ''}`} onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={(event) => onDrop(event, day, row)}>
             <div className="scheduler-resource-cell-meta"><span>{cellEvents.length ? `${cellEvents.length} WO/PM` : '—'}</span><span>{hours > 0 ? <b>{hours.toFixed(1)}h</b> : null}{conflicts ? <em>{conflicts} trùng</em> : null}</span></div>
-            {cellEvents.slice(0, 4).map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} compact onSelect={onSelect} />)}
+            {cellEvents.slice(0, 4).map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} busy={busyWorkOrderIds.has(event.workOrderId)} conflicted={conflictIds.has(event.eventId)} compact onSelect={onSelect} />)}
             {cellEvents.length > 4 ? <span className="scheduler-resource-more">+{cellEvents.length - 4}</span> : null}
           </div>
         })}
@@ -510,7 +620,7 @@ function ResourceCalendar({ days, rows, scheduled, resourceKind, basis, canManag
   </div>
 }
 
-function MonthCalendar({ days, cursor, scheduled, basis, canManage, onDrop, onSelect }: { days: Date[]; cursor: Date; scheduled: LiveSchedulerEvent[]; basis: ScheduleBasis; canManage: boolean; onDrop: (event: DragEvent<HTMLDivElement>, day: Date) => void; onSelect: (event: LiveSchedulerEvent) => void }) {
+function MonthCalendar({ days, cursor, scheduled, basis, canManage, busyWorkOrderIds, onDrop, onSelect }: { days: Date[]; cursor: Date; scheduled: LiveSchedulerEvent[]; basis: ScheduleBasis; canManage: boolean; busyWorkOrderIds: Set<string>; onDrop: (event: DragEvent<HTMLDivElement>, day: Date) => void; onSelect: (event: LiveSchedulerEvent) => void }) {
   const [expanded, setExpanded] = useState<MonthExpansion>(null)
   return <><div className="scheduler-weekdays month" aria-hidden="true">{days.slice(0, 7).map((day) => <span key={dateKey(day)}>{WEEKDAY[day.getDay()]}</span>)}</div><div className="scheduler-calendar-grid month">{days.map((day) => {
     const dayEvents = scheduled.filter((event) => sameDay(displayDate(event, basis), day)).toSorted((a, b) => displayDate(a, basis).localeCompare(displayDate(b, basis)))
@@ -518,12 +628,12 @@ function MonthCalendar({ days, cursor, scheduled, basis, canManage, onDrop, onSe
     const today = dateKey(day) === dateKey(new Date())
     return <div key={dateKey(day)} className={`scheduler-day${outsideMonth ? ' outside' : ''}${today ? ' today' : ''}`} onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={(event) => onDrop(event, day)}>
       <div className="scheduler-day-heading"><span>{day.getDate()}</span>{today ? <small>Hôm nay</small> : null}</div>
-      <div className="scheduler-day-events">{dayEvents.slice(0, 5).map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} compact onSelect={onSelect} />)}{dayEvents.length > 5 ? <button className="scheduler-more" type="button" onClick={() => setExpanded({ day, events: dayEvents })}>+{dayEvents.length - 5} công việc</button> : null}</div>
+      <div className="scheduler-day-events">{dayEvents.slice(0, 5).map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} busy={busyWorkOrderIds.has(event.workOrderId)} compact onSelect={onSelect} />)}{dayEvents.length > 5 ? <button className="scheduler-more" type="button" onClick={() => setExpanded({ day, events: dayEvents })}>+{dayEvents.length - 5} công việc</button> : null}</div>
     </div>
-  })}</div>{expanded ? <div className="scheduler-month-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setExpanded(null) }}><section className="scheduler-month-popover" role="dialog" aria-modal="true" aria-label={`Công việc ${formatDayHeading(expanded.day)}`}><header><div><strong>{formatDayHeading(expanded.day)}</strong><small>{expanded.events.length} công việc / PM</small></div><button type="button" aria-label="Đóng danh sách ngày" onClick={() => setExpanded(null)}>×</button></header><div>{expanded.events.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} onSelect={(item) => { setExpanded(null); onSelect(item) }} />)}</div></section></div> : null}</>
+  })}</div>{expanded ? <div className="scheduler-month-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setExpanded(null) }}><section className="scheduler-month-popover" role="dialog" aria-modal="true" aria-label={`Công việc ${formatDayHeading(expanded.day)}`}><header><div><strong>{formatDayHeading(expanded.day)}</strong><small>{expanded.events.length} công việc / PM</small></div><button type="button" aria-label="Đóng danh sách ngày" onClick={() => setExpanded(null)}>×</button></header><div>{expanded.events.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} busy={busyWorkOrderIds.has(event.workOrderId)} onSelect={(item) => { setExpanded(null); onSelect(item) }} />)}</div></section></div> : null}</>
 }
 
-function TimeCalendar({ days, scheduled, basis, canManage, now, onDrop, onResize, onSelect }: { days: Date[]; scheduled: LiveSchedulerEvent[]; basis: ScheduleBasis; canManage: boolean; now: Date; onDrop: (event: DragEvent<HTMLDivElement>, day: Date) => void; onResize: (event: LiveSchedulerEvent, endAt: string) => Promise<void>; onSelect: (event: LiveSchedulerEvent) => void }) {
+function TimeCalendar({ days, scheduled, basis, canManage, busyWorkOrderIds, now, onDrop, onResize, onSelect }: { days: Date[]; scheduled: LiveSchedulerEvent[]; basis: ScheduleBasis; canManage: boolean; busyWorkOrderIds: Set<string>; now: Date; onDrop: (event: DragEvent<HTMLDivElement>, day: Date) => void; onResize: (event: LiveSchedulerEvent, endAt: string) => Promise<void>; onSelect: (event: LiveSchedulerEvent) => void }) {
   const gridMinutes = (GRID_END_HOUR - GRID_START_HOUR) * 60
   const nowMinute = now.getHours() * 60 + now.getMinutes()
   const nowVisible = nowMinute >= GRID_START_HOUR * 60 && nowMinute <= GRID_END_HOUR * 60
@@ -538,17 +648,17 @@ function TimeCalendar({ days, scheduled, basis, canManage, now, onDrop, onResize
         return <div key={dateKey(day)} className="scheduler-time-day" onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={(event) => onDrop(event, day)}>
           <div className="scheduler-half-hour-lines" aria-hidden="true">{Array.from({ length: (GRID_END_HOUR - GRID_START_HOUR) * 2 }, (_, index) => <i key={index} />)}</div>
           {today && nowVisible ? <div className="scheduler-now-line" style={{ top: `${((nowMinute - GRID_START_HOUR * 60) / gridMinutes) * 100}%` }} aria-label={`Thời gian hiện tại ${formatTime(now.toISOString())}`}><span>{formatTime(now.toISOString())}</span></div> : null}
-          <div className="scheduler-time-events">{dayEvents.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} style={{ ...timeGridStyle(event, basis), ...overlaps.get(event.eventId) }} resizable onResize={onResize} onSelect={onSelect} />)}</div>
+          <div className="scheduler-time-events">{dayEvents.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} busy={busyWorkOrderIds.has(event.workOrderId)} style={{ ...timeGridStyle(event, basis), ...overlaps.get(event.eventId) }} resizable onResize={onResize} onSelect={onSelect} />)}</div>
         </div>
       })}
     </div>
   </div>
 }
 
-function SchedulerEventCard({ event, basis, canManage, compact = false, style, resizable = false, onResize, onSelect }: { event: LiveSchedulerEvent; basis: ScheduleBasis; canManage: boolean; compact?: boolean; style?: CSSProperties; resizable?: boolean; onResize?: (event: LiveSchedulerEvent, endAt: string) => Promise<void>; onSelect: (event: LiveSchedulerEvent) => void }) {
+function SchedulerEventCard({ event, basis, canManage, busy = false, conflicted = false, compact = false, style, resizable = false, onResize, onSelect }: { event: LiveSchedulerEvent; basis: ScheduleBasis; canManage: boolean; busy?: boolean; conflicted?: boolean; compact?: boolean; style?: CSSProperties; resizable?: boolean; onResize?: (event: LiveSchedulerEvent, endAt: string) => Promise<void>; onSelect: (event: LiveSchedulerEvent) => void }) {
   const [resizing, setResizing] = useState(false)
   const [previewEndAt, setPreviewEndAt] = useState('')
-  const draggable = basis === 'start' && canManage && event.eventType === 'WORK_ORDER' && !event.scheduleLocked && !TERMINAL.has(event.status.toUpperCase())
+  const draggable = basis === 'start' && canManage && !busy && event.eventType === 'WORK_ORDER' && !event.scheduleLocked && !TERMINAL.has(event.status.toUpperCase())
   const resizeEnabled = resizable && draggable && !!event.startAt && !!onResize
   const shownDate = displayDate(event, basis)
   const pm = event.eventType === 'PM_DUE' ? pmState(event) : null
@@ -582,31 +692,35 @@ function SchedulerEventCard({ event, basis, canManage, compact = false, style, r
     handle.addEventListener('pointermove', onPointerMove); handle.addEventListener('pointerup', finish); handle.addEventListener('pointercancel', cancel)
   }
 
-  return <button type="button" style={previewStyle} className={`scheduler-event ${event.eventType === 'PM_DUE' ? 'pm' : 'wo'} priority-${(event.priority || 'normal').toLowerCase()}${compact ? ' compact' : ''}${resizing ? ' resizing' : ''}${pm?.overdue ? ' pm-overdue' : ''}`} draggable={draggable && !resizing} onDragStart={(dragEvent) => { dragEvent.dataTransfer.effectAllowed = 'move'; dragEvent.dataTransfer.setData('text/cev-scheduler-event', event.eventId) }} onClick={() => { if (!resizing) onSelect(event) }} title={`${event.eventId} · ${event.equipmentId}`}>
+  return <button type="button" style={previewStyle} className={`scheduler-event ${event.eventType === 'PM_DUE' ? 'pm' : 'wo'} priority-${(event.priority || 'normal').toLowerCase()}${compact ? ' compact' : ''}${resizing ? ' resizing' : ''}${pm?.overdue ? ' pm-overdue' : ''}${conflicted ? ' resource-conflict' : ''}${busy ? ' saving' : ''}`} draggable={draggable && !resizing} aria-busy={busy || undefined} onDragStart={(dragEvent) => { dragEvent.dataTransfer.effectAllowed = 'move'; dragEvent.dataTransfer.setData('text/cev-scheduler-event', event.eventId) }} onClick={() => { if (!resizing) onSelect(event) }} title={`${event.eventId} · ${event.equipmentId}`}>
     <span className="scheduler-event-kicker">{event.eventType === 'PM_DUE' ? 'PM' : event.workOrderId || 'WO'}{event.scheduleLocked ? ' · 🔒' : ''}</span>
     <strong>{event.title || (event.eventType === 'PM_DUE' ? 'Bảo trì phòng ngừa' : 'Lệnh công việc')}</strong>
     {!compact ? <span>{event.equipmentId}{event.primaryPersonName ? ` · ${event.primaryPersonName}` : event.primaryTeamName ? ` · ${event.primaryTeamName}` : ''}</span> : null}
     {pm ? <span className="scheduler-pm-badges"><em className={pm.overdue ? 'danger' : ''}>{pm.overdue ? 'Quá hạn' : 'Next due'}</em>{pm.triggerAt ? <em>Trigger {formatTime(pm.triggerAt)}</em> : null}{pm.generatedWorkOrderId ? <em className="generated">WO {pm.generatedWorkOrderId}</em> : <em>Chưa sinh WO</em>}</span> : null}
+    {conflicted ? <span className="scheduler-conflict-badge">⚠ Trùng nguồn lực</span> : null}
+    {busy ? <span className="scheduler-saving-label">Đang cập nhật…</span> : null}
     <small>{event.unscheduled ? 'Chưa xếp lịch' : formatShortDate(shownDate)} · {statusLabel(event.status)}</small>
     {resizeEnabled ? <span className="scheduler-resize-handle" role="separator" aria-label="Kéo để đổi thời lượng" onPointerDown={startResize}><i /></span> : null}
   </button>
 }
 
-function SchedulerDetail({ event, basis, canManage, saving, onClose, onSave }: { event: LiveSchedulerEvent; basis: ScheduleBasis; canManage: boolean; saving: boolean; onClose: () => void; onSave: (event: LiveSchedulerEvent, start: string, end: string) => Promise<void> }) {
+function SchedulerDetail({ event, basis, canManage, saving, onClose, onOpenWorkOrder, onOpenPm, onSave, onToggleLock }: { event: LiveSchedulerEvent; basis: ScheduleBasis; canManage: boolean; saving: boolean; onClose: () => void; onOpenWorkOrder: (event: LiveSchedulerEvent) => void; onOpenPm: (event: LiveSchedulerEvent) => void; onSave: (event: LiveSchedulerEvent, start: string, end: string) => Promise<void>; onToggleLock: (event: LiveSchedulerEvent) => Promise<void> }) {
   const [startValue, setStartValue] = useState(() => event.startAt ? toLocalInput(event.startAt) : '')
   const [endValue, setEndValue] = useState(() => event.endAt ? toLocalInput(event.endAt) : '')
   const editable = basis === 'start' && canManage && event.eventType === 'WORK_ORDER' && !event.scheduleLocked && !TERMINAL.has(event.status.toUpperCase())
   const dueValue = sourceDate(event)
   const duration = eventHours(event)
   const assignmentState = event.primaryPersonName || event.primaryTeamName || 'Chưa phân công'
+  const sourcePmId = event.pmScheduleId || sourceString(event, ['schedule_id', 'scheduleId'])
+  const lockEditable = canManage && event.eventType === 'WORK_ORDER' && !TERMINAL.has(event.status.toUpperCase())
   return <div className="scheduler-layer" role="presentation" onMouseDown={(mouseEvent) => { if (mouseEvent.target === mouseEvent.currentTarget) onClose() }}><aside className="scheduler-drawer" role="dialog" aria-modal="true" aria-labelledby="scheduler-detail-title">
     <header><div><p className="eyebrow">{event.eventType === 'PM_DUE' ? 'Preventive Maintenance' : 'Work Order'}</p><h2 id="scheduler-detail-title">{event.title || event.eventId}</h2><span>{event.eventId}</span></div><button type="button" aria-label="Đóng" onClick={onClose}>×</button></header>
-    <div className="scheduler-drawer-body"><dl><div><dt>Thiết bị</dt><dd><strong>{event.equipmentId}</strong><span>{event.equipmentName || '—'}</span></dd></div><div><dt>Trạng thái</dt><dd>{statusLabel(event.status)}</dd></div><div><dt>Ưu tiên</dt><dd>{event.priority || '—'}</dd></div><div><dt>Địa điểm</dt><dd>{event.locationName || '—'}</dd></div><div><dt>Người phụ trách</dt><dd>{event.primaryPersonName || '—'}</dd></div><div><dt>Nhóm</dt><dd>{event.primaryTeamName || '—'}</dd></div></dl>
+    <div className="scheduler-drawer-body"><dl><div><dt>Thiết bị</dt><dd><strong>{event.equipmentId}</strong><span>{event.equipmentName || '—'}</span></dd></div><div><dt>Trạng thái</dt><dd><span className={`scheduler-detail-badge status-${event.status.toLowerCase()}`}>{statusLabel(event.status)}</span></dd></div><div><dt>Ưu tiên</dt><dd><span className={`scheduler-detail-badge priority-${(event.priority || 'normal').toLowerCase()}`}>{event.priority || '—'}</span></dd></div><div><dt>Địa điểm</dt><dd>{event.locationName || '—'}</dd></div><div><dt>Người phụ trách</dt><dd>{event.primaryPersonName || '—'}</dd></div><div><dt>Nhóm</dt><dd>{event.primaryTeamName || '—'}</dd></div><div><dt>Nguồn công việc</dt><dd>{sourcePmId ? <><strong>Preventive Maintenance</strong><span>{sourcePmId}</span></> : 'Work Order thủ công / yêu cầu'}</dd></div><div><dt>Khóa lịch</dt><dd>{event.scheduleLocked ? 'Đã khóa điều phối' : 'Có thể điều phối'}</dd></div></dl>
       <section className="scheduler-planning-context" aria-label="Ngữ cảnh lập kế hoạch"><div><span>Thời lượng kế hoạch</span><strong>{duration ? `${duration.toFixed(duration % 1 ? 1 : 0)}h` : '—'}</strong></div><div><span>Phân công</span><strong>{assignmentState}</strong></div><div><span>Khóa lịch</span><strong>{event.scheduleLocked ? 'Đã khóa' : 'Có thể điều phối'}</strong></div></section>
       <section className="scheduler-date-summary"><div><span>Ngày thực hiện</span><strong>{formatShortDate(event.startAt)}</strong></div><div><span>Ngày đến hạn</span><strong>{formatShortDate(event.eventType === 'PM_DUE' ? event.startAt : dueValue)}</strong></div></section>
       <div className="scheduler-time-editor"><label><span>Bắt đầu</span><input type="datetime-local" value={startValue} disabled={!editable} onChange={(changeEvent) => setStartValue(changeEvent.target.value)} /></label><label><span>Kết thúc</span><input type="datetime-local" value={endValue} disabled={!editable} onChange={(changeEvent) => setEndValue(changeEvent.target.value)} /></label></div>
       {basis === 'due' ? <p className="scheduler-readonly-hint">Đang xem theo ngày đến hạn. Chuyển sang <strong>Ngày thực hiện</strong> để reschedule Work Order.</p> : null}</div>
-    <footer><button type="button" onClick={onClose}>Đóng</button>{editable ? <button className="primary" type="button" disabled={saving || !startValue || !endValue} onClick={() => void onSave(event, startValue, endValue)}>{saving ? 'Đang lưu…' : 'Lưu lịch'}</button> : null}</footer>
+    <footer className="scheduler-detail-footer"><div className="scheduler-related-actions"><button type="button" onClick={() => onOpenWorkOrder(event)}>Mở Work Order</button>{sourcePmId ? <button type="button" onClick={() => onOpenPm(event)}>Mở PM liên quan</button> : null}</div><div><button type="button" onClick={onClose}>Đóng</button>{lockEditable ? <button type="button" disabled={saving} onClick={() => void onToggleLock(event)}>{event.scheduleLocked ? 'Mở khóa lịch' : 'Khóa lịch'}</button> : null}{editable ? <button className="primary" type="button" disabled={saving || !startValue || !endValue} onClick={() => void onSave(event, startValue, endValue)}>{saving ? 'Đang lưu…' : 'Lưu lịch'}</button> : null}</div></footer>
   </aside></div>
 }
 
