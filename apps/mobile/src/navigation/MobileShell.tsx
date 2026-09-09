@@ -8,6 +8,7 @@ import { EquipmentRegistrationScreen } from '../screens/EquipmentRegistrationScr
 import { EquipmentStatusScreen } from '../screens/EquipmentStatusScreen'
 import { EquipmentHierarchyScreen } from '../screens/EquipmentHierarchyScreen'
 import { CreateWorkOrderScreen } from '../screens/CreateWorkOrderScreen'
+import { WorkOrderDraftsScreen } from '../screens/WorkOrderDraftsScreen'
 import { PartDetailsScreen } from '../screens/PartDetailsScreen'
 import { PartInventoryScreen } from '../screens/PartInventoryScreen'
 import { PartsListScreen } from '../screens/PartsListScreen'
@@ -42,7 +43,7 @@ import {
 } from '../features/auth'
 import { revalidateEquipmentDetail } from '../features/equipment'
 
-type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'part-work-order' | 'work-order-dashboard' | 'work-order-dashboard-list' | 'work-orders' | 'work-order-detail' | 'requests' | 'request-detail' | 'more' | 'locations' | 'location-form' | 'inventory' | 'meters' | 'vendors' | 'company-form' | 'customer-form' | 'people' | 'preventive-maintenance' | 'settings'
+type Route = 'home' | 'registration' | 'equipment' | 'equipment-detail' | 'equipment-status' | 'equipment-hierarchy' | 'scan' | 'simple-scan' | 'create-work-order' | 'work-order-drafts' | 'create-request' | 'part-list' | 'part-scan' | 'part-form' | 'part-detail' | 'part-inventory' | 'part-work-order' | 'work-order-dashboard' | 'work-order-dashboard-list' | 'work-orders' | 'work-order-detail' | 'requests' | 'request-detail' | 'more' | 'locations' | 'location-form' | 'inventory' | 'meters' | 'vendors' | 'company-form' | 'customer-form' | 'people' | 'preventive-maintenance' | 'settings'
 
 type RouteEntry = {
   name: Route
@@ -55,6 +56,7 @@ type RouteEntry = {
   dashboardFilter?: WorkOrderDashboardFilter
   barcode?: string
   partId?: string
+  draftLocalId?: string
 }
 
 const HOME_ENTRY: RouteEntry = { name: 'home' }
@@ -200,7 +202,10 @@ export function MobileShell() {
     return <EquipmentHierarchyScreen equipmentId={selectedEquipmentId} onBack={goBack} />
   }
   if (route === 'create-work-order' && scopedEquipmentId) {
-    return <CreateWorkOrderScreen equipmentId={scopedEquipmentId} onBack={goBack} onCreated={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
+    return <CreateWorkOrderScreen equipmentId={scopedEquipmentId} draftLocalId={currentEntry.draftLocalId} onBack={goBack} onCreated={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
+  }
+  if (route === 'work-order-drafts') {
+    return <WorkOrderDraftsScreen onBack={goBack} onResume={(draft) => navigate({ name: 'create-work-order', equipmentId: draft.payload.equipmentId, draftLocalId: draft.localId })} />
   }
   if (route === 'part-detail' && selectedPartId) return <PartDetailsScreen partId={selectedPartId} onBack={goBack} />
   if (route === 'part-inventory' && selectedPartId) return <PartInventoryScreen partId={selectedPartId} onBack={goBack} />
@@ -284,6 +289,7 @@ export function MobileShell() {
       <MoreScreen
         onHome={resetNavigation}
         onOpenWorkOrders={() => navigate({ name: 'work-order-dashboard' })}
+        onOpenWorkOrderDrafts={() => navigate({ name: 'work-order-drafts' })}
         onOpenRequests={() => navigate({ name: 'requests' })}
         onOpenEquipment={() => navigate({ name: 'equipment' })}
         onCreateEquipment={() => navigate({ name: 'registration' })}

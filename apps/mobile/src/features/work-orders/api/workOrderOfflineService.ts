@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase/client'
 import { createMaintenanceWorkOrder } from './workOrderMutationService'
 
 const STORAGE_KEY_PREFIX = 'cev.cmms.work-order-drafts.v1'
+const DISCARD_KEY_PREFIX = 'cev.cmms.work-order-draft-discards.v1'
 
 export type DraftSelection = {
   id: string
@@ -32,15 +33,25 @@ export type LocalWorkOrderDraft = {
   updatedAt: string
 }
 
+type DeferredDiscard = { serverDraftId: string; queuedAt: string }
+
 function text(value: unknown) { return String(value ?? '').trim() }
 
 function makeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-async function storageKey() {
+async function currentUserId() {
   const { data } = await supabase.auth.getSession()
-  return `${STORAGE_KEY_PREFIX}:${data.session?.user.id || 'signed-out'}`
+  return data.session?.user.id || 'signed-out'
+}
+
+async function storageKey() {
+  return `${STORAGE_KEY_PREFIX}:${await currentUserId()}`
+}
+
+async function discardKey() {
+  return `${DISCARD_KEY_PREFIX}:${await currentUserId()}`
 }
 
 export function isLikelyNetworkError(error: unknown) {
@@ -61,6 +72,21 @@ async function readLocalDrafts(): Promise<LocalWorkOrderDraft[]> {
 
 async function writeLocalDrafts(rows: LocalWorkOrderDraft[]) {
   await AsyncStorage.setItem(await storageKey(), JSON.stringify(rows))
+}
+
+async function readDeferredDiscards(): Promise<DeferredDiscard[]> {
+  try {
+    const raw = await AsyncStorage.getItem(await discardKey())
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+async function writeDeferredDiscards(rows: DeferredDiscard[]) {
+  await AsyncStorage.setItem(await discardKey(), JSON.stringify(rows))
 }
 
 async function replaceLocalDraft(next: LocalWorkOrderDraft) {
@@ -84,6 +110,11 @@ async function patchLocalDraft(localId: string, patch: Partial<LocalWorkOrderDra
 export async function listLocalWorkOrderDrafts() {
   const rows = await readLocalDrafts()
   return rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+}
+
+export async function getLocalWorkOrderDraft(localId: string) {
+  const rows = await readLocalDrafts()
+  return rows.find((row) => row.localId === localId.trim()) || null
 }
 
 export async function getLatestCreateDraftForEquipment(equipmentId: string) {
@@ -116,6 +147,50 @@ async function discardServerDraft(serverDraftId?: string) {
   if (!serverDraftId) return
   const { error } = await supabase.rpc('rpc_cmms_discard_work_order_draft', { p_draft_id: serverDraftId })
   if (error) throw new Error(error.message || 'Không thể xóa bản nháp trên máy chủ.')
+}
+
+async function queueDeferredDiscard(serverDraftId: string) {
+  const rows = await readDeferredDiscards()
+  if (rows.some((row) => row.serverDraftId === serverDraftId)) return
+  rows.push({ serverDraftId, queuedAt: new Date().toISOString() })
+  await writeDeferredDiscards(rows)
+}
+
+export async function flushDeferredWorkOrderDraftDiscards() {
+  const rows = await readDeferredDiscards()
+  if (!rows.length) return 0
+  const pending: DeferredDiscard[] = []
+  let discarded = 0
+  for (const row of rows) {
+    try {
+      await discardServerDraft(row.serverDraftId)
+      discarded += 1
+    } catch (error) {
+      pending.push(row)
+      if (isLikelyNetworkError(error)) {
+        pending.push(...rows.slice(discarded + pending.length))
+        break
+      }
+    }
+  }
+  await writeDeferredDiscards(pending)
+  return discarded
+}
+
+export async function deleteWorkOrderDraft(localId: string) {
+  const draft = await getLocalWorkOrderDraft(localId)
+  if (!draft) return { serverDiscardQueued: false }
+
+  await removeLocalWorkOrderDraft(localId)
+  if (!draft.serverDraftId) return { serverDiscardQueued: false }
+
+  try {
+    await discardServerDraft(draft.serverDraftId)
+    return { serverDiscardQueued: false }
+  } catch {
+    await queueDeferredDiscard(draft.serverDraftId)
+    return { serverDiscardQueued: true }
+  }
 }
 
 export async function saveWorkOrderCreateDraft(input: {

@@ -22,6 +22,7 @@ type MoreMenuItem = {
 type MoreScreenProps = {
   onHome: () => void
   onOpenWorkOrders: () => void
+  onOpenWorkOrderDrafts: () => void
   onOpenRequests: () => void
   onOpenEquipment: () => void
   onCreateEquipment: () => void
@@ -41,6 +42,7 @@ const MENU_ITEMS: MoreMenuItem[] = [
   { key: 'locations', label: 'Vị trí', icon: 'location', iconColor: '#2E90FA', backgroundColor: '#DCE5E9' },
   { key: 'assets', label: 'Tài sản', icon: 'cube-outline', iconColor: '#F79009', backgroundColor: '#F3EBD8' },
   { key: 'requests', label: 'Yêu cầu', icon: 'clipboard-outline', iconColor: '#12B76A', backgroundColor: '#DDF7EA' },
+  { key: 'work-order-drafts', label: 'Bản nháp Work Order', icon: 'document-text-outline', iconColor: '#155EEF', backgroundColor: '#E8EEFF' },
   { key: 'parts', label: 'Phụ tùng', icon: 'archive-outline', iconColor: '#7F56D9', backgroundColor: '#E7DDEB' },
   { key: 'inventory', label: 'Kho & Tồn kho', icon: 'file-tray-stacked-outline', iconColor: '#6941C6', backgroundColor: '#EEE6FF' },
   { key: 'meters', label: 'Đồng hồ đo', icon: 'speedometer-outline', iconColor: '#E31B54', backgroundColor: '#E8DEDC' },
@@ -58,6 +60,7 @@ function showComingSoon(label: string) {
 export function MoreScreen({
   onHome,
   onOpenWorkOrders,
+  onOpenWorkOrderDrafts,
   onOpenRequests,
   onOpenEquipment,
   onCreateEquipment,
@@ -106,6 +109,7 @@ export function MoreScreen({
               accessibilityRole="button"
               accessibilityLabel={item.label}
               onPress={() => {
+                if (item.key === 'work-order-drafts') return onOpenWorkOrderDrafts()
                 if (item.key === 'parts') return onOpenParts()
                 if (item.key === 'locations') return onOpenLocations()
                 if (item.key === 'inventory') return onOpenInventory()
