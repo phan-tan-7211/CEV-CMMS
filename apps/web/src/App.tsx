@@ -29,6 +29,7 @@ const QrEquipmentResult = lazy(() => import('./QrEquipmentResult').then((module)
 const LiveSparePartsAutoPanel = lazy(() => import('./LiveSparePartsAutoPanel').then((module) => ({ default: module.LiveSparePartsAutoPanel })))
 const LiveToolingPanel = lazy(() => import('./LiveToolingPanel').then((module) => ({ default: module.LiveToolingPanel })))
 const OrgManagementPanel = lazy(() => import('./OrgManagementPanel').then((module) => ({ default: module.OrgManagementPanel })))
+const ProvidersNetworkPanel = lazy(() => import('./ProvidersNetworkPanel').then((module) => ({ default: module.ProvidersNetworkPanel })))
 
 type View = 'dashboard' | 'qr' | 'work-orders' | 'maintenance' | 'scheduler' | 'requests' | 'analytics' | 'meters' | 'edge' | 'equipment' | 'locations' | 'people' | 'inspection' | 'files' | 'import-export' | 'inventory' | 'spare' | 'purchase-orders' | 'customers' | 'providers' | 'tooling' | 'calibration' | 'print' | 'organization' | 'settings'
 
@@ -117,6 +118,7 @@ function LiveView({ view, equipmentTarget, contextEquipmentId, onOpenEquipment, 
   if (view === 'calibration') return <div className="maintenance-workspace-stack"><LiveCalibrationPanel /><LiveCalibrationEvaluationPanel /><LiveCalibrationQuotePanel /></div>
   if (view === 'print') return <A4PrintCenter />
   if (view === 'organization') return <OrgManagementPanel />
+  if (view === 'providers') return <ProvidersNetworkPanel />
   if (view === 'settings') return <LiveAuditPanel />
   return <ModulePlaceholderPanel title={NAV.find((item) => item.id === view)?.label || view} />
 }
