@@ -84,10 +84,9 @@ function coreTabForAction(action: string | null): CoreParityTab {
   if(action==='custom-fields') return 'fields'
   if(action==='floor-plan') return 'floor'
   if(action==='downtime') return 'downtime'
-  if(action==='core-files') return 'files'
   return 'checklists'
 }
-function isCoreAction(action: string | null) { return action==='checklist'||action==='custom-fields'||action==='floor-plan'||action==='downtime'||action==='core-files' }
+function isCoreAction(action: string | null) { return action==='checklist'||action==='custom-fields'||action==='floor-plan'||action==='downtime' }
 
 export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderById,onOpenWorkOrderDrafts,onOpenRequests,onOpenRequestById,onOpenEquipment,onOpenEquipmentById,onCreateEquipment,onOpenOperatorScan,onOpenParts,onOpenPartById,onOpenLocations,onOpenInventory,onOpenMeters,onOpenVendors,onOpenPeople,onOpenPreventiveMaintenance,isAdmin=false,isOperatorFlow=false }: MoreScreenProps) {
   const [pendingCreate] = useState(() => consumePendingCreateAction())
@@ -136,7 +135,7 @@ export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderById,onOpenW
   if(filesOpen) return <FilesLibraryScreen onBack={()=>setFilesOpen(false)}/>
   if(dataToolsOpen) return <DataToolsScreen onBack={()=>setDataToolsOpen(false)}/>
   if(workloadOpen) return <WorkloadPlanningScreen onBack={()=>setWorkloadOpen(false)} onOpenScheduler={()=>{setWorkloadOpen(false);setSchedulerOpen(true)}} onOpenWorkOrder={()=>{setWorkloadOpen(false);onOpenWorkOrders()}}/>
-  if(coreParityOpen) return <CoreParityScreen initialTab={coreParityTab} onBack={()=>setCoreParityOpen(false)}/>
+  if(coreParityOpen) return <CoreParityScreen initialTab={coreParityTab} onOpenEquipment={onOpenEquipmentById} onBack={()=>setCoreParityOpen(false)}/>
   if(notificationsOpen) return <NotificationsScreen onBack={()=>setNotificationsOpen(false)} onOpenEntity={openNotificationEntity}/>
   if(purchasingOpen) return <PurchaseOrdersScreen onBack={()=>setPurchasingOpen(false)} onAddVendor={()=>{setPurchasingOpen(false);onOpenVendors()}}/>
   if(schedulerOpen) return <SchedulerScreen onBack={()=>setSchedulerOpen(false)} onOpenWorkOrder={()=>{setSchedulerOpen(false);onOpenWorkOrders()}}/>
