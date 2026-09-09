@@ -11,12 +11,27 @@ import './MaintenanceSchedulerPanel.css'
 
 type CalendarMode = 'month' | 'week' | 'day'
 type ScheduleBasis = 'start' | 'due'
+type SurfaceMode = 'calendar' | 'resources'
+type ResourceKind = 'person' | 'team' | 'equipment'
+
+type AssignmentOverride = {
+  personId?: string
+  teamId?: string
+}
 
 type PendingMove = {
   event: LiveSchedulerEvent
   startAt: string
   endAt: string
+  personId: string
+  teamId: string
   conflicts: SchedulerConflict[]
+}
+
+type ResourceRow = {
+  id: string
+  label: string
+  secondary: string
 }
 
 const WEEKDAY = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -24,6 +39,7 @@ const TERMINAL = new Set(['COMPLETED', 'COMPLETE', 'VERIFIED', 'RELEASED', 'CANC
 const GRID_START_HOUR = 6
 const GRID_END_HOUR = 22
 const GRID_HOURS = Array.from({ length: GRID_END_HOUR - GRID_START_HOUR }, (_, index) => GRID_START_HOUR + index)
+const UNASSIGNED = '__UNASSIGNED__'
 
 function pad(value: number) { return String(value).padStart(2, '0') }
 function dateKey(date: Date) { return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` }
@@ -96,12 +112,29 @@ function toLocalInput(value: string) {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
   return local.toISOString().slice(0, 16)
 }
+function eventHours(event: LiveSchedulerEvent) {
+  if (!event.startAt || !event.endAt) return 0
+  const start = Date.parse(event.startAt)
+  const end = Date.parse(event.endAt)
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return 0
+  return (end - start) / 3_600_000
+}
+function resourceId(event: LiveSchedulerEvent, kind: ResourceKind) {
+  if (kind === 'person') return event.primaryPersonId || UNASSIGNED
+  if (kind === 'team') return event.primaryTeamId || UNASSIGNED
+  return event.equipmentId || UNASSIGNED
+}
+function resourceLabel(kind: ResourceKind) {
+  return kind === 'person' ? 'Nhân sự' : kind === 'team' ? 'Nhóm' : 'Thiết bị'
+}
 
 export function MaintenanceSchedulerPanel() {
   const role = useAppRole()
   const canManage = canManageScheduler(role)
   const [mode, setMode] = useState<CalendarMode>('week')
   const [basis, setBasis] = useState<ScheduleBasis>('start')
+  const [surface, setSurface] = useState<SurfaceMode>('calendar')
+  const [resourceKind, setResourceKind] = useState<ResourceKind>('person')
   const [cursor, setCursor] = useState(() => startOfDay(new Date()))
   const [events, setEvents] = useState<LiveSchedulerEvent[]>([])
   const [selected, setSelected] = useState<LiveSchedulerEvent | null>(null)
@@ -117,10 +150,12 @@ export function MaintenanceSchedulerPanel() {
   const [message, setMessage] = useState('')
 
   const period = useMemo(() => {
+    if (surface === 'resources') { const start = startOfWeek(cursor); return { start, end: addDays(start, 7) } }
     if (mode === 'month') return { start: startOfMonthGrid(cursor), end: endOfMonthGrid(cursor) }
     if (mode === 'week') { const start = startOfWeek(cursor); return { start, end: addDays(start, 7) } }
-    const start = startOfDay(cursor); return { start, end: addDays(start, 1) }
-  }, [cursor, mode])
+    const start = startOfDay(cursor)
+    return { start, end: addDays(start, 1) }
+  }, [cursor, mode, surface])
   const periodStartMs = period.start.getTime()
   const periodEndMs = period.end.getTime()
 
@@ -164,10 +199,22 @@ export function MaintenanceSchedulerPanel() {
   const unscheduled = filtered.filter((event) => event.eventType === 'WORK_ORDER' && event.unscheduled)
   const scheduled = filtered.filter((event) => !event.unscheduled && !!displayDate(event, basis))
   const calendarDays = useMemo(() => {
-    const count = mode === 'month' ? 42 : mode === 'week' ? 7 : 1
-    const start = mode === 'month' ? startOfMonthGrid(cursor) : mode === 'week' ? startOfWeek(cursor) : startOfDay(cursor)
+    const count = surface === 'resources' ? 7 : mode === 'month' ? 42 : mode === 'week' ? 7 : 1
+    const start = surface === 'resources' ? startOfWeek(cursor) : mode === 'month' ? startOfMonthGrid(cursor) : mode === 'week' ? startOfWeek(cursor) : startOfDay(cursor)
     return Array.from({ length: count }, (_, index) => addDays(start, index))
-  }, [cursor, mode])
+  }, [cursor, mode, surface])
+  const resourceRows = useMemo<ResourceRow[]>(() => {
+    const map = new Map<string, ResourceRow>()
+    if (resourceKind !== 'equipment') map.set(UNASSIGNED, { id: UNASSIGNED, label: 'Chưa phân công', secondary: resourceKind === 'person' ? 'Chưa có người phụ trách' : 'Chưa có nhóm phụ trách' })
+    for (const event of scheduled) {
+      const id = resourceId(event, resourceKind)
+      if (id === UNASSIGNED) continue
+      const label = resourceKind === 'person' ? event.primaryPersonName || id : resourceKind === 'team' ? event.primaryTeamName || id : event.equipmentName || id
+      const secondary = resourceKind === 'equipment' ? event.equipmentId : id
+      map.set(id, { id, label, secondary })
+    }
+    return Array.from(map.values()).toSorted((a, b) => (a.id === UNASSIGNED ? -1 : b.id === UNASSIGNED ? 1 : a.label.localeCompare(b.label, 'vi')))
+  }, [resourceKind, scheduled])
   const riskCounts = useMemo(() => ({
     overdue: filtered.filter((event) => event.status.toUpperCase() === 'OVERDUE').length,
     unassigned: filtered.filter((event) => event.eventType === 'WORK_ORDER' && !event.primaryPersonId && !event.primaryTeamId && !TERMINAL.has(event.status.toUpperCase())).length,
@@ -177,34 +224,37 @@ export function MaintenanceSchedulerPanel() {
 
   function changePeriod(direction: number) {
     const next = new Date(cursor)
-    if (mode === 'month') next.setMonth(next.getMonth() + direction)
+    if (surface === 'resources') next.setDate(next.getDate() + direction * 7)
+    else if (mode === 'month') next.setMonth(next.getMonth() + direction)
     else if (mode === 'week') next.setDate(next.getDate() + direction * 7)
     else next.setDate(next.getDate() + direction)
     setCursor(startOfDay(next))
   }
 
-  async function requestMove(event: LiveSchedulerEvent, targetDay: Date) {
+  async function requestMove(event: LiveSchedulerEvent, targetDay: Date, assignment?: AssignmentOverride) {
     if (basis !== 'start' || !canManage || event.eventType !== 'WORK_ORDER' || event.scheduleLocked || TERMINAL.has(event.status.toUpperCase())) return
     const moved = moveEventToDay(event, targetDay)
+    const personId = assignment?.personId ?? event.primaryPersonId
+    const teamId = assignment?.teamId ?? event.primaryTeamId
     setError(''); setMessage('')
     try {
-      const conflicts = await loadSchedulerConflicts({ workOrderId: event.workOrderId, startAt: moved.startAt, endAt: moved.endAt, personId: event.primaryPersonId, teamId: event.primaryTeamId })
-      if (conflicts.length) return setPendingMove({ event, ...moved, conflicts })
-      await commitMove(event, moved.startAt, moved.endAt, false)
+      const conflicts = await loadSchedulerConflicts({ workOrderId: event.workOrderId, startAt: moved.startAt, endAt: moved.endAt, personId, teamId })
+      if (conflicts.length) return setPendingMove({ event, ...moved, personId, teamId, conflicts })
+      await commitMove(event, moved.startAt, moved.endAt, false, { personId, teamId })
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể kiểm tra xung đột lịch.') }
   }
 
-  async function commitMove(event: LiveSchedulerEvent, startAt: string, endAt: string, allowConflict: boolean) {
+  async function commitMove(event: LiveSchedulerEvent, startAt: string, endAt: string, allowConflict: boolean, assignment?: AssignmentOverride) {
     setSaving(true); setError('')
     try {
       await rescheduleWorkOrder({
         workOrderId: event.workOrderId,
         startAt,
         endAt,
-        personId: event.primaryPersonId,
-        teamId: event.primaryTeamId,
+        personId: assignment?.personId ?? event.primaryPersonId,
+        teamId: assignment?.teamId ?? event.primaryTeamId,
         allowConflict,
-        note: allowConflict ? 'CEV Scheduler: supervisor accepted detected conflict' : 'CEV Scheduler drag/drop',
+        note: allowConflict ? 'CEV Scheduler: supervisor accepted detected conflict' : surface === 'resources' ? 'CEV Scheduler resource planning' : 'CEV Scheduler drag/drop',
       })
       setPendingMove(null); setSelected(null); setMessage(`Đã cập nhật lịch ${event.workOrderId}.`); await refresh()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể cập nhật lịch.') }
@@ -216,24 +266,47 @@ export function MaintenanceSchedulerPanel() {
     await commitMove(event, new Date(startValue).toISOString(), new Date(endValue).toISOString(), false)
   }
 
+  function findDraggedEvent(event: DragEvent<HTMLElement>) {
+    const eventId = event.dataTransfer.getData('text/cev-scheduler-event')
+    return events.find((candidate) => candidate.eventId === eventId)
+  }
+
   function onDrop(event: DragEvent<HTMLDivElement>, day: Date) {
     event.preventDefault()
-    const eventId = event.dataTransfer.getData('text/cev-scheduler-event')
-    const item = events.find((candidate) => candidate.eventId === eventId)
+    const item = findDraggedEvent(event)
     if (item) void requestMove(item, day)
   }
 
-  const periodLabel = mode === 'month'
-    ? formatMonth(cursor)
-    : mode === 'week'
-      ? `${formatDayHeading(period.start)} – ${new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(addDays(period.end, -1))}`
-      : formatDayHeading(cursor)
+  function onResourceDrop(event: DragEvent<HTMLDivElement>, day: Date, row: ResourceRow) {
+    event.preventDefault()
+    const item = findDraggedEvent(event)
+    if (!item) return
+    const assignment: AssignmentOverride = resourceKind === 'person'
+      ? { personId: row.id === UNASSIGNED ? '' : row.id }
+      : resourceKind === 'team'
+        ? { teamId: row.id === UNASSIGNED ? '' : row.id }
+        : {}
+    void requestMove(item, day, assignment)
+  }
+
+  const periodLabel = surface === 'resources'
+    ? `${formatDayHeading(period.start)} – ${new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(addDays(period.end, -1))}`
+    : mode === 'month'
+      ? formatMonth(cursor)
+      : mode === 'week'
+        ? `${formatDayHeading(period.start)} – ${new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(addDays(period.end, -1))}`
+        : formatDayHeading(cursor)
 
   return <section className="scheduler-workspace" aria-labelledby="scheduler-title">
     <header className="scheduler-header">
       <div><p className="eyebrow">Scheduler</p><h2 id="scheduler-title">Lịch trình</h2><p>Điều phối Work Order và theo dõi các mốc Preventive Maintenance trong cùng một lịch.</p></div>
       <div className="scheduler-header-actions"><button type="button" onClick={() => void refresh()} disabled={loading}>Làm mới</button></div>
     </header>
+
+    <div className="scheduler-surface-switch" role="group" aria-label="Kiểu lập kế hoạch">
+      <button type="button" className={surface === 'calendar' ? 'active' : ''} onClick={() => setSurface('calendar')}><strong>Lịch</strong><small>Ngày / tuần / tháng</small></button>
+      <button type="button" className={surface === 'resources' ? 'active' : ''} onClick={() => { setSurface('resources'); setMode('week') }}><strong>Nguồn lực</strong><small>Người / nhóm / thiết bị</small></button>
+    </div>
 
     <div className="scheduler-controlbar">
       <div className="scheduler-basis-switch" role="group" aria-label="Cơ sở hiển thị lịch">
@@ -255,9 +328,11 @@ export function MaintenanceSchedulerPanel() {
         <button type="button" aria-label="Kỳ sau" onClick={() => changePeriod(1)}>›</button>
         <strong>{periodLabel}</strong>
       </div>
-      <div className="scheduler-view-switch" role="group" aria-label="Kiểu hiển thị lịch">
+      {surface === 'calendar' ? <div className="scheduler-view-switch" role="group" aria-label="Kiểu hiển thị lịch">
         {(['day', 'week', 'month'] as CalendarMode[]).map((item) => <button key={item} type="button" className={mode === item ? 'active' : ''} onClick={() => setMode(item)}>{item === 'day' ? 'Ngày' : item === 'week' ? 'Tuần' : 'Tháng'}</button>)}
-      </div>
+      </div> : <div className="scheduler-resource-switch" role="group" aria-label="Nhóm nguồn lực">
+        {(['person', 'team', 'equipment'] as ResourceKind[]).map((item) => <button key={item} type="button" className={resourceKind === item ? 'active' : ''} onClick={() => setResourceKind(item)}>{resourceLabel(item)}</button>)}
+      </div>}
     </div>
 
     <div className="scheduler-filterbar">
@@ -269,25 +344,52 @@ export function MaintenanceSchedulerPanel() {
     </div>
 
     {basis === 'due' ? <div className="scheduler-mode-note">Chế độ <strong>Ngày đến hạn</strong> dùng để kiểm soát kế hoạch. Kéo thả bị khóa để không vô tình thay đổi ngày thực hiện.</div> : null}
+    {surface === 'resources' && basis === 'start' ? <div className="scheduler-mode-note"><strong>Resource Planning:</strong> kéo Work Order sang ô ngày của nhân sự hoặc nhóm để đổi lịch và phân công trong một thao tác. View Thiết bị chỉ đổi ngày, không đổi Equipment ID.</div> : null}
     {message ? <div className="scheduler-feedback" role="status">{message}</div> : null}
     {error ? <div className="scheduler-feedback error" role="alert">{error}</div> : null}
 
     <div className={`scheduler-layout${showUnscheduled ? '' : ' tray-hidden'}`}>
       {showUnscheduled ? <aside className="scheduler-unscheduled" aria-label="Công việc chưa xếp lịch">
-        <header><div><strong>Chưa xếp lịch</strong><small>{basis === 'start' ? 'Kéo Work Order vào lịch' : 'Work Order chưa có ngày thực hiện'}</small></div><span>{unscheduled.length}</span></header>
+        <header><div><strong>Chưa xếp lịch</strong><small>{basis === 'start' ? 'Kéo Work Order vào kế hoạch' : 'Work Order chưa có ngày thực hiện'}</small></div><span>{unscheduled.length}</span></header>
         <div className="scheduler-unscheduled-list">{unscheduled.length ? unscheduled.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} onSelect={setSelected} />) : <div className="scheduler-empty">Không có công việc chưa xếp lịch.</div>}</div>
       </aside> : null}
 
       <div className="scheduler-calendar-wrap">
-        {loading ? <div className="scheduler-state" role="status">Đang tải lịch…</div> : mode === 'month'
-          ? <MonthCalendar days={calendarDays} cursor={cursor} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onDrop} onSelect={setSelected} />
-          : <TimeCalendar days={calendarDays} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onDrop} onSelect={setSelected} />}
+        {loading ? <div className="scheduler-state" role="status">Đang tải lịch…</div> : surface === 'resources'
+          ? <ResourceCalendar days={calendarDays} rows={resourceRows} scheduled={scheduled} resourceKind={resourceKind} basis={basis} canManage={canManage} onDrop={onResourceDrop} onSelect={setSelected} />
+          : mode === 'month'
+            ? <MonthCalendar days={calendarDays} cursor={cursor} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onDrop} onSelect={setSelected} />
+            : <TimeCalendar days={calendarDays} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onDrop} onSelect={setSelected} />}
       </div>
     </div>
 
     {selected ? <SchedulerDetail event={selected} basis={basis} canManage={canManage} saving={saving} onClose={() => setSelected(null)} onSave={saveFromDetail} /> : null}
-    {pendingMove ? <ConflictDialog pending={pendingMove} saving={saving} onCancel={() => setPendingMove(null)} onConfirm={() => void commitMove(pendingMove.event, pendingMove.startAt, pendingMove.endAt, true)} /> : null}
+    {pendingMove ? <ConflictDialog pending={pendingMove} saving={saving} onCancel={() => setPendingMove(null)} onConfirm={() => void commitMove(pendingMove.event, pendingMove.startAt, pendingMove.endAt, true, { personId: pendingMove.personId, teamId: pendingMove.teamId })} /> : null}
   </section>
+}
+
+function ResourceCalendar({ days, rows, scheduled, resourceKind, basis, canManage, onDrop, onSelect }: { days: Date[]; rows: ResourceRow[]; scheduled: LiveSchedulerEvent[]; resourceKind: ResourceKind; basis: ScheduleBasis; canManage: boolean; onDrop: (event: DragEvent<HTMLDivElement>, day: Date, row: ResourceRow) => void; onSelect: (event: LiveSchedulerEvent) => void }) {
+  if (!rows.length) return <div className="scheduler-state">Chưa có nguồn lực phù hợp với bộ lọc hiện tại.</div>
+  return <div className="scheduler-resource-board">
+    <div className="scheduler-resource-head"><span>{resourceLabel(resourceKind)}</span>{days.map((day) => <strong key={dateKey(day)} className={dateKey(day) === dateKey(new Date()) ? 'today' : ''}>{WEEKDAY[day.getDay()]}<small>{day.getDate()}/{day.getMonth() + 1}</small></strong>)}<span>Tổng</span></div>
+    <div className="scheduler-resource-rows">{rows.map((row) => {
+      const rowEvents = scheduled.filter((event) => resourceId(event, resourceKind) === row.id)
+      const totalHours = rowEvents.reduce((sum, event) => sum + eventHours(event), 0)
+      return <div className={`scheduler-resource-row${row.id === UNASSIGNED ? ' unassigned' : ''}`} key={row.id}>
+        <header><strong>{row.label}</strong><small>{row.secondary}</small></header>
+        {days.map((day) => {
+          const cellEvents = rowEvents.filter((event) => sameDay(displayDate(event, basis), day))
+          const hours = cellEvents.reduce((sum, event) => sum + eventHours(event), 0)
+          return <div key={dateKey(day)} className="scheduler-resource-cell" onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={(event) => onDrop(event, day, row)}>
+            <div className="scheduler-resource-cell-meta"><span>{cellEvents.length ? `${cellEvents.length} WO/PM` : '—'}</span>{hours > 0 ? <b>{hours.toFixed(1)}h</b> : null}</div>
+            {cellEvents.slice(0, 4).map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} compact onSelect={onSelect} />)}
+            {cellEvents.length > 4 ? <span className="scheduler-resource-more">+{cellEvents.length - 4}</span> : null}
+          </div>
+        })}
+        <footer><strong>{rowEvents.length}</strong><small>{totalHours.toFixed(1)}h</small></footer>
+      </div>
+    })}</div>
+  </div>
 }
 
 function MonthCalendar({ days, cursor, scheduled, basis, canManage, onDrop, onSelect }: { days: Date[]; cursor: Date; scheduled: LiveSchedulerEvent[]; basis: ScheduleBasis; canManage: boolean; onDrop: (event: DragEvent<HTMLDivElement>, day: Date) => void; onSelect: (event: LiveSchedulerEvent) => void }) {
