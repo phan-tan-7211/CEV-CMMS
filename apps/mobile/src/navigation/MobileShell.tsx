@@ -210,13 +210,20 @@ export function MobileShell() {
   if (route === 'part-detail' && selectedPartId) return <PartDetailsScreen partId={selectedPartId} onBack={goBack} />
   if (route === 'part-inventory' && selectedPartId) return <PartInventoryScreen partId={selectedPartId} onBack={goBack} />
   if (route === 'part-work-order' && selectedPartId) return <PartWorkOrderScreen partId={selectedPartId} onBack={goBack} onCreated={(workOrderId) => navigate({ name: 'work-order-detail', workOrderId })} />
-  if (route === 'part-form') return <PartFormScreen partId={selectedPartId} onBack={goBack} onSaved={(partId) => navigate({ name: 'part-detail', partId })} />
+  if (route === 'part-form') return <PartFormScreen partId={selectedPartId} initialBarcode={currentEntry.barcode} onBack={goBack} onSaved={(partId) => navigate({ name: 'part-detail', partId })} />
   if (route === 'part-list') return <PartsListScreen onBack={goBack} onScan={() => navigate({ name: 'part-scan' })} onCreate={() => navigate({ name: 'part-form' })} onOpenPart={(partId) => navigate({ name: 'part-detail', partId })} />
   if (route === 'part-scan') return <SimpleScannerScreen title="Quét mã phụ tùng" onBack={goBack} onResult={async (code) => {
     const { searchSparePartsByBarcode } = await import('../features/scan/api/partSearchService')
     const matches = await searchSparePartsByBarcode(code)
     if (matches.length === 1 && matches[0]) { navigate({ name: 'part-detail', partId: matches[0].partId }); return true }
-    Alert.alert(matches.length ? 'Có nhiều kết quả' : 'Không tìm thấy phụ tùng', matches.length ? 'Hãy dùng tìm kiếm trong danh sách Phụ tùng.' : `Chưa có phụ tùng có mã “${code}”.`)
+    if (matches.length) {
+      Alert.alert('Có nhiều kết quả', 'Hãy dùng tìm kiếm trong danh sách Phụ tùng.')
+      return false
+    }
+    Alert.alert('Không tìm thấy phụ tùng', `Chưa có phụ tùng có mã “${code}”.`, [
+      { text: 'Quét lại', style: 'cancel' },
+      { text: 'Tạo phụ tùng', onPress: () => navigate({ name: 'part-form', barcode: code }) },
+    ])
     return false
   }} />
   if (route === 'create-request' && scopedEquipmentId) return <CreateRequestScreen equipmentId={scopedEquipmentId} sourceId={currentEntry.barcode} onBack={goBack} onCreated={() => navigate({ name: 'requests', equipmentId: scopedEquipmentId })} />
@@ -230,6 +237,7 @@ export function MobileShell() {
         onOpenPendingRequests={(equipmentId) => navigate({ name: 'requests', equipmentId })}
         onOpenCompletedWorkOrders={(equipmentId) => navigate({ name: 'work-orders', equipmentId, workOrderScope: 'completed' })}
         onCreateAsset={(code) => navigate({ name: 'registration', barcode: code })}
+        onCreatePart={(code) => navigate({ name: 'part-form', barcode: code })}
         onCreateWorkOrder={(equipmentId) => navigate({ name: 'create-work-order', equipmentId })}
         onOpenPart={(partId) => navigate({ name: 'part-detail', partId })}
         onOpenPartInventory={(partId) => navigate({ name: 'part-inventory', partId })}

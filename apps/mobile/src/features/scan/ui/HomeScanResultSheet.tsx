@@ -9,6 +9,7 @@ type Props = {
   onDismiss: () => void
   onRescan: () => void
   onCreateAsset: (code: string) => void
+  onCreatePart: (code: string) => void
   onCreateWorkOrder: (equipmentId: string) => void
   onOpenPart: (partId: string) => void
   onOpenPartInventory: (partId: string) => void
@@ -53,7 +54,7 @@ function ActionRow({
   )
 }
 
-export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCreateAsset, onCreateWorkOrder, onOpenPart, onOpenPartInventory, onCreatePartWorkOrder, onCreatePortalWorkOrder, onCreatePortalRequest, onOpenAsset, onOpenHierarchy, onOpenPendingWorkOrders, onOpenPendingRequests, onOpenCompletedWorkOrders, onSelectMultiple }: Props) {
+export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCreateAsset, onCreatePart, onCreateWorkOrder, onOpenPart, onOpenPartInventory, onCreatePartWorkOrder, onCreatePortalWorkOrder, onCreatePortalRequest, onOpenAsset, onOpenHierarchy, onOpenPendingWorkOrders, onOpenPendingRequests, onOpenCompletedWorkOrders, onSelectMultiple }: Props) {
   if (!loading && !result) return null
 
   return (
@@ -76,7 +77,8 @@ export function HomeScanResultSheet({ loading, result, onDismiss, onRescan, onCr
               <Text style={styles.body}>Không có dữ liệu phù hợp với mã “{result.code}”.</Text>
             </View>
             <View style={styles.notFoundActions}>
-              <Pressable onPress={() => onCreateAsset(result.code)} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Ionicons name="add-circle-outline" size={20} color="#FFFFFF" /><Text style={styles.primaryText}>Tạo tài sản</Text></Pressable>
+              <Pressable onPress={() => onCreatePart(result.code)} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Ionicons name="cube" size={20} color="#FFFFFF" /><Text style={styles.primaryText}>Tạo phụ tùng</Text></Pressable>
+              <Pressable onPress={() => onCreateAsset(result.code)} style={({ pressed }) => [styles.outlineButton, pressed && styles.pressed]}><Ionicons name="add-circle-outline" size={20} color="#155EEF" /><Text style={styles.outlineText}>Tạo tài sản</Text></Pressable>
               <Pressable onPress={onRescan} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Ionicons name="scan-outline" size={19} color="#475467" /><Text style={styles.secondaryText}>Quét lại</Text></Pressable>
             </View>
           </>
@@ -206,10 +208,12 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: 14.5, fontWeight: '800', color: '#344054' },
   actionLabelDisabled: { color: '#98A2B3' },
   actionDetail: { marginTop: 2, fontSize: 10.5, lineHeight: 14, color: '#98A2B3' },
-  primaryButton: { minHeight: 52, marginTop: 14, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
-  notFoundActions: { gap: 2 },
+  primaryButton: { minHeight: 52, marginTop: 14, borderRadius: 26, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#155EEF' },
+  outlineButton: { minHeight: 50, borderRadius: 25, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#B2CCFF', backgroundColor: '#FFFFFF' },
+  notFoundActions: { gap: 8 },
   primaryText: { fontSize: 16, fontWeight: '900', color: '#FFFFFF' },
-  secondaryButton: { minHeight: 46, alignItems: 'center', justifyContent: 'center' },
+  outlineText: { fontSize: 15, fontWeight: '900', color: '#155EEF' },
+  secondaryButton: { minHeight: 46, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { fontSize: 14.5, fontWeight: '800', color: '#475467' },
   multiList: { maxHeight: 340, borderWidth: 1, borderColor: '#EAECF0', borderRadius: 14 },
   multiRow: { minHeight: 64, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EAECF0' },
