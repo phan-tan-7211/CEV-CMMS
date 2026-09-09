@@ -41,6 +41,41 @@
 .scheduler-day-events .scheduler-event{
   will-change:transform,opacity;
 }
+
+/* Day/Week scheduler: 30-minute snap grid. The TS layer maps pointer Y to these same slots. */
+.scheduler-time-day{
+  min-height:960px;
+}
+.scheduler-half-hour-lines{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  display:grid;
+  grid-template-rows:repeat(32,30px);
+  pointer-events:none;
+}
+.scheduler-half-hour-lines i{
+  display:block;
+  min-height:30px;
+  border-bottom:1px dashed #f0f2f5;
+}
+.scheduler-half-hour-lines i:nth-child(even){
+  border-bottom-style:solid;
+  border-bottom-color:#e7ebef;
+}
+.scheduler-time-events{
+  z-index:1;
+}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day{
+  cursor:crosshair;
+}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day:hover .scheduler-half-hour-lines i{
+  border-bottom-color:#d9e5f7;
+}
+.scheduler-layout:has(.scheduler-event[draggable="true"]:active) .scheduler-time-day:hover .scheduler-half-hour-lines i:nth-child(even){
+  border-bottom-color:#bfd2ef;
+}
+
 @media (prefers-reduced-motion:reduce){
   .scheduler-event[draggable="true"],.scheduler-day,.scheduler-time-day,.scheduler-resource-cell,.scheduler-unscheduled{transition:none!important}
 }
