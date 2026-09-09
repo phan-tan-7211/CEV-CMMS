@@ -1,0 +1,13 @@
+.settings-workspace-backdrop{position:fixed;inset:0;z-index:80;background:rgba(15,23,42,.35);display:grid;place-items:center;padding:24px}
+.settings-workspace{width:min(1080px,96vw);height:min(720px,90vh);background:#fff;border:1px solid #dbe2ee;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.22);display:flex;flex-direction:column;overflow:hidden;color:#182235}
+.settings-workspace-header{display:flex;justify-content:space-between;align-items:center;padding:22px 26px;border-bottom:1px solid #e8edf4}
+.settings-workspace-header h2{margin:3px 0 0;font-size:24px}
+.settings-workspace-close{border:0;background:transparent;font-size:28px;color:#64748b;cursor:pointer;padding:2px 8px}
+.settings-workspace-body{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:0;flex:1}
+.settings-workspace-sidebar{background:#f7f9fc;border-right:1px solid #e8edf4;padding:18px 12px;overflow:auto}
+.settings-group{margin-bottom:20px}.settings-group p{font-size:10px;font-weight:800;letter-spacing:.08em;color:#8290a5;margin:0 10px 7px}
+.settings-group button{display:block;width:100%;border:0;background:transparent;text-align:left;border-radius:8px;padding:9px 10px;color:#4b586c;font:inherit;cursor:pointer}
+.settings-group button:hover{background:#edf3ff}.settings-group button.active{background:#e6efff;color:#245bca;font-weight:700}
+.settings-workspace-content{padding:36px 42px;overflow:auto}.settings-workspace-content h3{font-size:28px;margin:6px 0 10px}.settings-description{color:#64748b;margin:0;max-width:640px}
+.settings-empty-state{margin-top:34px;border:1px dashed #cbd5e1;border-radius:14px;padding:40px;display:grid;gap:10px;max-width:650px;background:#fbfdff}.settings-empty-state span{color:#64748b;line-height:1.5}.settings-empty-icon{font-size:30px;color:#3568df}
+@media (max-width:700px){.settings-workspace-backdrop{padding:8px}.settings-workspace{height:94vh}.settings-workspace-body{grid-template-columns:1fr}.settings-workspace-sidebar{max-height:220px;border-right:0;border-bottom:1px solid #e8edf4}.settings-workspace-content{padding:24px}}
