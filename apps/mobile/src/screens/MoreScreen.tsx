@@ -32,6 +32,7 @@ type MoreScreenProps = {
   onOpenVendors: () => void
   onOpenPeople: () => void
   onOpenPreventiveMaintenance: () => void
+  onOpenScheduler: () => void
   isAdmin?: boolean
   isOperatorFlow?: boolean
 }
@@ -44,6 +45,7 @@ const MENU_ITEMS: MoreMenuItem[] = [
   { key: 'inventory', label: 'Kho & Tồn kho', icon: 'file-tray-stacked-outline', iconColor: '#6941C6', backgroundColor: '#EEE6FF' },
   { key: 'meters', label: 'Đồng hồ đo', icon: 'speedometer-outline', iconColor: '#E31B54', backgroundColor: '#E8DEDC' },
   { key: 'preventive-maintenance', label: 'Bảo trì định kỳ', icon: 'calendar-outline', iconColor: '#12B76A', backgroundColor: '#DDF7EA' },
+  { key: 'scheduler', label: 'Lịch trình', icon: 'calendar-number-outline', iconColor: '#155EEF', backgroundColor: '#E8EEFF' },
   { key: 'oee', label: 'Hiệu suất OEE', icon: 'analytics-outline', iconColor: '#0E7090', backgroundColor: '#E0F2FE' },
   { key: 'people-teams', label: 'Người & Nhóm', icon: 'person', iconColor: '#155EEF', backgroundColor: '#DCE5E9' },
   { key: 'vendors-contractors', label: 'Nhà cung cấp & Nhà thầu', icon: 'people-circle-outline', iconColor: '#F79009', backgroundColor: '#E8E5D8' },
@@ -67,6 +69,7 @@ export function MoreScreen({
   onOpenVendors,
   onOpenPeople,
   onOpenPreventiveMaintenance,
+  onOpenScheduler,
   isAdmin = false,
   isOperatorFlow = false,
 }: MoreScreenProps) {
@@ -109,6 +112,7 @@ export function MoreScreen({
                 if (item.key === 'people-teams') return onOpenPeople()
                 if (item.key === 'vendors-contractors') return onOpenVendors()
                 if (item.key === 'preventive-maintenance') return onOpenPreventiveMaintenance()
+                if (item.key === 'scheduler') return onOpenScheduler()
                 if (item.key === 'oee') return setOeeOpen(true)
                 if (item.key === 'requests') return onOpenRequests()
                 if (item.key === 'assets') return onOpenEquipment()
