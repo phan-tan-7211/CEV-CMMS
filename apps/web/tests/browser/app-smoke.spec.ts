@@ -85,15 +85,24 @@ test('current navigation surfaces open without browser crash', async ({ page }) 
   if (mobile(page)) await openMore(page)
 })
 
-test('maintenance opens work orders first and can switch record tabs', async ({ page }) => {
+test('preventive maintenance opens plans first and can switch to work orders', async ({ page }) => {
   await openApp(page)
   await openView(page, 'Bảo trì phòng ngừa')
   const workspace = page.locator('.maintenance-workspace')
-  await expect(workspace.getByRole('heading', { name: 'Bảo trì thiết bị' })).toBeVisible()
+  await expect(workspace.getByRole('heading', { name: 'Bảo trì phòng ngừa' })).toBeVisible()
+
+  const plansTab = workspace.locator('button[aria-controls="maintenance-tab-plans"]')
+  await expect(plansTab).toHaveAttribute('aria-current', 'page')
+  const plansPanel = page.locator('#maintenance-tab-plans')
+  await expect(plansPanel).toBeVisible()
+  await expect(plansPanel.getByRole('heading', { name: 'Kế hoạch bảo trì phòng ngừa' })).toBeVisible()
+
   const workOrdersTab = workspace.locator('button[aria-controls="maintenance-tab-work-orders"]')
+  await workOrdersTab.click()
   await expect(workOrdersTab).toHaveAttribute('aria-current', 'page')
   const workOrdersPanel = page.locator('#maintenance-tab-work-orders')
   await expect(workOrdersPanel).toBeVisible()
+  await expect(plansPanel).toBeHidden()
   await expect(workOrdersPanel.locator('.maintenance-queue-tabs').getByRole('button', { name: /^Cần tôi xử lý/ })).toBeVisible()
 
   await workOrdersPanel.getByRole('button', { name: '+ Tạo lệnh công việc', exact: true }).click()
@@ -107,12 +116,6 @@ test('maintenance opens work orders first and can switch record tabs', async ({ 
   await expect(intake.getByLabel(/^Hạn xử lý dự kiến/)).toBeVisible()
   await intake.getByRole('button', { name: 'Hủy', exact: true }).click()
   await expect(intake).toHaveCount(0)
-
-  const plansTab = workspace.getByRole('button', { name: /^Kế hoạch/ })
-  await plansTab.click()
-  await expect(plansTab).toHaveAttribute('aria-current', 'page')
-  await expect(page.locator('#maintenance-tab-plans')).toBeVisible()
-  await expect(workOrdersPanel).toBeHidden()
   await expect(page.locator('.fatal-screen')).toHaveCount(0)
 })
 
