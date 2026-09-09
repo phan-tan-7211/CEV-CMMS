@@ -125,7 +125,7 @@ function timeGridStyle(event: LiveSchedulerEvent, basis: ScheduleBasis): CSSProp
   return { top: `${(top / gridMinutes) * 100}%`, height: `${(duration / gridMinutes) * 100}%` }
 }
 function overlapStyles(events: LiveSchedulerEvent[], basis: ScheduleBasis) {
-  const sorted = [...events].sort((a, b) => eventMinutes(displayDate(a, basis)) - eventMinutes(displayDate(b, basis)))
+  const sorted = events.toSorted((a, b) => eventMinutes(displayDate(a, basis)) - eventMinutes(displayDate(b, basis)))
   const result = new Map<string, CSSProperties>()
   let group: LiveSchedulerEvent[] = []
   let groupEnd = -1
@@ -325,7 +325,10 @@ export function MaintenanceSchedulerPanel() {
     window.history.replaceState({}, '', url)
     window.dispatchEvent(new CustomEvent('cev:navigate', { detail: { view: 'maintenance' } }))
   }
-  function selectEvent(event: LiveSchedulerEvent) { event.eventType === 'PM_DUE' ? openPmDetail(event) : setSelected(event) }
+  function selectEvent(event: LiveSchedulerEvent) {
+    if (event.eventType === 'PM_DUE') openPmDetail(event)
+    else setSelected(event)
+  }
 
   async function requestMove(event: LiveSchedulerEvent, target: Date, assignment?: AssignmentOverride, exactTime = false) {
     if (basis !== 'start' || !canManage || event.eventType !== 'WORK_ORDER' || event.scheduleLocked || TERMINAL.has(event.status.toUpperCase())) return
@@ -522,7 +525,7 @@ function TimeCalendar({ days, scheduled, basis, canManage, now, onDrop, onResize
         return <div key={dateKey(day)} className="scheduler-time-day" onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={(event) => onDrop(event, day)}>
           <div className="scheduler-half-hour-lines" aria-hidden="true">{Array.from({ length: (GRID_END_HOUR - GRID_START_HOUR) * 2 }, (_, index) => <i key={index} />)}</div>
           {today && nowVisible ? <div className="scheduler-now-line" style={{ top: `${((nowMinute - GRID_START_HOUR * 60) / gridMinutes) * 100}%` }} aria-label={`Thời gian hiện tại ${formatTime(now.toISOString())}`}><span>{formatTime(now.toISOString())}</span></div> : null}
-          <div className="scheduler-time-events">{dayEvents.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} style={{ ...timeGridStyle(event, basis), ...(overlaps.get(event.eventId) || {}) }} resizable onResize={onResize} onSelect={onSelect} />)}</div>
+          <div className="scheduler-time-events">{dayEvents.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} style={{ ...timeGridStyle(event, basis), ...overlaps.get(event.eventId) }} resizable onResize={onResize} onSelect={onSelect} />)}</div>
         </div>
       })}
     </div>
