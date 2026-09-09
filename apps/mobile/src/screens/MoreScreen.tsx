@@ -2,10 +2,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { AppBottomNav } from '../components/AppBottomNav'
 import { GlobalCreateSheet } from '../components/GlobalCreateSheet'
+import { consumePendingCreateAction } from '../features/navigation/pendingCreateAction'
 import { CoreParityScreen } from './CoreParityScreen'
 import { NotificationsScreen } from './NotificationsScreen'
 import { OeeScreen } from './OeeScreen'
@@ -59,20 +60,26 @@ const MENU_ITEMS: MoreMenuItem[] = [
   { key:'vendors-contractors',label:'Nhà cung cấp & Nhà thầu',icon:'people-circle-outline',iconColor:'#F79009',backgroundColor:'#E8E5D8' },
 ]
 
+function isCreateFlow(value: string | null): value is Exclude<CreateFlow,null> {
+  return value === 'work-order' || value === 'request' || value === 'location' || value === 'meter' || value === 'part' || value === 'vendor' || value === 'customer'
+}
+
 export function MoreScreen({ onHome,onOpenWorkOrders,onOpenWorkOrderDrafts,onOpenRequests,onOpenEquipment,onCreateEquipment,onOpenOperatorScan,onOpenParts,onOpenLocations,onOpenInventory,onOpenMeters,onOpenVendors,onOpenPeople,onOpenPreventiveMaintenance,isAdmin=false,isOperatorFlow=false }: MoreScreenProps) {
+  const [pendingCreate] = useState(() => consumePendingCreateAction())
   const [createMenuOpen,setCreateMenuOpen]=useState(false)
-  const [createFlow,setCreateFlow]=useState<CreateFlow>(null)
+  const [createFlow,setCreateFlow]=useState<CreateFlow>(()=>isCreateFlow(pendingCreate)?pendingCreate:null)
   const [targetEquipmentId,setTargetEquipmentId]=useState('')
-  const [coreParityOpen,setCoreParityOpen]=useState(false)
+  const [coreParityOpen,setCoreParityOpen]=useState(()=>Boolean(pendingCreate&&['checklist','custom-fields','files','floor-plan'].includes(pendingCreate)))
   const [notificationsOpen,setNotificationsOpen]=useState(false)
   const [oeeOpen,setOeeOpen]=useState(false)
   const [schedulerOpen,setSchedulerOpen]=useState(false)
   const [purchasingOpen,setPurchasingOpen]=useState(false)
+  useEffect(()=>{if(pendingCreate==='pm')onOpenPreventiveMaintenance();else if(pendingCreate==='user')onOpenPeople()},[onOpenPeople,onOpenPreventiveMaintenance,pendingCreate])
   function resetCreate(){setCreateFlow(null);setTargetEquipmentId('')}
   function handleCenterAction(){ if(isOperatorFlow){onOpenOperatorScan();return} setCreateMenuOpen(true) }
   function handleCreateAction(key:string){
     if(key==='equipment'){onCreateEquipment();return}
-    if(key==='work-order'||key==='request'||key==='location'||key==='meter'||key==='part'||key==='vendor'||key==='customer'){setCreateFlow(key as CreateFlow);setTargetEquipmentId('');return}
+    if(isCreateFlow(key)){setCreateFlow(key);setTargetEquipmentId('');return}
     if(key==='pm'){onOpenPreventiveMaintenance();return}
     if(key==='user'){onOpenPeople();return}
     if(key==='checklist'||key==='custom-fields'||key==='files'||key==='floor-plan'){setCoreParityOpen(true);return}
