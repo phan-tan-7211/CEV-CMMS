@@ -73,10 +73,19 @@ export async function saveWorkOrderExecution(input: { workOrderId: string; rootC
   }, 'Không thể lưu kết quả thực hiện.')
 }
 
-export async function transitionWorkOrder(workOrderId: string, action: WorkOrderTransitionAction) {
-  const data = await rpc('rpc_transition_maintenance', { p_work_order_id: workOrderId.trim(), p_action: action, p_operation_id: operationId(action) }, 'Không thể chuyển trạng thái Work Order.')
+export async function transitionWorkOrderOnline(workOrderId: string, action: WorkOrderTransitionAction, stableOperationId?: string) {
+  const data = await rpc('rpc_transition_maintenance', {
+    p_work_order_id: workOrderId.trim(),
+    p_action: action,
+    p_operation_id: stableOperationId?.trim() || operationId(action),
+  }, 'Không thể chuyển trạng thái Work Order.')
   const row = (data || {}) as Record<string, unknown>
   return { status: text(row.status) }
+}
+
+export async function transitionWorkOrder(workOrderId: string, action: WorkOrderTransitionAction) {
+  const offline = await import('./workOrderOfflineMutationQueue')
+  return offline.transitionWorkOrderOffline(workOrderId, action)
 }
 
 export async function recordWorkOrderHandover(input: { workOrderId: string; equipmentId: string; handoverPerson: string; receiverPerson: string; handoverReason: string; equipmentCondition: 'NORMAL' | 'MINOR_ISSUE' | 'NOT_OPERATIONAL'; accepted: boolean }) {
