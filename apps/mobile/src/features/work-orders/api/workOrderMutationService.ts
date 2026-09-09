@@ -10,11 +10,11 @@ async function rpc(name: string, params: Record<string, unknown>, fallback: stri
 
 export type WorkOrderTransitionAction = 'REQUEST_APPROVAL' | 'APPROVE' | 'START' | 'COMPLETE' | 'VERIFY' | 'RELEASE'
 
-export async function createMaintenanceWorkOrder(input: { equipmentId: string; reason: string; priority: string; sourceType?: string; sourceId?: string; personIds?: string[]; teamIds?: string[] }) {
+export async function createMaintenanceWorkOrder(input: { equipmentId: string; reason: string; priority: string; sourceType?: string; sourceId?: string; personIds?: string[]; teamIds?: string[]; operationId?: string }) {
   const reason = input.reason.trim()
   if (!reason) throw new Error('Vui lòng nhập nội dung công việc.')
   const data = await rpc('rpc_cmms_create_work_order_v2', {
-    p_input: { equipmentId: input.equipmentId.trim(), reason, priority: input.priority.trim() || 'MEDIUM', sourceType: input.sourceType || 'MOBILE', sourceId: input.sourceId || input.equipmentId.trim(), operationId: operationId('CREATE-WO'), personIds: input.personIds || [], teamIds: input.teamIds || [] },
+    p_input: { equipmentId: input.equipmentId.trim(), reason, priority: input.priority.trim() || 'MEDIUM', sourceType: input.sourceType || 'MOBILE', sourceId: input.sourceId || input.equipmentId.trim(), operationId: input.operationId?.trim() || operationId('CREATE-WO'), personIds: input.personIds || [], teamIds: input.teamIds || [] },
   }, 'Không thể tạo Work Order.')
   const result = (data || {}) as Record<string, unknown>
   const workOrderId = text(result.workOrderId)
