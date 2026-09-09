@@ -19,14 +19,21 @@ function saveErrorMessage(message: string) {
   return message
 }
 
-export function PartFormScreen({ onBack, partId = '', onSaved }: { onBack: () => void; partId?: string; onSaved: (partId: string) => void }) {
-  const [form, setForm] = useState(EMPTY_FORM)
+export function PartFormScreen({ onBack, partId = '', initialBarcode = '', onSaved }: { onBack: () => void; partId?: string; initialBarcode?: string; onSaved: (partId: string) => void }) {
+  const [form, setForm] = useState(() => ({ ...EMPTY_FORM, barcode: partId ? '' : initialBarcode.trim() }))
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(Boolean(partId))
   const [equipmentLoading, setEquipmentLoading] = useState(true)
   const [equipmentItems, setEquipmentItems] = useState<EquipmentListItem[]>([])
   const [equipmentIds, setEquipmentIds] = useState<string[]>([])
   const [equipmentQuery, setEquipmentQuery] = useState('')
+
+  useEffect(() => {
+    if (partId) return
+    const barcode = initialBarcode.trim()
+    if (!barcode) return
+    setForm((current) => current.barcode ? current : { ...current, barcode })
+  }, [initialBarcode, partId])
 
   useEffect(() => {
     let active = true
@@ -133,7 +140,7 @@ export function PartFormScreen({ onBack, partId = '', onSaved }: { onBack: () =>
         {!partId ? (
           <View style={styles.infoBox}>
             <Ionicons name="cube-outline" size={20} color="#175CD3" />
-            <Text style={styles.infoText}>Tạo phụ tùng mới sẽ đồng thời mở mã trong kho CMMS. Nếu có tồn đầu kỳ, hệ thống ghi giao dịch vào sổ kho tự động.</Text>
+            <Text style={styles.infoText}>{initialBarcode.trim() ? `Barcode “${initialBarcode.trim()}” đã được điền từ mã vừa quét. ` : ''}Tạo phụ tùng mới sẽ đồng thời mở mã trong kho CMMS. Nếu có tồn đầu kỳ, hệ thống ghi giao dịch vào sổ kho tự động.</Text>
           </View>
         ) : null}
         <Field label="Tên phụ tùng *" value={form.partName} onChange={(value) => patch('partName', value)} />
