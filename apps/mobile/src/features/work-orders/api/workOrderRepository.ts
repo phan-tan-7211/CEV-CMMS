@@ -207,6 +207,16 @@ export async function patchWorkOrderDetailSnapshot(workOrderId: string, updater:
   return commitDetail(userId, updater(current))
 }
 
+export async function findWorkOrderIdByChecklistItemId(checklistItemId: string) {
+  const target = normalizeId(checklistItemId)
+  if (!target) return ''
+  await ensureUserScope()
+  for (const [workOrderId, entry] of detailMemory.entries()) {
+    if (entry.data.checklist.some((item) => item.checklistItemId === target)) return workOrderId
+  }
+  return ''
+}
+
 export function isWorkOrderListStale() {
   return !listMemory || Date.now() - listMemory.savedAt >= LIST_REVALIDATE_AFTER_MS
 }
@@ -222,6 +232,10 @@ export async function revalidateWorkOrderList({ force = false }: { force?: boole
   if (listInFlight) return listInFlight
   listInFlight = fetchWorkOrders()
     .then((items) => commitList(userId, items))
+    .catch((error) => {
+      if (listMemory) return listMemory.data
+      throw error
+    })
     .finally(() => { if (activeUserId === userId) listInFlight = null })
   return listInFlight
 }
@@ -236,6 +250,11 @@ export async function revalidateWorkOrderDetail(workOrderId: string, { force = f
   if (existing) return existing
   const request = fetchWorkOrderDetail(id)
     .then((item) => commitDetail(userId, item))
+    .catch((error) => {
+      const fallback = detailMemory.get(id)
+      if (fallback) return fallback.data
+      throw error
+    })
     .finally(() => { if (activeUserId === userId) detailInFlight.delete(id) })
   detailInFlight.set(id, request)
   return request
