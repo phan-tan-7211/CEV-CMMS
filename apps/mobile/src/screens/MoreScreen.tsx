@@ -6,6 +6,7 @@ import { useState } from 'react'
 
 import { AppBottomNav } from '../components/AppBottomNav'
 import { GlobalCreateSheet } from '../components/GlobalCreateSheet'
+import { OeeScreen } from './OeeScreen'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -43,6 +44,7 @@ const MENU_ITEMS: MoreMenuItem[] = [
   { key: 'inventory', label: 'Kho & Tồn kho', icon: 'file-tray-stacked-outline', iconColor: '#6941C6', backgroundColor: '#EEE6FF' },
   { key: 'meters', label: 'Đồng hồ đo', icon: 'speedometer-outline', iconColor: '#E31B54', backgroundColor: '#E8DEDC' },
   { key: 'preventive-maintenance', label: 'Bảo trì định kỳ', icon: 'calendar-outline', iconColor: '#12B76A', backgroundColor: '#DDF7EA' },
+  { key: 'oee', label: 'Hiệu suất OEE', icon: 'analytics-outline', iconColor: '#0E7090', backgroundColor: '#E0F2FE' },
   { key: 'people-teams', label: 'Người & Nhóm', icon: 'person', iconColor: '#155EEF', backgroundColor: '#DCE5E9' },
   { key: 'vendors-contractors', label: 'Nhà cung cấp & Nhà thầu', icon: 'people-circle-outline', iconColor: '#F79009', backgroundColor: '#E8E5D8' },
 ]
@@ -69,6 +71,7 @@ export function MoreScreen({
   isOperatorFlow = false,
 }: MoreScreenProps) {
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
+  const [oeeOpen, setOeeOpen] = useState(false)
 
   function handleCenterAction() {
     if (isOperatorFlow) {
@@ -77,6 +80,8 @@ export function MoreScreen({
     }
     setCreateMenuOpen(true)
   }
+
+  if (oeeOpen) return <OeeScreen onBack={() => setOeeOpen(false)} />
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -104,6 +109,7 @@ export function MoreScreen({
                 if (item.key === 'people-teams') return onOpenPeople()
                 if (item.key === 'vendors-contractors') return onOpenVendors()
                 if (item.key === 'preventive-maintenance') return onOpenPreventiveMaintenance()
+                if (item.key === 'oee') return setOeeOpen(true)
                 if (item.key === 'requests') return onOpenRequests()
                 if (item.key === 'assets') return onOpenEquipment()
                 return showComingSoon(item.label)
