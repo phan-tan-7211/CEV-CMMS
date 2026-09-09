@@ -39,6 +39,7 @@ const TERMINAL = new Set(['COMPLETED', 'COMPLETE', 'VERIFIED', 'RELEASED', 'CANC
 const GRID_START_HOUR = 6
 const GRID_END_HOUR = 22
 const GRID_HOURS = Array.from({ length: GRID_END_HOUR - GRID_START_HOUR }, (_, index) => GRID_START_HOUR + index)
+const SNAP_MINUTES = 30
 const UNASSIGNED = '__UNASSIGNED__'
 
 function pad(value: number) { return String(value).padStart(2, '0') }
@@ -81,14 +82,23 @@ function sameDay(value: string, date: Date) {
   const candidate = new Date(value)
   return !Number.isNaN(candidate.getTime()) && dateKey(candidate) === dateKey(date)
 }
+function eventDurationMs(event: LiveSchedulerEvent) {
+  const start = event.startAt ? Date.parse(event.startAt) : Number.NaN
+  const end = event.endAt ? Date.parse(event.endAt) : Number.NaN
+  if (!Number.isNaN(start) && !Number.isNaN(end) && end > start) return Math.max(end - start, SNAP_MINUTES * 60_000)
+  return 60 * 60_000
+}
 function moveEventToDay(event: LiveSchedulerEvent, target: Date) {
   const start = event.startAt ? new Date(event.startAt) : new Date(target)
-  const end = event.endAt ? new Date(event.endAt) : new Date(start.getTime() + 60 * 60 * 1000)
-  const duration = Math.max(end.getTime() - start.getTime(), 30 * 60 * 1000)
   const nextStart = new Date(target)
   if (event.startAt) nextStart.setHours(start.getHours(), start.getMinutes(), 0, 0)
   else nextStart.setHours(8, 0, 0, 0)
-  return { startAt: nextStart.toISOString(), endAt: new Date(nextStart.getTime() + duration).toISOString() }
+  return { startAt: nextStart.toISOString(), endAt: new Date(nextStart.getTime() + eventDurationMs(event)).toISOString() }
+}
+function moveEventToTime(event: LiveSchedulerEvent, target: Date) {
+  const nextStart = new Date(target)
+  nextStart.setSeconds(0, 0)
+  return { startAt: nextStart.toISOString(), endAt: new Date(nextStart.getTime() + eventDurationMs(event)).toISOString() }
 }
 function canManageScheduler(role: string) { return ['SUPERVISOR', 'MANAGER', 'ADMIN'].includes(role) }
 function eventMinutes(value: string) {
@@ -102,8 +112,8 @@ function timeGridStyle(event: LiveSchedulerEvent, basis: ScheduleBasis): CSSProp
   const end = basis === 'start' && event.endAt ? eventMinutes(event.endAt) : start + 60
   const gridStart = GRID_START_HOUR * 60
   const gridMinutes = (GRID_END_HOUR - GRID_START_HOUR) * 60
-  const top = Math.max(0, Math.min(gridMinutes - 30, start - gridStart))
-  const duration = Math.max(30, Math.min(gridMinutes - top, end - start || 60))
+  const top = Math.max(0, Math.min(gridMinutes - SNAP_MINUTES, start - gridStart))
+  const duration = Math.max(SNAP_MINUTES, Math.min(gridMinutes - top, end - start || 60))
   return { top: `${(top / gridMinutes) * 100}%`, height: `${(duration / gridMinutes) * 100}%` }
 }
 function toLocalInput(value: string) {
@@ -126,6 +136,16 @@ function resourceId(event: LiveSchedulerEvent, kind: ResourceKind) {
 }
 function resourceLabel(kind: ResourceKind) {
   return kind === 'person' ? 'Nhân sự' : kind === 'team' ? 'Nhóm' : 'Thiết bị'
+}
+function snappedTimeFromPointer(event: DragEvent<HTMLDivElement>, day: Date) {
+  const rect = event.currentTarget.getBoundingClientRect()
+  const gridMinutes = (GRID_END_HOUR - GRID_START_HOUR) * 60
+  const relativeY = Math.max(0, Math.min(rect.height, event.clientY - rect.top))
+  const rawMinutes = rect.height ? (relativeY / rect.height) * gridMinutes : 0
+  const snappedMinutes = Math.max(0, Math.min(gridMinutes - SNAP_MINUTES, Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES))
+  const target = startOfDay(day)
+  target.setMinutes(GRID_START_HOUR * 60 + snappedMinutes)
+  return target
 }
 
 export function MaintenanceSchedulerPanel() {
@@ -234,9 +254,9 @@ export function MaintenanceSchedulerPanel() {
     setCursor(startOfDay(next))
   }
 
-  async function requestMove(event: LiveSchedulerEvent, targetDay: Date, assignment?: AssignmentOverride) {
+  async function requestMove(event: LiveSchedulerEvent, target: Date, assignment?: AssignmentOverride, exactTime = false) {
     if (basis !== 'start' || !canManage || event.eventType !== 'WORK_ORDER' || event.scheduleLocked || TERMINAL.has(event.status.toUpperCase())) return
-    const moved = moveEventToDay(event, targetDay)
+    const moved = exactTime ? moveEventToTime(event, target) : moveEventToDay(event, target)
     const personId = assignment?.personId ?? event.primaryPersonId
     const teamId = assignment?.teamId ?? event.primaryTeamId
     setError(''); setMessage('')
@@ -332,6 +352,13 @@ export function MaintenanceSchedulerPanel() {
     if (item) void requestMove(item, day)
   }
 
+  function onTimeDrop(event: DragEvent<HTMLDivElement>, day: Date) {
+    event.preventDefault()
+    const item = findDraggedEvent(event)
+    if (!item) return
+    void requestMove(item, snappedTimeFromPointer(event, day), undefined, true)
+  }
+
   function onResourceDrop(event: DragEvent<HTMLDivElement>, day: Date, row: ResourceRow) {
     event.preventDefault()
     const item = findDraggedEvent(event)
@@ -405,6 +432,7 @@ export function MaintenanceSchedulerPanel() {
     </div>
 
     {basis === 'due' ? <div className="scheduler-mode-note">Chế độ <strong>Ngày đến hạn</strong> dùng để kiểm soát kế hoạch. Kéo thả bị khóa để không vô tình thay đổi ngày thực hiện.</div> : null}
+    {surface === 'calendar' && basis === 'start' && mode !== 'month' ? <div className="scheduler-mode-note"><strong>Snap 30 phút:</strong> thả Work Order vào đúng vị trí thời gian trên lưới Ngày/Tuần; hệ thống giữ nguyên thời lượng công việc.</div> : null}
     {surface === 'resources' && basis === 'start' ? <div className="scheduler-mode-note"><strong>Resource Planning:</strong> kéo Work Order sang ô ngày của nhân sự hoặc nhóm để đổi lịch và phân công trong một thao tác. View Thiết bị chỉ đổi ngày, không đổi Equipment ID.</div> : null}
     {message ? <div className="scheduler-feedback" role="status">{message}</div> : null}
     {error ? <div className="scheduler-feedback error" role="alert">{error}</div> : null}
@@ -420,7 +448,7 @@ export function MaintenanceSchedulerPanel() {
           ? <ResourceCalendar days={calendarDays} rows={resourceRows} scheduled={scheduled} resourceKind={resourceKind} basis={basis} canManage={canManage} onDrop={onResourceDrop} onSelect={setSelected} />
           : mode === 'month'
             ? <MonthCalendar days={calendarDays} cursor={cursor} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onDrop} onSelect={setSelected} />
-            : <TimeCalendar days={calendarDays} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onDrop} onSelect={setSelected} />}
+            : <TimeCalendar days={calendarDays} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onTimeDrop} onSelect={setSelected} />}
       </div>
     </div>
 
@@ -473,7 +501,7 @@ function TimeCalendar({ days, scheduled, basis, canManage, onDrop, onSelect }: {
       {days.map((day) => {
         const dayEvents = scheduled.filter((event) => sameDay(displayDate(event, basis), day))
         return <div key={dateKey(day)} className="scheduler-time-day" onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={(event) => onDrop(event, day)}>
-          <div className="scheduler-hour-lines">{GRID_HOURS.map((hour) => <i key={hour} />)}</div>
+          <div className="scheduler-half-hour-lines" aria-hidden="true">{Array.from({ length: (GRID_END_HOUR - GRID_START_HOUR) * 2 }, (_, index) => <i key={index} />)}</div>
           <div className="scheduler-time-events">{dayEvents.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} style={timeGridStyle(event, basis)} onSelect={onSelect} />)}</div>
         </div>
       })}
@@ -524,4 +552,4 @@ function ConflictDialog({ pending, saving, onCancel, onConfirm }: { pending: Pen
   </section></div>
 }
 
-export const schedulerDateUtils = { dateKey, startOfWeek, startOfMonthGrid, moveEventToDay, displayDate }
+export const schedulerDateUtils = { dateKey, startOfWeek, startOfMonthGrid, moveEventToDay, moveEventToTime, displayDate }
