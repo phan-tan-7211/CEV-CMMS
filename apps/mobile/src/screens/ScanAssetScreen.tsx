@@ -16,6 +16,7 @@ export function ScanAssetScreen({
   onOpenPendingRequests,
   onOpenCompletedWorkOrders,
   onCreateAsset,
+  onCreatePart,
   onCreateWorkOrder,
   onOpenPart,
   onOpenPartInventory,
@@ -31,6 +32,7 @@ export function ScanAssetScreen({
   onOpenPendingRequests: (equipmentId: string) => void
   onOpenCompletedWorkOrders: (equipmentId: string) => void
   onCreateAsset: (code: string) => void
+  onCreatePart: (code: string) => void
   onCreateWorkOrder: (equipmentId: string) => void
   onOpenPart: (partId: string) => void
   onOpenPartInventory: (partId: string) => void
@@ -142,6 +144,7 @@ export function ScanAssetScreen({
           onDismiss={closeResult}
           onRescan={rescan}
           onCreateAsset={onCreateAsset}
+          onCreatePart={onCreatePart}
           onCreateWorkOrder={onCreateWorkOrder}
           onOpenPart={onOpenPart}
           onOpenPartInventory={onOpenPartInventory}
