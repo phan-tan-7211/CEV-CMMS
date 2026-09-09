@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type DragEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { useAppRole } from '../auth/AppRoleContext'
 import {
   loadSchedulerConflicts,
@@ -147,6 +147,20 @@ function snappedTimeFromPointer(event: DragEvent<HTMLDivElement>, day: Date) {
   target.setMinutes(GRID_START_HOUR * 60 + snappedMinutes)
   return target
 }
+function snappedResizeEnd(clientY: number, dayElement: HTMLElement, startAt: string) {
+  const rect = dayElement.getBoundingClientRect()
+  const gridMinutes = (GRID_END_HOUR - GRID_START_HOUR) * 60
+  const relativeY = Math.max(0, Math.min(rect.height, clientY - rect.top))
+  const rawMinutes = rect.height ? (relativeY / rect.height) * gridMinutes : 0
+  const snappedMinutes = Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES
+  const start = new Date(startAt)
+  const startMinute = start.getHours() * 60 + start.getMinutes()
+  const minEndMinute = startMinute + SNAP_MINUTES
+  const endMinute = Math.max(minEndMinute, Math.min(GRID_END_HOUR * 60, GRID_START_HOUR * 60 + snappedMinutes))
+  const end = startOfDay(start)
+  end.setMinutes(endMinute)
+  return end
+}
 
 export function MaintenanceSchedulerPanel() {
   const role = useAppRole()
@@ -267,6 +281,18 @@ export function MaintenanceSchedulerPanel() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể kiểm tra xung đột lịch.') }
   }
 
+  async function requestResize(event: LiveSchedulerEvent, endAt: string) {
+    if (basis !== 'start' || !canManage || event.eventType !== 'WORK_ORDER' || !event.startAt || event.scheduleLocked || TERMINAL.has(event.status.toUpperCase())) return
+    const personId = event.primaryPersonId
+    const teamId = event.primaryTeamId
+    setError(''); setMessage('')
+    try {
+      const conflicts = await loadSchedulerConflicts({ workOrderId: event.workOrderId, startAt: event.startAt, endAt, personId, teamId })
+      if (conflicts.length) return setPendingMove({ event, startAt: event.startAt, endAt, personId, teamId, conflicts })
+      await commitMove(event, event.startAt, endAt, false)
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể kiểm tra xung đột thời lượng.') }
+  }
+
   async function commitMove(event: LiveSchedulerEvent, startAt: string, endAt: string, allowConflict: boolean, assignment?: AssignmentOverride) {
     const personId = assignment?.personId ?? event.primaryPersonId
     const teamId = assignment?.teamId ?? event.primaryTeamId
@@ -299,7 +325,7 @@ export function MaintenanceSchedulerPanel() {
         personId,
         teamId,
         allowConflict,
-        note: allowConflict ? 'CEV Scheduler: supervisor accepted detected conflict' : surface === 'resources' ? 'CEV Scheduler resource planning' : 'CEV Scheduler drag/drop',
+        note: allowConflict ? 'CEV Scheduler: supervisor accepted detected conflict' : surface === 'resources' ? 'CEV Scheduler resource planning' : 'CEV Scheduler drag/drop or resize',
       })
       setMessage(`Đã cập nhật lịch ${event.workOrderId}.`)
       void refresh(true)
@@ -432,7 +458,7 @@ export function MaintenanceSchedulerPanel() {
     </div>
 
     {basis === 'due' ? <div className="scheduler-mode-note">Chế độ <strong>Ngày đến hạn</strong> dùng để kiểm soát kế hoạch. Kéo thả bị khóa để không vô tình thay đổi ngày thực hiện.</div> : null}
-    {surface === 'calendar' && basis === 'start' && mode !== 'month' ? <div className="scheduler-mode-note"><strong>Snap 30 phút:</strong> thả Work Order vào đúng vị trí thời gian trên lưới Ngày/Tuần; hệ thống giữ nguyên thời lượng công việc.</div> : null}
+    {surface === 'calendar' && basis === 'start' && mode !== 'month' ? <div className="scheduler-mode-note"><strong>Snap 30 phút:</strong> thả Work Order vào đúng vị trí thời gian; kéo mép dưới card để đổi thời lượng theo mốc 30 phút.</div> : null}
     {surface === 'resources' && basis === 'start' ? <div className="scheduler-mode-note"><strong>Resource Planning:</strong> kéo Work Order sang ô ngày của nhân sự hoặc nhóm để đổi lịch và phân công trong một thao tác. View Thiết bị chỉ đổi ngày, không đổi Equipment ID.</div> : null}
     {message ? <div className="scheduler-feedback" role="status">{message}</div> : null}
     {error ? <div className="scheduler-feedback error" role="alert">{error}</div> : null}
@@ -448,7 +474,7 @@ export function MaintenanceSchedulerPanel() {
           ? <ResourceCalendar days={calendarDays} rows={resourceRows} scheduled={scheduled} resourceKind={resourceKind} basis={basis} canManage={canManage} onDrop={onResourceDrop} onSelect={setSelected} />
           : mode === 'month'
             ? <MonthCalendar days={calendarDays} cursor={cursor} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onDrop} onSelect={setSelected} />
-            : <TimeCalendar days={calendarDays} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onTimeDrop} onSelect={setSelected} />}
+            : <TimeCalendar days={calendarDays} scheduled={scheduled} basis={basis} canManage={canManage} onDrop={onTimeDrop} onResize={requestResize} onSelect={setSelected} />}
       </div>
     </div>
 
@@ -493,7 +519,7 @@ function MonthCalendar({ days, cursor, scheduled, basis, canManage, onDrop, onSe
   })}</div></>
 }
 
-function TimeCalendar({ days, scheduled, basis, canManage, onDrop, onSelect }: { days: Date[]; scheduled: LiveSchedulerEvent[]; basis: ScheduleBasis; canManage: boolean; onDrop: (event: DragEvent<HTMLDivElement>, day: Date) => void; onSelect: (event: LiveSchedulerEvent) => void }) {
+function TimeCalendar({ days, scheduled, basis, canManage, onDrop, onResize, onSelect }: { days: Date[]; scheduled: LiveSchedulerEvent[]; basis: ScheduleBasis; canManage: boolean; onDrop: (event: DragEvent<HTMLDivElement>, day: Date) => void; onResize: (event: LiveSchedulerEvent, endAt: string) => Promise<void>; onSelect: (event: LiveSchedulerEvent) => void }) {
   return <div className="scheduler-time-grid-shell">
     <div className="scheduler-time-header"><span className="scheduler-time-corner">GMT+7</span>{days.map((day) => <strong key={dateKey(day)} className={dateKey(day) === dateKey(new Date()) ? 'today' : ''}>{WEEKDAY[day.getDay()]}<small>{day.getDate()}/{day.getMonth() + 1}</small></strong>)}</div>
     <div className="scheduler-time-body">
@@ -502,21 +528,71 @@ function TimeCalendar({ days, scheduled, basis, canManage, onDrop, onSelect }: {
         const dayEvents = scheduled.filter((event) => sameDay(displayDate(event, basis), day))
         return <div key={dateKey(day)} className="scheduler-time-day" onDragOver={(event) => { if (basis === 'start' && canManage) event.preventDefault() }} onDrop={(event) => onDrop(event, day)}>
           <div className="scheduler-half-hour-lines" aria-hidden="true">{Array.from({ length: (GRID_END_HOUR - GRID_START_HOUR) * 2 }, (_, index) => <i key={index} />)}</div>
-          <div className="scheduler-time-events">{dayEvents.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} style={timeGridStyle(event, basis)} onSelect={onSelect} />)}</div>
+          <div className="scheduler-time-events">{dayEvents.map((event) => <SchedulerEventCard key={event.eventId} event={event} basis={basis} canManage={canManage} style={timeGridStyle(event, basis)} resizable onResize={onResize} onSelect={onSelect} />)}</div>
         </div>
       })}
     </div>
   </div>
 }
 
-function SchedulerEventCard({ event, basis, canManage, compact = false, style, onSelect }: { event: LiveSchedulerEvent; basis: ScheduleBasis; canManage: boolean; compact?: boolean; style?: CSSProperties; onSelect: (event: LiveSchedulerEvent) => void }) {
+function SchedulerEventCard({ event, basis, canManage, compact = false, style, resizable = false, onResize, onSelect }: { event: LiveSchedulerEvent; basis: ScheduleBasis; canManage: boolean; compact?: boolean; style?: CSSProperties; resizable?: boolean; onResize?: (event: LiveSchedulerEvent, endAt: string) => Promise<void>; onSelect: (event: LiveSchedulerEvent) => void }) {
+  const [resizing, setResizing] = useState(false)
+  const [previewEndAt, setPreviewEndAt] = useState('')
   const draggable = basis === 'start' && canManage && event.eventType === 'WORK_ORDER' && !event.scheduleLocked && !TERMINAL.has(event.status.toUpperCase())
+  const resizeEnabled = resizable && draggable && !!event.startAt && !!onResize
   const shownDate = displayDate(event, basis)
-  return <button type="button" style={style} className={`scheduler-event ${event.eventType === 'PM_DUE' ? 'pm' : 'wo'} priority-${(event.priority || 'normal').toLowerCase()}${compact ? ' compact' : ''}`} draggable={draggable} onDragStart={(dragEvent) => { dragEvent.dataTransfer.effectAllowed = 'move'; dragEvent.dataTransfer.setData('text/cev-scheduler-event', event.eventId) }} onClick={() => onSelect(event)} title={`${event.eventId} · ${event.equipmentId}`}>
+  const previewStyle = useMemo<CSSProperties>(() => {
+    if (!previewEndAt || !event.startAt || !style) return style || {}
+    const startMinute = eventMinutes(event.startAt)
+    const endMinute = eventMinutes(previewEndAt)
+    const gridMinutes = (GRID_END_HOUR - GRID_START_HOUR) * 60
+    const duration = Math.max(SNAP_MINUTES, endMinute - startMinute)
+    return { ...style, height: `${(duration / gridMinutes) * 100}%` }
+  }, [event.startAt, previewEndAt, style])
+
+  function startResize(pointerEvent: ReactPointerEvent<HTMLSpanElement>) {
+    if (!resizeEnabled || !event.startAt || !onResize) return
+    pointerEvent.preventDefault()
+    pointerEvent.stopPropagation()
+    const dayElement = pointerEvent.currentTarget.closest('.scheduler-time-day') as HTMLElement | null
+    if (!dayElement) return
+    setResizing(true)
+    const pointerId = pointerEvent.pointerId
+    pointerEvent.currentTarget.setPointerCapture(pointerId)
+    const handle = pointerEvent.currentTarget
+    const onPointerMove = (nativeEvent: PointerEvent) => {
+      const end = snappedResizeEnd(nativeEvent.clientY, dayElement, event.startAt)
+      setPreviewEndAt(end.toISOString())
+    }
+    const finish = (nativeEvent: PointerEvent) => {
+      handle.removeEventListener('pointermove', onPointerMove)
+      handle.removeEventListener('pointerup', finish)
+      handle.removeEventListener('pointercancel', cancel)
+      if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId)
+      const end = snappedResizeEnd(nativeEvent.clientY, dayElement, event.startAt)
+      setResizing(false)
+      setPreviewEndAt('')
+      void onResize(event, end.toISOString())
+    }
+    const cancel = () => {
+      handle.removeEventListener('pointermove', onPointerMove)
+      handle.removeEventListener('pointerup', finish)
+      handle.removeEventListener('pointercancel', cancel)
+      if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId)
+      setResizing(false)
+      setPreviewEndAt('')
+    }
+    handle.addEventListener('pointermove', onPointerMove)
+    handle.addEventListener('pointerup', finish)
+    handle.addEventListener('pointercancel', cancel)
+  }
+
+  return <button type="button" style={previewStyle} className={`scheduler-event ${event.eventType === 'PM_DUE' ? 'pm' : 'wo'} priority-${(event.priority || 'normal').toLowerCase()}${compact ? ' compact' : ''}${resizing ? ' resizing' : ''}`} draggable={draggable && !resizing} onDragStart={(dragEvent) => { dragEvent.dataTransfer.effectAllowed = 'move'; dragEvent.dataTransfer.setData('text/cev-scheduler-event', event.eventId) }} onClick={() => { if (!resizing) onSelect(event) }} title={`${event.eventId} · ${event.equipmentId}`}>
     <span className="scheduler-event-kicker">{event.eventType === 'PM_DUE' ? 'PM' : event.workOrderId || 'WO'}{event.scheduleLocked ? ' · 🔒' : ''}</span>
     <strong>{event.title || (event.eventType === 'PM_DUE' ? 'Bảo trì phòng ngừa' : 'Lệnh công việc')}</strong>
     {!compact ? <span>{event.equipmentId}{event.primaryPersonName ? ` · ${event.primaryPersonName}` : event.primaryTeamName ? ` · ${event.primaryTeamName}` : ''}</span> : null}
     <small>{event.unscheduled ? 'Chưa xếp lịch' : formatShortDate(shownDate)} · {statusLabel(event.status)}</small>
+    {resizeEnabled ? <span className="scheduler-resize-handle" role="separator" aria-label="Kéo để đổi thời lượng" onPointerDown={startResize}><i /></span> : null}
   </button>
 }
 
