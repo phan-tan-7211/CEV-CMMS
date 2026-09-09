@@ -3,6 +3,7 @@ import { ActivityIndicator, AppState, Pressable, RefreshControl, ScrollView, Sty
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { WorkOrderOfflineSyncPanel } from '../components/WorkOrderOfflineSyncPanel'
 import {
   flushDeferredWorkOrderDraftDiscards,
   getWorkOrderListSnapshot,
@@ -148,6 +149,7 @@ export function WorkOrderDashboardScreen({
         <View style={styles.headerCopy}><Text style={styles.title}>Bảng điều khiển Work Order</Text><Text style={styles.subtitle}>{editing ? 'Chỉnh sửa dashboard' : 'Tổng quan công việc bảo trì'}</Text></View>
         <Pressable onPress={() => setEditing((value) => !value)} hitSlop={8} style={styles.iconButton}><Ionicons name={editing ? 'checkmark-outline' : 'options-outline'} size={22} color="#155EEF" /></Pressable>
       </View>
+      {!editing ? <WorkOrderOfflineSyncPanel /> : null}
       <ScrollView refreshControl={!editing ? <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="#155EEF" /> : undefined} contentContainerStyle={styles.content}>
         {error ? <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View> : null}
         {loading && items.length === 0 ? <View style={styles.loading}><ActivityIndicator size="large" color="#155EEF" /></View> : null}
