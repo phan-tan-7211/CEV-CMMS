@@ -12,6 +12,7 @@ import {
   type PreventiveMaintenanceSnapshot,
 } from '../data/livePreventiveMaintenance'
 import './PreventiveMaintenancePanel.css'
+import './PreventiveMaintenancePanel.mobile.css'
 
 type StatusFilter = 'ALL' | 'DUE' | 'ACTIVE' | 'INACTIVE'
 type DetailTab = 'details' | 'schedule' | 'work-orders'
