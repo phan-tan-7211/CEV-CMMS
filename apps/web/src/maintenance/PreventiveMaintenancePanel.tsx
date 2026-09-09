@@ -14,8 +14,9 @@ import {
 import './PreventiveMaintenancePanel.css'
 
 type StatusFilter = 'ALL' | 'DUE' | 'ACTIVE' | 'INACTIVE'
+type DetailTab = 'details' | 'schedule' | 'work-orders'
 
-const EMPTY: PreventiveMaintenanceSnapshot = { schedules: [], equipment: [], meters: [], checklistTemplates: [], people: [], teams: [] }
+const EMPTY: PreventiveMaintenanceSnapshot = { schedules: [], workOrders: [], equipment: [], meters: [], checklistTemplates: [], people: [], teams: [] }
 const TYPE_LABEL: Record<PmScheduleType, string> = { TIME: 'Theo thời gian', METER: 'Theo đồng hồ', EITHER: 'Thời gian hoặc đồng hồ' }
 const UNIT_LABEL: Record<PmTimeUnit, string> = { HOURS: 'giờ', DAYS: 'ngày', WEEKS: 'tuần', MONTHS: 'tháng', YEARS: 'năm' }
 
@@ -48,6 +49,7 @@ function recurrence(schedule: PreventiveMaintenanceSchedule) {
 }
 function canManage(role: string) { return ['SUPERVISOR', 'MANAGER', 'ADMIN'].includes(role) }
 function nextMonthIso() { const date = new Date(); date.setMonth(date.getMonth() + 1); return date.toISOString() }
+function statusText(schedule: PreventiveMaintenanceSchedule) { return schedule.isDue ? 'Đến trigger' : schedule.active ? 'Đang hoạt động' : 'Tạm dừng' }
 
 function draftFromSchedule(schedule?: PreventiveMaintenanceSchedule): PreventiveMaintenanceInput {
   if (!schedule) return {
@@ -78,6 +80,8 @@ export function PreventiveMaintenancePanel() {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [draft, setDraft] = useState<PreventiveMaintenanceInput | null>(null)
+  const [selectedScheduleId, setSelectedScheduleId] = useState('')
+  const [detailTab, setDetailTab] = useState<DetailTab>('details')
 
   async function refresh() {
     const next = await loadPreventiveMaintenance()
@@ -94,6 +98,13 @@ export function PreventiveMaintenancePanel() {
     return () => { active = false }
   }, [])
 
+  useEffect(() => {
+    if (!draft && !selectedScheduleId) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previous }
+  }, [draft, selectedScheduleId])
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase('vi-VN')
     return snapshot.schedules.filter((schedule) => {
@@ -107,6 +118,8 @@ export function PreventiveMaintenancePanel() {
   }, [query, snapshot.schedules, statusFilter])
 
   const metersForDraft = useMemo(() => snapshot.meters.filter((meter) => !draft?.equipmentId || meter.equipmentId === draft.equipmentId), [draft?.equipmentId, snapshot.meters])
+  const selectedSchedule = useMemo(() => snapshot.schedules.find((schedule) => schedule.scheduleId === selectedScheduleId) || null, [selectedScheduleId, snapshot.schedules])
+  const selectedWorkOrders = useMemo(() => snapshot.workOrders.filter((workOrder) => workOrder.scheduleId === selectedScheduleId), [selectedScheduleId, snapshot.workOrders])
 
   function openNew() {
     const next = draftFromSchedule()
@@ -114,6 +127,16 @@ export function PreventiveMaintenancePanel() {
     setDraft(next)
     setError('')
     setMessage('')
+  }
+
+  function openDetail(schedule: PreventiveMaintenanceSchedule) {
+    setSelectedScheduleId(schedule.scheduleId)
+    setDetailTab('details')
+  }
+
+  function editFromDetail(schedule: PreventiveMaintenanceSchedule) {
+    setSelectedScheduleId('')
+    setDraft(draftFromSchedule(schedule))
   }
 
   async function submit(event: FormEvent) {
@@ -177,18 +200,37 @@ export function PreventiveMaintenancePanel() {
       <table className="pm-modern-table">
         <thead><tr><th>Preventive Maintenance</th><th>Thiết bị</th><th>Trigger</th><th>Next due</th><th>Next trigger</th><th>Phụ trách</th><th>Trạng thái</th><th /></tr></thead>
         <tbody>{filtered.map((schedule) => <tr key={schedule.scheduleId}>
-          <td><strong>{schedule.title}</strong><small>{TYPE_LABEL[schedule.scheduleType]} · {recurrence(schedule) || '—'}</small></td>
+          <td><button className="pm-title-button" type="button" onClick={() => openDetail(schedule)}><strong>{schedule.title}</strong><small>{TYPE_LABEL[schedule.scheduleType]} · {recurrence(schedule) || '—'}</small></button></td>
           <td><strong>{schedule.equipmentName}</strong><small>{schedule.equipmentId}</small></td>
           <td><span className="pm-trigger-type">{schedule.scheduleType}</span>{schedule.scheduleType !== 'TIME' ? <small>{schedule.latestMeterValue?.toLocaleString('vi-VN') ?? '—'} / {schedule.nextMeterDue?.toLocaleString('vi-VN') ?? '—'} {schedule.meterUnit}</small> : null}</td>
           <td>{formatDate(schedule.nextDueAt)}{schedule.nextMeterDue != null ? <small>Meter: {schedule.nextMeterDue.toLocaleString('vi-VN')} {schedule.meterUnit}</small> : null}</td>
           <td>{formatDate(triggerDate(schedule))}<small>{schedule.leadTimeMinutes ? `Lead time ${Math.round(schedule.leadTimeMinutes / 1440)} ngày` : 'Không lead time'}</small></td>
           <td>{schedule.defaultPersonName || schedule.defaultTeamName || 'Chưa phân công'}<small>{schedule.checklistTemplateName || 'Chưa gắn checklist'}</small></td>
-          <td><span className={`pm-modern-status ${schedule.isDue ? 'due' : schedule.active ? 'active' : 'inactive'}`}>{schedule.isDue ? 'Đến trigger' : schedule.active ? 'Đang hoạt động' : 'Tạm dừng'}</span>{schedule.lastGeneratedWorkOrderId ? <small>WO gần nhất: {schedule.lastGeneratedWorkOrderId}</small> : null}</td>
-          <td><div className="pm-row-actions">{writable ? <><button type="button" onClick={() => setDraft(draftFromSchedule(schedule))}>Sửa</button><button type="button" onClick={() => void toggle(schedule)} disabled={saving}>{schedule.active ? 'Tạm dừng' : 'Kích hoạt'}</button>{schedule.isDue ? <button type="button" onClick={() => void generate(schedule)} disabled={saving}>Tạo WO</button> : null}</> : null}</div></td>
+          <td><span className={`pm-modern-status ${schedule.isDue ? 'due' : schedule.active ? 'active' : 'inactive'}`}>{statusText(schedule)}</span>{schedule.lastGeneratedWorkOrderId ? <small>WO gần nhất: {schedule.lastGeneratedWorkOrderId}</small> : null}</td>
+          <td><div className="pm-row-actions"><button type="button" onClick={() => openDetail(schedule)}>Chi tiết</button>{writable ? <><button type="button" onClick={() => setDraft(draftFromSchedule(schedule))}>Sửa</button><button type="button" onClick={() => void toggle(schedule)} disabled={saving}>{schedule.active ? 'Tạm dừng' : 'Kích hoạt'}</button>{schedule.isDue ? <button type="button" onClick={() => void generate(schedule)} disabled={saving}>Tạo WO</button> : null}</> : null}</div></td>
         </tr>)}</tbody>
       </table>
       {!filtered.length ? <div className="maintenance-state">Chưa có Preventive Maintenance phù hợp bộ lọc.</div> : null}
     </div>
+
+    {selectedSchedule ? <div className="pm-modern-layer pm-detail-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedScheduleId('') }}><aside className="pm-detail-drawer" role="dialog" aria-modal="true" aria-labelledby="pm-detail-title">
+      <header className="pm-detail-header"><div><p className="eyebrow">Preventive Maintenance</p><h2 id="pm-detail-title">{selectedSchedule.title}</h2><div className="pm-detail-meta"><span>{selectedSchedule.equipmentName}</span><span>{selectedSchedule.equipmentId}</span><span className={`pm-modern-status ${selectedSchedule.isDue ? 'due' : selectedSchedule.active ? 'active' : 'inactive'}`}>{statusText(selectedSchedule)}</span></div></div><div className="pm-detail-header-actions">{writable ? <button type="button" onClick={() => editFromDetail(selectedSchedule)}>Sửa</button> : null}<button type="button" aria-label="Đóng chi tiết PM" onClick={() => setSelectedScheduleId('')}>×</button></div></header>
+      <nav className="pm-detail-tabs" aria-label="Chi tiết Preventive Maintenance">{([['details','Chi tiết'],['schedule','Lịch / Trigger'],['work-orders',`Work Orders (${selectedWorkOrders.length})`]] as Array<[DetailTab,string]>).map(([tab,label]) => <button key={tab} type="button" className={detailTab === tab ? 'active' : ''} aria-current={detailTab === tab ? 'page' : undefined} onClick={() => setDetailTab(tab)}>{label}</button>)}</nav>
+      <div className="pm-detail-content">
+        {detailTab === 'details' ? <div className="pm-detail-grid">
+          <section><h3>Tổng quan</h3><dl><div><dt>Mô tả</dt><dd>{selectedSchedule.description || 'Chưa có mô tả'}</dd></div><div><dt>Ưu tiên</dt><dd>{selectedSchedule.priority}</dd></div><div><dt>Thiết bị</dt><dd>{selectedSchedule.equipmentName}<small>{selectedSchedule.equipmentId}</small></dd></div><div><dt>Trạng thái</dt><dd>{statusText(selectedSchedule)}</dd></div></dl></section>
+          <section><h3>Nguồn lực mặc định</h3><dl><div><dt>Người phụ trách</dt><dd>{selectedSchedule.defaultPersonName || 'Chưa phân công'}</dd></div><div><dt>Nhóm</dt><dd>{selectedSchedule.defaultTeamName || 'Chưa phân công'}</dd></div><div><dt>Checklist</dt><dd>{selectedSchedule.checklistTemplateName || 'Chưa gắn checklist'}</dd></div><div><dt>WO gần nhất</dt><dd>{selectedSchedule.lastGeneratedWorkOrderId || 'Chưa có'}</dd></div></dl></section>
+        </div> : null}
+
+        {detailTab === 'schedule' ? <div className="pm-detail-grid">
+          <section><h3>Trigger</h3><dl><div><dt>Kiểu trigger</dt><dd>{TYPE_LABEL[selectedSchedule.scheduleType]}</dd></div><div><dt>Chu kỳ</dt><dd>{recurrence(selectedSchedule) || '—'}</dd></div><div><dt>Bắt đầu</dt><dd>{formatDate(selectedSchedule.startAt)}</dd></div><div><dt>Next due</dt><dd>{formatDate(selectedSchedule.nextDueAt)}</dd></div><div><dt>Next trigger</dt><dd>{formatDate(triggerDate(selectedSchedule))}<small>{selectedSchedule.leadTimeMinutes ? `Lead time ${Math.round(selectedSchedule.leadTimeMinutes / 1440)} ngày` : 'Không lead time'}</small></dd></div></dl></section>
+          <section><h3>Meter trigger</h3>{selectedSchedule.scheduleType === 'TIME' ? <div className="pm-detail-empty">PM này chỉ chạy theo thời gian.</div> : <dl><div><dt>Đồng hồ</dt><dd>{selectedSchedule.meterName || '—'}</dd></div><div><dt>Giá trị hiện tại</dt><dd>{selectedSchedule.latestMeterValue?.toLocaleString('vi-VN') ?? '—'} {selectedSchedule.meterUnit}</dd></div><div><dt>Ngưỡng kế tiếp</dt><dd>{selectedSchedule.nextMeterDue?.toLocaleString('vi-VN') ?? '—'} {selectedSchedule.meterUnit}</dd></div><div><dt>Chu kỳ meter</dt><dd>{selectedSchedule.meterInterval?.toLocaleString('vi-VN') ?? '—'} {selectedSchedule.meterUnit}</dd></div></dl>}</section>
+        </div> : null}
+
+        {detailTab === 'work-orders' ? <section className="pm-history"><div className="pm-history-head"><div><h3>Work Orders được tạo từ PM</h3><p>Lịch sử thực thi thuộc CMMS; biểu mẫu audit/IATF lấy bằng chứng từ các Work Order này.</p></div>{selectedSchedule.isDue && writable ? <button className="primary" type="button" onClick={() => void generate(selectedSchedule)} disabled={saving}>Tạo Work Order</button> : null}</div>{selectedWorkOrders.length ? <div className="pm-history-list">{selectedWorkOrders.map((workOrder) => <article key={workOrder.workOrderId}><div><strong>{workOrder.workOrderId}</strong><small>{formatDate(workOrder.createdAt)} · {workOrder.reason || selectedSchedule.title}</small></div><div className="pm-history-state"><span>{workOrder.status}</span><small>{workOrder.priority}</small></div></article>)}</div> : <div className="pm-detail-empty">Chưa có Work Order nào được tạo từ kế hoạch PM này.</div>}</section> : null}
+      </div>
+      <footer className="pm-detail-footer"><button type="button" onClick={openScheduler}>Mở Lịch trình</button>{writable ? <button type="button" onClick={() => void toggle(selectedSchedule)} disabled={saving}>{selectedSchedule.active ? 'Tạm dừng PM' : 'Kích hoạt PM'}</button> : null}</footer>
+    </aside></div> : null}
 
     {draft && writable ? <div className="pm-modern-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) setDraft(null) }}><aside className="pm-modern-drawer" role="dialog" aria-modal="true" aria-labelledby="pm-editor-title">
       <header><div><p className="eyebrow">Preventive Maintenance</p><h2 id="pm-editor-title">{draft.scheduleId ? 'Sửa kế hoạch PM' : 'Tạo Preventive Maintenance'}</h2></div><button type="button" aria-label="Đóng" onClick={() => setDraft(null)}>×</button></header>
