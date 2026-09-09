@@ -3,9 +3,9 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, Text
 import { Ionicons } from '@expo/vector-icons'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LiveSelectionModal, type LiveSelectionItem } from '../components/LiveSelectionModal'
+import { DynamicCustomFieldsSection } from '../components/DynamicCustomFieldsSection'
 import { listPeople, listTeams } from '../features/master-data'
-import { listChecklistTemplates, type ChecklistTemplate } from '../features/core-parity/api/coreParityService'
-import { applyChecklistTemplateToWorkOrder } from '../features/core-parity/api/coreIntegrationService'
+import { listChecklistTemplates, type ChecklistTemplate, type CustomFieldDraftValue } from '../features/core-parity/api/coreParityService'
 import {
   getLatestCreateDraftForEquipment,
   getLocalWorkOrderDraft,
@@ -38,6 +38,8 @@ export function CreateWorkOrderScreen({ equipmentId, draftLocalId, onBack, onCre
   const [draftState,setDraftState]=useState<WorkOrderDraftSyncState|null>(null)
   const [templates,setTemplates]=useState<ChecklistTemplate[]>([])
   const [templateId,setTemplateId]=useState('')
+  const [customValues,setCustomValues]=useState<CustomFieldDraftValue[]>([])
+  const [customError,setCustomError]=useState('')
   const localDraftIdRef=useRef<string|undefined>(draftLocalId)
 
   useEffect(()=>{
@@ -58,6 +60,8 @@ export function CreateWorkOrderScreen({ equipmentId, draftLocalId, onBack, onCre
       setPriority(draft.payload.priority||'MEDIUM')
       setPerson(draft.payload.person||null)
       setTeam(draft.payload.team||null)
+      setTemplateId(draft.payload.checklistTemplateId||'')
+      setCustomValues(draft.payload.customFieldValues||[])
       setDraftState(draft.syncState)
     }).finally(()=>{if(active)setHydrated(true)})
     return()=>{active=false}
@@ -65,16 +69,16 @@ export function CreateWorkOrderScreen({ equipmentId, draftLocalId, onBack, onCre
 
   useEffect(()=>{
     if(!hydrated)return undefined
-    const hasContent=Boolean(reason.trim()||person||team||priority!=='MEDIUM')
+    const hasContent=Boolean(reason.trim()||person||team||priority!=='MEDIUM'||templateId||customValues.length)
     if(!hasContent)return undefined
     const handle=setTimeout(()=>{
-      void saveWorkOrderCreateDraft({ localId:localDraftIdRef.current, payload:{equipmentId,reason,priority,person,team} }).then((draft)=>{
+      void saveWorkOrderCreateDraft({ localId:localDraftIdRef.current, payload:{equipmentId,reason,priority,person,team,checklistTemplateId:templateId,customFieldValues:customValues} }).then((draft)=>{
         localDraftIdRef.current=draft.localId
         setDraftState(draft.syncState)
       })
     },800)
     return()=>clearTimeout(handle)
-  },[equipmentId,hydrated,person,priority,reason,team])
+  },[customValues,equipmentId,hydrated,person,priority,reason,team,templateId])
 
   async function openPicker(kind: Exclude<PickerKind,null>) {
     setPicker(kind);setPickerLoading(true);setPickerError('');setPickerItems([])
@@ -92,27 +96,20 @@ export function CreateWorkOrderScreen({ equipmentId, draftLocalId, onBack, onCre
 
   async function submit() {
     if (saving || !reason.trim()) return
+    if (customError) { Alert.alert('Thiếu trường tùy chỉnh', customError); return }
     setSaving(true)
     try {
-      const draft=await saveWorkOrderCreateDraft({ localId:localDraftIdRef.current, payload:{equipmentId,reason,priority,person,team}, submitOnReconnect:true })
+      const draft=await saveWorkOrderCreateDraft({ localId:localDraftIdRef.current, payload:{equipmentId,reason,priority,person,team,checklistTemplateId:templateId,customFieldValues:customValues}, submitOnReconnect:true })
       localDraftIdRef.current=draft.localId
       setDraftState('QUEUED')
       const result=await submitWorkOrderDraft(draft)
       setDraftState(null)
-      let checklistMessage=''
-      if(templateId) {
-        try {
-          const applied=await applyChecklistTemplateToWorkOrder(result.workOrderId,templateId)
-          checklistMessage=`\nĐã thêm ${applied.appliedCount} mục checklist.`
-        } catch(error) {
-          checklistMessage=`\nWork Order đã tạo nhưng checklist chưa áp dụng: ${error instanceof Error?error.message:'lỗi checklist'}`
-        }
-      }
-      Alert.alert('Đã tạo Work Order', `${result.workOrderId}${checklistMessage}`, [{ text: 'Mở Work Order', onPress: () => onCreated(result.workOrderId) }])
+      const extras = [templateId ? 'checklist' : '', customValues.length ? 'custom fields' : ''].filter(Boolean).join(' + ')
+      Alert.alert('Đã tạo Work Order', `${result.workOrderId}${extras ? `\nĐã áp dụng ${extras}.` : ''}`, [{ text: 'Mở Work Order', onPress: () => onCreated(result.workOrderId) }])
     } catch (error) {
       if(isLikelyNetworkError(error)) {
         setDraftState('QUEUED')
-        Alert.alert('Đã lưu bản nháp', 'Thiết bị đang ngoại tuyến. Work Order sẽ tự gửi khi kết nối trở lại.')
+        Alert.alert('Đã lưu bản nháp', 'Thiết bị đang ngoại tuyến. Work Order, checklist và custom fields sẽ tự gửi khi kết nối trở lại.')
       } else {
         setDraftState('ERROR')
         Alert.alert('Chưa thể tạo Work Order', error instanceof Error ? error.message : 'Vui lòng kiểm tra lại dữ liệu.')
@@ -137,8 +134,9 @@ export function CreateWorkOrderScreen({ equipmentId, draftLocalId, onBack, onCre
       <Pressable onPress={()=>void openPicker('people')} style={styles.selectRow}><Text style={person?styles.selectValue:styles.selectPlaceholder}>{person?.title||'Chọn người thực hiện'}</Text><Ionicons name="chevron-forward" size={21} color="#98A2B3" /></Pressable>
       <Text style={styles.fieldLabel}>Nhóm được giao</Text>
       <Pressable onPress={()=>void openPicker('teams')} style={styles.selectRow}><Text style={team?styles.selectValue:styles.selectPlaceholder}>{team?.title||'Chọn nhóm thực hiện'}</Text><Ionicons name="chevron-forward" size={21} color="#98A2B3" /></Pressable>
+      <DynamicCustomFieldsSection entityType="WORK_ORDER" values={customValues} onChange={setCustomValues} onValidationChange={setCustomError}/>
     </ScrollView>
-    <View style={styles.bottom}><Pressable disabled={saving || !reason.trim()} onPress={() => void submit()} style={[styles.submit, (saving || !reason.trim()) && styles.disabled]}>{saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>Tạo Work Order</Text>}</Pressable></View>
+    <View style={styles.bottom}><Pressable disabled={saving || !reason.trim() || Boolean(customError)} onPress={() => void submit()} style={[styles.submit, (saving || !reason.trim() || Boolean(customError)) && styles.disabled]}>{saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>Tạo Work Order</Text>}</Pressable></View>
   </SafeAreaView>
   <LiveSelectionModal visible={picker!==null} title={picker==='people'?'Chọn người':'Chọn nhóm'} items={pickerItems} selectedId={picker==='people'?person?.id:team?.id} loading={pickerLoading} error={pickerError} onClose={()=>setPicker(null)} onSelect={(item)=>{if(picker==='people')setPerson(item);else setTeam(item);setPicker(null)}}/>
   </>
