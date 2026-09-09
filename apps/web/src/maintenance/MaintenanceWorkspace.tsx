@@ -4,7 +4,7 @@ import './MaintenanceWorkflowHistory.css'
 
 const LiveMaintenancePanel = lazy(() => import('../LiveMaintenancePanel').then((module) => ({ default: module.LiveMaintenancePanel })))
 const MaintenanceWorkloadPanel = lazy(() => import('./MaintenanceWorkloadPanel').then((module) => ({ default: module.MaintenanceWorkloadPanel })))
-const LiveMaintenancePlanPanel = lazy(() => import('../LiveMaintenancePlanPanel').then((module) => ({ default: module.LiveMaintenancePlanPanel })))
+const PreventiveMaintenancePanel = lazy(() => import('./PreventiveMaintenancePanel').then((module) => ({ default: module.PreventiveMaintenancePanel })))
 const LiveMaintenanceResultPanel = lazy(() => import('../LiveMaintenanceResultPanel').then((module) => ({ default: module.LiveMaintenanceResultPanel })))
 const LiveHandoverPanel = lazy(() => import('../LiveHandoverPanel').then((module) => ({ default: module.LiveHandoverPanel })))
 const LiveDowntimePanel = lazy(() => import('../LiveDowntimePanel').then((module) => ({ default: module.LiveDowntimePanel })))
@@ -30,7 +30,7 @@ const TABS: TabDefinition[] = [
 function preloadTab(tab: MaintenanceTab) {
   if (tab === 'work-orders') return import('../LiveMaintenancePanel')
   if (tab === 'workload') return import('./MaintenanceWorkloadPanel')
-  if (tab === 'plans') return import('../LiveMaintenancePlanPanel')
+  if (tab === 'plans') return import('./PreventiveMaintenancePanel')
   if (tab === 'results') return import('../LiveMaintenanceResultPanel')
   if (tab === 'handovers') return import('../LiveHandoverPanel')
   return import('../LiveDowntimePanel')
@@ -39,7 +39,7 @@ function preloadTab(tab: MaintenanceTab) {
 function MaintenanceTabPanel({ tab, equipmentId }: { tab: MaintenanceTab; equipmentId: string }) {
   if (tab === 'work-orders') return <LiveMaintenancePanel equipmentId={equipmentId} />
   if (tab === 'workload') return <MaintenanceWorkloadPanel />
-  if (tab === 'plans') return <LiveMaintenancePlanPanel />
+  if (tab === 'plans') return <PreventiveMaintenancePanel />
   if (tab === 'results') return <LiveMaintenanceResultPanel />
   if (tab === 'handovers') return <LiveHandoverPanel />
   return <LiveDowntimePanel />
@@ -58,7 +58,7 @@ export function MaintenanceWorkspace({ equipmentId = '', initialTab = 'work-orde
 
   return <div className="maintenance-workspace">
     <header className="maintenance-workspace-header">
-      <div><p className="eyebrow">CMMS · Thiết bị sản xuất</p><h1>{preventiveMode ? 'Bảo trì phòng ngừa' : 'Bảo trì thiết bị'}</h1><p>{equipmentId ? `Đang theo dõi công việc liên quan đến ${equipmentId}. Mọi kế hoạch và hồ sơ giữ nguyên ngữ cảnh thiết bị.` : preventiveMode ? 'Quản lý kế hoạch PM theo thiết bị, tần suất, trách nhiệm và nội dung công việc. Biểu mẫu IATF được tạo từ dữ liệu CMMS khi cần báo cáo hoặc audit.' : 'Một nơi xử lý công việc bảo trì từ tiếp nhận đến bàn giao. Phân công, My Work và tải nhân sự được tách riêng để supervisor cân bằng công việc mà không làm rối hàng đợi.'}</p></div>
+      <div><p className="eyebrow">CMMS · Thiết bị sản xuất</p><h1>{preventiveMode ? 'Bảo trì phòng ngừa' : 'Bảo trì thiết bị'}</h1><p>{equipmentId ? `Đang theo dõi công việc liên quan đến ${equipmentId}. Mọi kế hoạch và hồ sơ giữ nguyên ngữ cảnh thiết bị.` : preventiveMode ? 'Quản lý kế hoạch PM theo thiết bị, trigger, tần suất, nguồn lực và nội dung công việc. Biểu mẫu IATF được tạo từ dữ liệu CMMS khi cần báo cáo hoặc audit.' : 'Một nơi xử lý công việc bảo trì từ tiếp nhận đến bàn giao. Phân công, My Work và tải nhân sự được tách riêng để supervisor cân bằng công việc mà không làm rối hàng đợi.'}</p></div>
       <div className="maintenance-workspace-current"><span>{equipmentId ? 'Ngữ cảnh thiết bị' : 'Đang xem'}</span><strong>{equipmentId || activeDefinition.label}</strong><small>{equipmentId ? activeDefinition.label : activeDefinition.description}</small></div>
     </header>
 
